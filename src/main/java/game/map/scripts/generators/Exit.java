@@ -214,12 +214,12 @@ public final class Exit extends Generator
 
 				if (xmr.hasAttribute(elem, ATTR_DOOR_DIR)) {
 					int doorSwingDir = xmr.readInt(elem, ATTR_DOOR_DIR);
-					doorSwing.set(ProjectDatabase.EDoorSwings.getName(0));
+					doorSwing.set(ProjectDatabase.EDoorSwings.getName(doorSwingDir));
 				}
 
 				if (xmr.hasAttribute(elem, ATTR_DOOR_SFX)) {
 					int doorSoundID = xmr.readHex(elem, ATTR_DOOR_SFX);
-					doorSound.set(ProjectDatabase.EDoorSounds.getName(0));
+					doorSound.set(ProjectDatabase.EDoorSounds.getName(doorSoundID));
 				}
 				break;
 
