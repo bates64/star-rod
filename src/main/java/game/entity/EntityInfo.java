@@ -264,6 +264,20 @@ public abstract class EntityInfo
 			}
 			return null;
 		}
+
+		public static EntityType lookupByTypeOrAddress(String name)
+		{
+			try {
+				int addr = DataUtils.parseIntString(name);
+				for (EntityType t : EntityType.values()) {
+					if (t.addr == addr)
+						return t;
+				}
+				throw new IllegalArgumentException(String.format("No EntityType with address %s", name));
+			} catch (InvalidInputException e) {
+				return EntityType.valueOf(name);
+			}
+		}
 	}
 
 	public static void loadModels()

@@ -224,7 +224,7 @@ public class EntityComponent extends BaseMarkerComponent
 		Element entityElem = xmr.getUniqueRequiredTag(markerElem, TAG_ENTITY);
 
 		xmr.requiresAttribute(entityElem, ATTR_TYPE);
-		type.set(EntityType.valueOf(xmr.getAttribute(entityElem, ATTR_TYPE)));
+		type.set(EntityType.lookupByTypeOrAddress(xmr.getAttribute(entityElem, ATTR_TYPE)));
 
 		// only serialize fields belonging to type
 
