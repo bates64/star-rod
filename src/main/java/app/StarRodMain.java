@@ -53,6 +53,7 @@ import game.map.editor.common.BaseEditor;
 import game.map.scripts.ScriptGenerator;
 import game.map.scripts.extract.Extractor;
 import game.message.editor.MessageEditor;
+import game.sprite.SpriteLoader;
 import game.sprite.editor.SpriteEditor;
 import game.texture.editor.ImageEditor;
 import game.worldmap.WorldMapEditor;
@@ -532,13 +533,14 @@ public class StarRodMain extends StarRodFrame
 								new CollisionCompiler(map);
 							}
 							else if (args[i].equalsIgnoreCase("-GenerateScript")) {
-								new ScriptGenerator(map);
+								SpriteLoader.loadAnimsMetadata(true);
+								map.saveMap();
 							}
 							else {
 								throw new IllegalStateException();
 							}
 						}
-						catch (BuildException | IOException | InvalidInputException e) {
+						catch (Exception e) {
 							Logger.printStackTrace(e);
 						}
 
