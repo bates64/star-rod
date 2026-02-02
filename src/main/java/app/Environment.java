@@ -42,6 +42,10 @@ import app.config.Config;
 import app.config.Options;
 import app.config.Options.Scope;
 import app.input.IOUtils;
+import app.project.Project;
+import app.project.ProjectManager;
+import app.project.ProjectValidator;
+import app.project.ui.ProjectSwitcherDialog;
 import assets.AssetExtractor;
 import assets.ExpectedAsset;
 import game.ProjectDatabase;
@@ -230,12 +234,7 @@ public abstract class Environment
 
 		try {
 			unpackDatabase();
-			File projDir = readMainConfig();
-
-			if (projDir == null) {
-				// User declined to select a project directory
-				exit();
-			}
+			readMainConfig();
 
 			boolean logDetails = mainConfig.getBoolean(Options.LogDetails);
 			Logger.setDefaultOuputPriority(logDetails ? Priority.DETAIL : Priority.STANDARD);
@@ -249,6 +248,10 @@ public abstract class Environment
 				if (fromJar && gitBuildTag != null && mainConfig.getBoolean(Options.CheckForUpdates))
 					checkForUpdate();
 			}
+
+			File projDir = chooseProjectDir();
+			if (projDir == null)
+				exit();
 
 			LoadingBar.show("Loading Project", true);
 			boolean validProject = loadProject(projDir);
@@ -424,7 +427,7 @@ public abstract class Environment
 		return new File(dotState, "/star-rod/");
 	}
 
-	private static final File readMainConfig() throws IOException
+	private static final void readMainConfig() throws IOException
 	{
 		File configDir = getUserConfigDir();
 
@@ -450,34 +453,25 @@ public abstract class Environment
 			mainConfig = new Config(configFile, Scope.Main);
 			mainConfig.readConfig();
 		}
+	}
 
-		// if current directory seems to be a decomp project, use it regardless of config
-		File decompCfg = new File("./ver/us/", FN_SPLAT);
-		if (decompCfg.exists()) {
+	private static File chooseProjectDir() throws IOException
+	{
+		// if current directory seems to be a decomp project, use it
+		if (ProjectValidator.isCurrentDirectoryProject()) {
 			return new File(".");
 		}
 
-		// get project directory from config
-		String directoryName = mainConfig.getString(Options.ProjPath);
-		if (directoryName != null) {
-			File dir;
-			if (directoryName.startsWith("."))
-				dir = new File(codeSource.getParent(), directoryName);
-			else
-				dir = new File(directoryName);
-
-			if (dir.exists() && dir.isDirectory()) {
-				return dir;
-			}
+		// show project switcher to select a project
+		if (commandLine) {
+			Logger.logError("CWD is not a valid project. Please run Star Rod from a project.");
+			return null;
 		}
-
-		// project directory is missing, prompt to select new one
-		SwingUtils.getErrorDialog()
-			.setTitle("Missing Project Directory")
-			.setMessage("Could not find project directory!", "Please select a new one.")
-			.show();
-
-		return promptSelectProject();
+		Project selected = ProjectSwitcherDialog.showPrompt();
+		if (selected != null) {
+			return selected.getPath();
+		}
+		return null;
 	}
 
 	public static void promptChangeProject() throws IOException
@@ -565,9 +559,6 @@ public abstract class Environment
 		});
 		Directories.setProjectDirectory(projectDirectory.getAbsolutePath());
 
-		mainConfig.setString(Options.ProjPath, projectDirectory.getAbsolutePath());
-		mainConfig.saveConfigFile();
-
 		readProjectConfig();
 		reloadIcons();
 
@@ -587,6 +578,9 @@ public abstract class Environment
 		}
 
 		AssetExtractor.extractAll();
+
+		// Record that this project was opened
+		ProjectManager.getInstance().recordProjectOpened(projectDirectory);
 
 		return true;
 	}

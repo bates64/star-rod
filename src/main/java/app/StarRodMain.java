@@ -29,7 +29,6 @@ import javax.swing.JProgressBar;
 import javax.swing.JScrollBar;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
-import javax.swing.JTextField;
 import javax.swing.ScrollPaneConstants;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
@@ -103,36 +102,9 @@ public class StarRodMain extends StarRodFrame
 		setMinimumSize(new Dimension(480, 32));
 		setLocationRelativeTo(null);
 
-		JTextField projectDirField = new JTextField();
-		projectDirField.setMinimumSize(new Dimension(64, 24));
-		projectDirField.setText(Environment.getProjectDirectory().getAbsolutePath());
-
-		projectDirField.addActionListener((e) -> {
-			File choice = new File(projectDirField.getText());
-			if (choice != null) {
-				try {
-					boolean validProject = Environment.loadProject(choice);
-					if (!validProject) {
-						projectDirField.setText(Environment.getProjectDirectory().getAbsolutePath());
-					}
-				}
-				catch (Throwable t) {
-					displayStackTrace(t);
-				}
-			}
-		});
-
-		JButton chooseFolderButton = new JButton("Choose");
-		chooseFolderButton.addActionListener(e -> {
-			try {
-				Environment.promptChangeProject();
-				projectDirField.setText(Environment.getProjectDirectory().getAbsolutePath());
-			}
-			catch (Throwable t) {
-				displayStackTrace(t);
-			}
-		});
-		buttons.add(chooseFolderButton);
+		// Display current project path (read-only, restart app to change projects)
+		JLabel projectPathLabel = new JLabel(Environment.getProjectDirectory().getAbsolutePath());
+		SwingUtils.setFontSize(projectPathLabel, 11);
 
 		JButton mapEditorButton = new JButton("Map Editor");
 		trySetIcon(mapEditorButton, ExpectedAsset.ICON_MAP_EDITOR);
@@ -289,11 +261,9 @@ public class StarRodMain extends StarRodFrame
 		});
 
 		setLayout(new MigLayout("fillx, ins 16 16 16 16, wrap 2, hidemode 3", "[sg main, grow]8[sg main, grow]"));
-		SwingUtils.addBorderPadding(projectDirField);
 
-		add(new JLabel("Project:"), "sgy field, span, split 3");
-		add(projectDirField, "pushx, growx, sgy field");
-		add(chooseFolderButton, "wrap, sgy field, gapbottom 8");
+		add(new JLabel("Project:"), "span, split 2");
+		add(projectPathLabel, "pushx, growx, wrap, gapbottom 8");
 
 		add(mapEditorButton, "grow");
 		add(spriteEditorButton, "grow");

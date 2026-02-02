@@ -16,8 +16,7 @@ import app.Environment;
 public enum Options
 {
 	// @formatter:off
-	// options for main.cfg, mostly to keep track of user directories
-	ProjPath			(true, Scope.Main, Type.String, "ProjPath", null),
+	// options for main.cfg
 	GameVersion			(true, Scope.Main, Type.String, "GameVersion", "us"),
 
 	LogDetails			(true, Scope.Main, Type.Boolean, "LogDetails", "false"),
