@@ -189,6 +189,14 @@ tasks {
 
         destinationDirectory.set(releaseBuildDir)
     }
+
+    register<JavaExec>("run") {
+        dependsOn("compileApp")
+        group = "application"
+        description = "Run Star Rod"
+        mainClass.set(appMain)
+        classpath = sourceSets.main.get().runtimeClasspath + files(layout.buildDirectory.dir("app"))
+    }
 }
 
 tasks.withType<JavaCompile>().configureEach {
