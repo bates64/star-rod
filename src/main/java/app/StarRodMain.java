@@ -38,6 +38,11 @@ import javax.swing.WindowConstants;
 
 import org.apache.commons.io.FilenameUtils;
 
+import app.build.BuildEnvironment;
+import app.build.BuildOutputListener;
+import app.build.BuildResult;
+import app.build.NixEnvironment;
+import app.build.WslNixOsEnvironment;
 import app.config.Options;
 import app.input.InvalidInputException;
 import assets.AssetHandle;
@@ -193,6 +198,14 @@ public class StarRodMain extends StarRodFrame
 		});
 		buttons.add(extractDataButton);
 
+		JButton buildProjectButton = new JButton("Build Project");
+		trySetIcon(buildProjectButton, ExpectedAsset.ICON_GOLD);
+		SwingUtils.setFontSize(buildProjectButton, 12);
+		buildProjectButton.addActionListener((e) -> {
+			action_buildProject();
+		});
+		buttons.add(buildProjectButton);
+
 		// not ready
 		/*
 		JButton captureThumbnailsButton = new JButton("Capture Thumbnails");
@@ -296,6 +309,8 @@ public class StarRodMain extends StarRodFrame
 
 		add(openConfigDirButton, "grow");
 		add(openProjectDirButton, "grow");
+
+		add(buildProjectButton, "grow, span, gaptop 8");
 
 		add(progressPanel, "grow, span, wrap, gap top 8");
 		add(consoleScrollPane, "grow, span");
@@ -437,6 +452,12 @@ public class StarRodMain extends StarRodFrame
 					.show();
 			}
 		});
+	}
+
+	private void action_buildProject()
+	{
+		BuildOutputDialog dialog = new BuildOutputDialog(this);
+		dialog.startBuild();
 	}
 
 	private void action_captureThumbnails()
@@ -624,6 +645,39 @@ public class StarRodMain extends StarRodFrame
 					}
 					catch (IOException e) {
 						Logger.printStackTrace(e);
+					}
+					break;
+
+				case "-BUILDPROJECT":
+					BuildEnvironment env = null;
+					try {
+						if (Environment.isWindows()) {
+							env = new WslNixOsEnvironment();
+						}
+						else {
+							env = new NixEnvironment();
+						}
+
+						BuildResult result = env.configure(BuildOutputListener.toLogger());
+						if (result.isSuccess()) {
+							result = env.build(BuildOutputListener.toLogger());
+						}
+
+						if (!result.isSuccess()) {
+							throw new StarRodException("Build failed: " + result.getErrorMessage().orElse("unknown"));
+						}
+						Logger.log("ROM built: " + result.getOutputRom().get());
+					}
+					catch (app.build.BuildException e) {
+						if (!e.isSilent()) {
+							Logger.logError("Build environment error: " + e.getMessage());
+						}
+						else {
+							Logger.log(e.getMessage());
+						}
+					}
+					catch (IOException e) {
+						Logger.logError("Build environment error: " + e.getMessage());
 					}
 					break;
 

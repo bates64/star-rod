@@ -101,6 +101,8 @@ public abstract class Environment
 
 	private static boolean isDeluxe = false;
 
+	private static final List<Runnable> shutdownHooks = new ArrayList<>();
+
 	private static String versionString;
 	private static String gitBuildBranch;
 	private static String gitBuildCommit;
@@ -270,7 +272,33 @@ public abstract class Environment
 
 	public static void exit(int status)
 	{
+		runShutdownHooks();
 		System.exit(status);
+	}
+
+	/**
+	 * Adds a hook to be run when the application exits via Environment.exit().
+	 */
+	public static void addShutdownHook(Runnable hook)
+	{
+		synchronized (shutdownHooks) {
+			shutdownHooks.add(hook);
+		}
+	}
+
+	private static void runShutdownHooks()
+	{
+		synchronized (shutdownHooks) {
+			for (Runnable hook : shutdownHooks) {
+				try {
+					hook.run();
+				}
+				catch (Exception e) {
+					Logger.logError("Exception in shutdown hook: " + e.getMessage());
+					Logger.printStackTrace(e);
+				}
+			}
+		}
 	}
 
 	public static boolean isCommandLine()
