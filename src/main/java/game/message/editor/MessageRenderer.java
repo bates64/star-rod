@@ -214,7 +214,7 @@ public class MessageRenderer
 
 		float hfov = 105;
 		float right = (hfov + 360) / 360;
-		float scaleX = RenderState.getViewportSizeX() / 600.0f;
+		float scaleX = editor.glCanvasWidth() / 600.0f;
 
 		BasicTexturedShader shader = ShaderManager.use(BasicTexturedShader.class);
 		shader.texture.bind(glTexID);
@@ -340,8 +340,9 @@ public class MessageRenderer
 
 	public Vector3f getMousePosition(MouseInput mouse, boolean useDepth)
 	{
-		int mouseX = mouse.getPosX();
-		int mouseY = mouse.getPosY();
+		double scale = editor.getCanvasScaleFactor();
+		int mouseX = (int) (mouse.getPosX() * scale);
+		int mouseY = (int) (mouse.getPosY() * scale);
 
 		int width = editor.glCanvasWidth();
 		int height = editor.glCanvasHeight();

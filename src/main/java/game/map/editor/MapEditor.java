@@ -1300,7 +1300,7 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 		}
 
 		// compute the current pick ray
-		currentRay = activeView.camera.getPickRay(mouse.getPosX(), mouse.getPosY());
+		currentRay = activeView.camera.getPickRay((int)(mouse.getPosX() * getCanvasScaleFactor()), (int)(mouse.getPosY() * getCanvasScaleFactor()));
 
 		if (editorMode == EditorMode.VertexPaint) {
 			PaintManager.update(this, deltaTime);
@@ -1779,8 +1779,8 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 	{
 		// switch active viewport
 		boolean holding = mouse.isHoldingLMB() || mouse.isHoldingRMB() || mouse.isHoldingMMB();
-		int mouseX = mouse.getPosX();
-		int mouseY = mouse.getPosY();
+		int mouseX = (int)(mouse.getPosX() * getCanvasScaleFactor());
+		int mouseY = (int)(mouse.getPosY() * getCanvasScaleFactor());
 
 		if (!holding) {
 			switch (viewMode) {
@@ -1816,7 +1816,7 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 		// resize the viewports
 		if (viewMode != ViewMode.ONE && resizingViews) {
 			if (enableXDivider) {
-				int width = glCanvas.getWidth();
+				int width = glCanvasPixelWidth();
 				int hDiv = (int) (hDivRatio * width);
 				hDiv += mouse.getFrameDX();
 				hDivRatio = (float) hDiv / width;
@@ -1828,7 +1828,7 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 			}
 
 			if (enableYDivider) {
-				int height = glCanvas.getHeight();
+				int height = glCanvasPixelHeight();
 				int vDiv = (int) (vDivRatio * height);
 				vDiv += mouse.getFrameDY();
 				vDivRatio = (float) vDiv / height;
@@ -1942,13 +1942,13 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 		// allow viewport resizing
 		resizingViews = false;
 		if (enableXDivider) {
-			int xDiv = (int) (hDivRatio * glCanvas.getWidth());
+			int xDiv = (int) (hDivRatio * glCanvasPixelWidth());
 			int mouseX = mouse.getPosX();
 			if (mouseX > xDiv - BORDER_HALF_SIZE && mouseX < xDiv + BORDER_HALF_SIZE)
 				resizingViews = true;
 		}
 		if (enableYDivider) {
-			int yDiv = (int) (vDivRatio * glCanvas.getHeight());
+			int yDiv = (int) (vDivRatio * glCanvasPixelHeight());
 			int mouseY = mouse.getPosY();
 			if (mouseY > yDiv - BORDER_HALF_SIZE && mouseY < yDiv + BORDER_HALF_SIZE)
 				resizingViews = true;
@@ -3427,8 +3427,8 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 	public RenderingOptions getRenderingOptions()
 	{
 		RenderingOptions opts = new RenderingOptions();
-		opts.canvasSizeX = prevCanvasSize.width;
-		opts.canvasSizeY = prevCanvasSize.height;
+		opts.canvasSizeX = glCanvasPixelWidth();
+		opts.canvasSizeY = glCanvasPixelHeight();
 		opts.editorMode = getEditorMode();
 		opts.selectionMode = selectionManager.getSelectionMode();
 		opts.worldFogEnabled = map.scripts.worldFogSettings.enabled.get();
@@ -3514,9 +3514,9 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 
 		// render UI
 		if (viewMode != ViewMode.ONE) {
-			int sizeX = glCanvas.getWidth();
-			int sizeY = glCanvas.getHeight();
-			RenderState.setViewport(0, 0, sizeX, sizeY);
+			int sizeX = glCanvasWidth();
+			int sizeY = glCanvasHeight();
+			RenderState.setViewport(0, 0, glCanvasPixelWidth(), glCanvasPixelHeight());
 
 			TransformMatrix projMtx = TransformMatrix.identity();
 			projMtx.ortho(0, sizeX, 0, sizeY, -1, 1);
@@ -3656,8 +3656,8 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 
 	private void resizeViews()
 	{
-		int width = glCanvas.getWidth();
-		int height = glCanvas.getHeight();
+		int width = glCanvasPixelWidth();
+		int height = glCanvasPixelHeight();
 		int hDiv = (int) (hDivRatio * width);
 		int vDiv = (int) (vDivRatio * height);
 

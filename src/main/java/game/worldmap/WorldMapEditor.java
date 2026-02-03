@@ -512,7 +512,7 @@ public class WorldMapEditor extends BaseEditor implements MouseManagerListener
 			glTexDirty = false;
 		}
 
-		cam.glSetViewport(0, 0, glCanvasWidth(), glCanvasHeight());
+		cam.glSetViewport(0, 0, glCanvasPixelWidth(), glCanvasPixelHeight());
 
 		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 

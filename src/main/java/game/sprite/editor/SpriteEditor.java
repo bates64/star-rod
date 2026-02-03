@@ -733,8 +733,8 @@ public class SpriteEditor extends BaseEditor
 	{
 		assert (sprite != null);
 		//TODO separate these?
-		sprite.centerImgAtlas(rasterCamera, glCanvasWidth(), glCanvasHeight());
-		sprite.centerRasterAtlas(paletteCamera, glCanvasWidth(), glCanvasHeight());
+		sprite.centerImgAtlas(rasterCamera, glCanvasPixelWidth(), glCanvasPixelHeight());
+		sprite.centerRasterAtlas(paletteCamera, glCanvasPixelWidth(), glCanvasPixelHeight());
 	}
 
 	public void setSprite(SpriteMetadata newMetadata, boolean forceReload)
@@ -1039,7 +1039,7 @@ public class SpriteEditor extends BaseEditor
 
 	private void renderImgAtlas()
 	{
-		rasterCamera.glSetViewport(0, 0, glCanvasWidth(), glCanvasHeight());
+		rasterCamera.glSetViewport(0, 0, glCanvasPixelWidth(), glCanvasPixelHeight());
 
 		if (showBackground)
 			rasterCamera.drawBackground();
@@ -1059,7 +1059,7 @@ public class SpriteEditor extends BaseEditor
 
 	private void renderRasterAtlas()
 	{
-		paletteCamera.glSetViewport(0, 0, glCanvasWidth(), glCanvasHeight());
+		paletteCamera.glSetViewport(0, 0, glCanvasPixelWidth(), glCanvasPixelHeight());
 
 		if (showBackground)
 			paletteCamera.drawBackground();
@@ -1080,7 +1080,7 @@ public class SpriteEditor extends BaseEditor
 
 	private void renderAnim()
 	{
-		animCamera.glSetViewport(0, 0, glCanvasWidth(), glCanvasHeight());
+		animCamera.glSetViewport(0, 0, glCanvasPixelWidth(), glCanvasPixelHeight());
 
 		if (showBackground)
 			animCamera.drawBackground();

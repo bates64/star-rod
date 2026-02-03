@@ -695,7 +695,7 @@ public class ImageEditor extends BaseEditor implements MouseManagerListener, Col
 		colorLerpAlpha = 0.5f * (float) Math.sin(omega * time);
 		colorLerpAlpha = 0.5f + colorLerpAlpha * colorLerpAlpha; // more pleasing
 
-		cam.glSetViewport(0, 0, glCanvasWidth(), glCanvasHeight());
+		cam.glSetViewport(0, 0, glCanvasPixelWidth(), glCanvasPixelHeight());
 
 		if (image != null && bDrawBackground)
 			glClearColor(0.6f, 0.6f, 0.6f, 1.0f);

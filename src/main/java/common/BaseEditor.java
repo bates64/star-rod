@@ -636,16 +636,6 @@ public abstract class BaseEditor extends GLEditor implements Logger.Listener, Mo
 		return deltaTime;
 	}
 
-	public final int glCanvasWidth()
-	{
-		return glCanvas.getWidth();
-	}
-
-	public final int glCanvasHeight()
-	{
-		return glCanvas.getHeight();
-	}
-
 	protected final void revalidateFrame()
 	{
 		frame.revalidate();

@@ -282,7 +282,7 @@ public class MessageEditor extends BaseEditor
 	public void glDraw()
 	{
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		RenderState.setViewport(0, 0, glCanvasWidth(), glCanvasHeight());
+		RenderState.setViewport(0, 0, glCanvasPixelWidth(), glCanvasPixelHeight());
 
 		renderer.render(mouse, printer, cameraX, cameraY, cameraZoom, cameraYaw);
 	}
