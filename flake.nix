@@ -24,6 +24,9 @@ rec {
           packages = [
             gradle
             jdk
+          ] ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
+            # for tinyfiledialogs
+            pkgs.gnome.zenity
           ];
           shellHook =
             let
