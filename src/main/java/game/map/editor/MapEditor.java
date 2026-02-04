@@ -3699,31 +3699,37 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 	 *
 	 * @param map
 	 */
-	private void loadMapResources(boolean reloadTextures)
+	private boolean tryLoadTextures(boolean reloadTextures)
 	{
-		boolean loadedTextures = !reloadTextures;
-		if (!loadedTextures)
-			loadedTextures = TextureManager.load(map.texName);
+		if (!reloadTextures)
+			return true;
+		return TextureManager.load(map.texName);
+	}
 
-		while (!loadedTextures) {
-			int choice = SwingUtils.getConfirmDialog()
-				.setParent(gui)
-				.setTitle("Missing Texture Archive")
-				.setMessage("Could not open texture archive \"" + map.texName + "\", select a different one?")
-				.setOptionsType(JOptionPane.YES_NO_OPTION)
-				.choose();
+	/**
+	 * Shows dialog to select alternate texture archive.
+	 * @return the selected texture name, or null if user cancelled
+	 */
+	private String promptForTextureArchive()
+	{
+		int choice = SwingUtils.getConfirmDialog()
+			.setParent(gui)
+			.setTitle("Missing Texture Archive")
+			.setMessage("Could not open texture archive \"" + map.texName + "\", select a different one?")
+			.setOptionsType(JOptionPane.YES_NO_OPTION)
+			.choose();
 
-			if (choice == JOptionPane.YES_OPTION) {
-				File texFile = SelectTexDialog.showPrompt();
-				if (texFile != null) {
-					String texName = FilenameUtils.getBaseName(texFile.getName());
-					loadedTextures = TextureManager.load(texName);
-				}
+		if (choice == JOptionPane.YES_OPTION) {
+			File texFile = SelectTexDialog.showPrompt();
+			if (texFile != null) {
+				return FilenameUtils.getBaseName(texFile.getName());
 			}
-			else
-				break;
 		}
+		return null;
+	}
 
+	private void loadMapResourcesAfterTextures()
+	{
 		TextureManager.assignModelTextures(map);
 
 		for (Model mdl : map.modelTree)
@@ -3954,19 +3960,37 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 		if (newMap == null)
 			return;
 
-		// this MUST run with GLContext available
+		final boolean[] texturesLoaded = { false };
+		final boolean[] reloadTexturesFlag = { false };
+
+		// Release old resources and try to load textures
 		runInContext(() -> {
 			String prevTexName = (thumbnailMode || map == null) ? null : map.texName;
-			boolean reloadTextures = !newMap.texName.equals(prevTexName);
+			reloadTexturesFlag[0] = !newMap.texName.equals(prevTexName);
 
 			if (map != null)
-				releaseMapResources(reloadTextures);
+				releaseMapResources(reloadTexturesFlag[0]);
 
 			loading = true;
 			map = newMap;
 
-			loadMapResources(reloadTextures);
+			texturesLoaded[0] = tryLoadTextures(reloadTexturesFlag[0]);
+		});
 
+		// If textures failed, show dialog (outside runInContext to avoid deadlock)
+		while (!texturesLoaded[0]) {
+			String altTexName = promptForTextureArchive();
+			if (altTexName == null)
+				break;
+
+			runInContext(() -> {
+				texturesLoaded[0] = TextureManager.load(altTexName);
+			});
+		}
+
+		// Rest of map loading
+		runInContext(() -> {
+			loadMapResourcesAfterTextures();
 			loadOverrides();
 
 			updateRecentMaps();
@@ -3983,10 +4007,9 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 			}
 
 			if (!thumbnailMode) {
-				final Map guiMap = newMap;
 				SwingUtilities.invokeLater(() -> {
 					updateWindowTitle();
-					gui.setMap(guiMap);
+					gui.setMap(map);
 				});
 
 				if (map.editorData != null) {
