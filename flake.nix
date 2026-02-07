@@ -19,29 +19,32 @@ rec {
         jdk = pkgs."jdk${toString javaVersion}";
         gradle = pkgs.gradle.override { java = jdk; };
         lombok = pkgs.lombok.override { inherit jdk; };
+        jdtls = pkgs.jdt-language-server.override { inherit jdk; };
       in {
         default = pkgs.mkShell {
           packages = [
             gradle
             jdk
+            jdtls
           ] ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
             # for tinyfiledialogs
             pkgs.gnome.zenity
           ];
           shellHook =
             let
-              loadLombok = "-javaagent:${lombok}/share/java/lombok.jar";
+              javaOptions = "-javaagent:${lombok}/share/java/lombok.jar -Dsun.java2d.uiScale=2 -Dsun.awt.xembedserver=true";
               prev = "\${JAVA_TOOL_OPTIONS:+ $JAVA_TOOL_OPTIONS}";
             in
             ''
-              export JAVA_TOOL_OPTIONS="${loadLombok}${prev}"
+              export JAVA_TOOL_OPTIONS="${javaOptions}${prev}"
               export JAVA_HOME="${jdk}"
               export GRADLE_HOME="${gradle}"
               export LD_LIBRARY_PATH="${makeLibPath pkgs}"
+              export _JAVA_AWT_WM_NONREPARENTING=1 # Wayland issues
             '';
         };
       });
-      packages = forEachSupportedSystem ({ pkgs }: 
+      packages = forEachSupportedSystem ({ pkgs }:
         let
           gradle-init-script = (import gradle-dot-nix {
             inherit pkgs;
