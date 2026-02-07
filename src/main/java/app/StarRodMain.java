@@ -28,11 +28,13 @@ import javax.swing.JPopupMenu;
 import javax.swing.JProgressBar;
 import javax.swing.JScrollBar;
 import javax.swing.JScrollPane;
+import javax.swing.JSplitPane;
 import javax.swing.JTextArea;
 import javax.swing.ScrollPaneConstants;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
+import javax.swing.UIManager;
 import javax.swing.WindowConstants;
 
 import org.apache.commons.io.FilenameUtils;
@@ -44,6 +46,7 @@ import app.build.NixEnvironment;
 import app.build.WslNixOsEnvironment;
 import app.config.Options;
 import app.input.InvalidInputException;
+import app.pane.Dock;
 import assets.AssetHandle;
 import assets.AssetManager;
 import assets.ExpectedAsset;
@@ -62,11 +65,16 @@ import game.texture.editor.ImageEditor;
 import game.worldmap.WorldMapEditor;
 import net.miginfocom.swing.MigLayout;
 import util.Logger;
-import util.Logger.Listener;
 import util.Priority;
 
 public class StarRodMain extends StarRodFrame
 {
+	// Layout constants
+	private static final int MIN_PANE_WIDTH = 250;
+	private static final int MIN_WINDOW_WIDTH = MIN_PANE_WIDTH * 3;
+	private static final int MIN_WINDOW_HEIGHT = 600;
+	private static final int MIN_DOCK_HEIGHT = 100;
+
 	public static void main(String[] args) throws InterruptedException
 	{
 		boolean isCommandLine = args.length > 0 || GraphicsEnvironment.isHeadless();
@@ -83,13 +91,6 @@ public class StarRodMain extends StarRodFrame
 		}
 	}
 
-	private final JTextArea consoleTextArea;
-	private final Listener consoleListener;
-
-	private final JPanel progressPanel;
-	private final JLabel progressLabel;
-	private final JProgressBar progressBar;
-
 	private boolean taskRunning = false;
 
 	private List<JButton> buttons = new ArrayList<>();
@@ -98,9 +99,8 @@ public class StarRodMain extends StarRodFrame
 	{
 		setTitle(Environment.decorateTitle("Star Rod"));
 		setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+		setMinimumSize(new Dimension(MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT));
 
-		setMinimumSize(new Dimension(480, 32));
-		setLocationRelativeTo(null);
 
 		// Display current project path (read-only, restart app to change projects)
 		JLabel projectPathLabel = new JLabel(Environment.getProjectDirectory().getAbsolutePath());
@@ -136,7 +136,7 @@ public class StarRodMain extends StarRodFrame
 		globalsEditorButton.addActionListener((e) -> {
 			action_openGlobalsEditor();
 		});
-		buttons.add(spriteEditorButton);
+		buttons.add(globalsEditorButton);
 
 		JButton worldEditorButton = new JButton("World Map Editor");
 		trySetIcon(worldEditorButton, ExpectedAsset.ICON_WORLD_EDITOR);
@@ -162,6 +162,7 @@ public class StarRodMain extends StarRodFrame
 		});
 		buttons.add(themesMenuButton);
 
+		// Extract Data button
 		JButton extractDataButton = new JButton("Extract Map Data");
 		trySetIcon(extractDataButton, ExpectedAsset.ICON_EXTRACT);
 		SwingUtils.setFontSize(extractDataButton, 12);
@@ -170,6 +171,7 @@ public class StarRodMain extends StarRodFrame
 		});
 		buttons.add(extractDataButton);
 
+		// Build Project button
 		JButton buildProjectButton = new JButton("Build Project");
 		trySetIcon(buildProjectButton, ExpectedAsset.ICON_GOLD);
 		SwingUtils.setFontSize(buildProjectButton, 12);
@@ -178,17 +180,7 @@ public class StarRodMain extends StarRodFrame
 		});
 		buttons.add(buildProjectButton);
 
-		// not ready
-		/*
-		JButton captureThumbnailsButton = new JButton("Capture Thumbnails");
-		trySetIcon(captureThumbnailsButton, ExpectedAsset.ICON_THEMES);
-		SwingUtils.setFontSize(captureThumbnailsButton, 12);
-		captureThumbnailsButton.addActionListener((e) -> {
-			action_captureThumbnails();
-		});
-		buttons.add(captureThumbnailsButton);
-		*/
-
+		// Open directories buttons
 		JButton openConfigDirButton = new JButton("Open Config Dir");
 		trySetIcon(openConfigDirButton, ExpectedAsset.ICON_SILVER);
 		SwingUtils.setFontSize(openConfigDirButton, 12);
@@ -205,39 +197,7 @@ public class StarRodMain extends StarRodFrame
 		});
 		buttons.add(openProjectDirButton);
 
-		consoleTextArea = new JTextArea();
-		consoleTextArea.setRows(8);
-		consoleTextArea.setEditable(false);
-
-		JScrollPane consoleScrollPane = new JScrollPane(consoleTextArea);
-		consoleScrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED);
-		//	consoleScrollPane.setVisible(false);
-
-		consoleListener = (msg) -> {
-			consoleTextArea.append(msg.text + System.lineSeparator());
-			JScrollBar vertical = consoleScrollPane.getVerticalScrollBar();
-			vertical.setValue(vertical.getMaximum());
-		};
-
-		JMenuItem copyText = new JMenuItem("Copy Text");
-		JPopupMenu copyTextMenu = new JPopupMenu();
-		copyTextMenu.add(copyText);
-		consoleScrollPane.setComponentPopupMenu(copyTextMenu);
-		copyText.addActionListener(e -> {
-			StringSelection stringSelection = new StringSelection(consoleTextArea.getText());
-			Clipboard cb = Toolkit.getDefaultToolkit().getSystemClipboard();
-			cb.setContents(stringSelection, null);
-		});
-
-		progressLabel = new JLabel("Waiting...");
-		progressBar = new JProgressBar();
-		progressBar.setIndeterminate(true);
-		progressPanel = new JPanel();
-		progressPanel.setLayout(new MigLayout("fillx"));
-		progressPanel.add(progressLabel, "wrap");
-		progressPanel.add(progressBar, "grow, wrap 8");
-		progressPanel.setVisible(false);
-
+		// Window close handling
 		setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
 		addWindowListener(new java.awt.event.WindowAdapter() {
 			@Override
@@ -260,37 +220,65 @@ public class StarRodMain extends StarRodFrame
 			}
 		});
 
-		setLayout(new MigLayout("fillx, ins 16 16 16 16, wrap 2, hidemode 3", "[sg main, grow]8[sg main, grow]"));
+		// Left pane - buttons panel
+		JPanel leftPane = new JPanel(new MigLayout("fill, ins 8, wrap 1"));
+		leftPane.add(new JLabel("Project:"), "split 2");
+		leftPane.add(projectPathLabel, "pushx, growx, gapbottom 8, wrap");
 
-		add(new JLabel("Project:"), "span, split 2");
-		add(projectPathLabel, "pushx, growx, wrap, gapbottom 8");
+		JPanel buttonsPanel = new JPanel(new MigLayout("fillx, wrap 1, hidemode 3"));
+		buttonsPanel.add(mapEditorButton, "growx");
+		buttonsPanel.add(spriteEditorButton, "growx");
+		buttonsPanel.add(globalsEditorButton, "growx");
+		buttonsPanel.add(msgEditorButton, "growx");
+		buttonsPanel.add(worldEditorButton, "growx");
+		buttonsPanel.add(imageEditorButton, "growx");
+		buttonsPanel.add(themesMenuButton, "growx");
+		buttonsPanel.add(extractDataButton, "growx");
+		buttonsPanel.add(openConfigDirButton, "growx");
+		buttonsPanel.add(openProjectDirButton, "growx");
+		buttonsPanel.add(buildProjectButton, "growx, gaptop 8");
 
-		add(mapEditorButton, "grow");
-		add(spriteEditorButton, "grow");
+		leftPane.add(buttonsPanel, "growx");
+		leftPane.setMinimumSize(new Dimension(MIN_PANE_WIDTH, 0));
 
-		add(globalsEditorButton, "grow");
-		add(msgEditorButton, "grow");
+		// Middle pane - placeholder for now
+		JPanel middlePane = new JPanel(new MigLayout("fill, ins 8"));
+		middlePane.add(new JLabel("Middle Pane"), "center");
+		middlePane.setMinimumSize(new Dimension(MIN_PANE_WIDTH, 0));
 
-		add(worldEditorButton, "grow");
-		add(imageEditorButton, "grow");
+		// Right pane - placeholder for now
+		JPanel rightPane = new JPanel(new MigLayout("fill, ins 8"));
+		rightPane.add(new JLabel("Right Pane"), "center");
+		rightPane.setMinimumSize(new Dimension(MIN_PANE_WIDTH, 0));
 
-		add(themesMenuButton, "grow");
-		add(extractDataButton, "grow");
+		// Create horizontal split panes (left | middle | right)
+		JSplitPane leftMiddleSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, leftPane, middlePane);
+		leftMiddleSplit.setOneTouchExpandable(false);
+		leftMiddleSplit.setDividerSize(1);
+		leftMiddleSplit.setResizeWeight(0.0); // Left pane stays fixed, middle gets extra space
 
-		add(openConfigDirButton, "grow");
-		add(openProjectDirButton, "grow");
+		JSplitPane mainHorizontalSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, leftMiddleSplit, rightPane);
+		mainHorizontalSplit.setOneTouchExpandable(false);
+		mainHorizontalSplit.setDividerSize(1);
+		mainHorizontalSplit.setResizeWeight(1.0); // Middle gets priority, right stays fixed
 
-		add(buildProjectButton, "grow, span, gaptop 8");
+		// Dock (bottom panel)
+		Dock dock = new Dock();
+		dock.setMinimumSize(new Dimension(0, MIN_DOCK_HEIGHT));
 
-		add(progressPanel, "grow, span, wrap, gap top 8");
-		add(consoleScrollPane, "grow, span");
+		// Create vertical split pane (middlePane | dock)
+		JSplitPane verticalSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, mainHorizontalSplit, dock);
+		verticalSplit.setOneTouchExpandable(false);
+		verticalSplit.setDividerSize(4);
+		verticalSplit.setResizeWeight(1.0); // Give most space to top pane
+
+		// Layout
+		setLayout(new MigLayout("fill, ins 0"));
+		add(verticalSplit, "grow, push");
 
 		pack();
-		setResizable(false);
 		setLocationRelativeTo(null);
 		setVisible(true);
-
-		Logger.addListener(consoleListener);
 	}
 
 	public interface EditorWork

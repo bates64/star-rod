@@ -9,6 +9,7 @@ import java.util.regex.Pattern;
 import app.Environment;
 import assets.AssetHandle;
 import assets.AssetManager;
+import game.map.Map;
 import util.Logger;
 
 public class MapAsset extends AssetHandle
@@ -62,5 +63,15 @@ public class MapAsset extends AssetHandle
 			Logger.logError(e.getMessage());
 			desc = "READ ERROR";
 		}
+	}
+
+	@Override
+	public String getAssetName() {
+		return Map.deriveName(this);
+	}
+
+	@Override
+	public String getAssetDescription() {
+		return desc;
 	}
 }

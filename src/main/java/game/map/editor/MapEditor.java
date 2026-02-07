@@ -25,6 +25,7 @@ import java.util.Deque;
 import java.util.IdentityHashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import javax.imageio.ImageIO;
@@ -3708,6 +3709,7 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 
 	/**
 	 * Shows dialog to select alternate texture archive.
+	 * Must be called outside runInContext to avoid deadlock with EDT.
 	 * @return the selected texture name, or null if user cancelled
 	 */
 	private String promptForTextureArchive()
@@ -3960,6 +3962,8 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 		if (newMap == null)
 			return;
 
+		final CountDownLatch edtLatch = thumbnailMode ? null : new CountDownLatch(1);
+		final Map guiMap = newMap;
 		final boolean[] texturesLoaded = { false };
 		final boolean[] reloadTexturesFlag = { false };
 
@@ -4009,7 +4013,8 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 			if (!thumbnailMode) {
 				SwingUtilities.invokeLater(() -> {
 					updateWindowTitle();
-					gui.setMap(map);
+					gui.setMap(guiMap);
+					edtLatch.countDown();
 				});
 
 				if (map.editorData != null) {
@@ -4028,6 +4033,16 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 				}
 			}
 		});
+
+		// Wait for invokeLater above to complete
+		if (edtLatch != null) {
+			try {
+				edtLatch.await();
+			}
+			catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+			}
+		}
 
 		loading = false;
 	}

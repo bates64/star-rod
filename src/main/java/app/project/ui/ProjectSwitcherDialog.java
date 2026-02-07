@@ -105,7 +105,6 @@ public class ProjectSwitcherDialog extends StarRodFrame
 	{
 		super("Star Rod Launcher");
 		setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
-		setIconImage(Environment.getDefaultIconImage());
 
 		addWindowListener(new WindowAdapter() {
 			@Override

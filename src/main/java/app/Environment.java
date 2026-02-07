@@ -28,6 +28,7 @@ import java.util.regex.Pattern;
 import javax.imageio.ImageIO;
 import javax.swing.ImageIcon;
 import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
 
 import org.apache.commons.io.FileExistsException;
 import org.apache.commons.io.FileUtils;
@@ -244,6 +245,7 @@ public abstract class Environment
 				// UIManager.put("TabbedPane.tabWidthMode", "compact");
 				// UIManager.put("TabbedPane.showTabSeparators", true);
 				// UIManager.put("TabbedPane.tabSeparatorsFullHeight", true);
+				UIManager.put("SplitPaneDivider.style", "plain");
 
 				if (fromJar && gitBuildTag != null && mainConfig.getBoolean(Options.CheckForUpdates))
 					checkForUpdate();

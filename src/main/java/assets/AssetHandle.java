@@ -19,4 +19,17 @@ public class AssetHandle extends File
 		this.assetDir = assetDir;
 		assetPath = path.replaceAll("\\\\", "/"); // resolve all paths with '/' as separator
 	}
+
+	public String getAssetName() {
+		int slash = assetPath.lastIndexOf('/');
+		if (slash >= 0) {
+			return assetPath.substring(slash + 1);
+		} else {
+			return assetPath;
+		}
+	}
+
+	public String getAssetDescription() {
+		return null;
+	}
 }
