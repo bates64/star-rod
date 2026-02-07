@@ -1,4 +1,4 @@
-package app.project;
+package project;
 
 import java.io.File;
 import java.io.FileReader;
@@ -30,7 +30,7 @@ public class JsonProjectRepository implements ProjectRepository
 
 	public JsonProjectRepository()
 	{
-		this.projectsFile = new File(Environment.getUserConfigDir(), PROJECTS_FILE);
+		this.projectsFile = new File(Environment.getUserStateDir(), PROJECTS_FILE);
 		this.gson = new GsonBuilder()
 			.setPrettyPrinting()
 			.create();

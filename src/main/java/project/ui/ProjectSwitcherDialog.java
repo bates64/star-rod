@@ -1,4 +1,4 @@
-package app.project.ui;
+package project.ui;
 
 import java.awt.CardLayout;
 import java.awt.Color;
@@ -50,9 +50,9 @@ import app.SwingUtils;
 import app.Themes;
 import app.Themes.Theme;
 import app.config.Options;
-import app.project.Project;
-import app.project.ProjectManager;
-import app.project.ProjectValidator;
+import project.Project;
+import project.ProjectManager;
+import project.ProjectValidator;
 import game.map.editor.ui.dialogs.ChooseDialogResult;
 import game.map.editor.ui.dialogs.DirChooser;
 import net.miginfocom.swing.MigLayout;

@@ -1,4 +1,4 @@
-package app.project.ui;
+package project.ui;
 
 import java.awt.Component;
 import java.time.Instant;
@@ -14,7 +14,7 @@ import javax.swing.ListCellRenderer;
 import javax.swing.SwingConstants;
 
 import app.SwingUtils;
-import app.project.Project;
+import project.Project;
 import net.miginfocom.swing.MigLayout;
 
 /**
