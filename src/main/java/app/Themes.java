@@ -107,7 +107,8 @@ public abstract class Themes
 		switch (theme.source) {
 			case CUSTOM_JSON:
 				try {
-					IntelliJTheme.setup(new BufferedInputStream(new FileInputStream(new File(theme.className))));
+					File file = new File(Directories.DATABASE_THEMES.toFile(), theme.fileName);
+					IntelliJTheme.setup(new BufferedInputStream(new FileInputStream(file)));
 					currentTheme = theme;
 					return;
 				}
