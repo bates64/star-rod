@@ -71,6 +71,8 @@ public abstract class Environment
 	public static ImageIcon ICON_ERROR = null;
 
 	private static final int NUM_THREADS = Runtime.getRuntime().availableProcessors();
+
+	public static final int SCROLL_INCREMENT = 16;
 	public static final ExecutorService GLOBAL_EXECUTOR = Executors.newFixedThreadPool(NUM_THREADS);
 
 	public static ExecutorService getExecutor()
@@ -254,6 +256,8 @@ public abstract class Environment
 				UIManager.put("SplitPaneDivider.style", "plain");
 				UIManager.put("Component.arrowType", "chevron");
 				UIManager.put("Component.focusWidth", 1);
+
+				fixScrollSpeed();
 
 				if (fromJar && gitBuildTag != null && mainConfig.getBoolean(Options.CheckForUpdates))
 					checkForUpdate();
@@ -722,5 +726,18 @@ public abstract class Environment
 			Logger.logError("Exception while loading image " + resourceName);
 			return null;
 		}
+	}
+
+	/** Sets a reasonable scroll bar unit increment globally via an AWTEventListener. */
+	private static void fixScrollSpeed()
+	{
+		Toolkit.getDefaultToolkit().addAWTEventListener(e -> {
+			if (e.getID() == java.awt.event.ContainerEvent.COMPONENT_ADDED) {
+				var ce = (java.awt.event.ContainerEvent) e;
+				if (ce.getChild() instanceof javax.swing.JScrollBar scrollBar) {
+					scrollBar.setUnitIncrement(SCROLL_INCREMENT);
+				}
+			}
+		}, java.awt.AWTEvent.CONTAINER_EVENT_MASK);
 	}
 }
