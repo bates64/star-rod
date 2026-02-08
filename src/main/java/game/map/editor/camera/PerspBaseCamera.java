@@ -109,7 +109,14 @@ public abstract class PerspBaseCamera extends MapEditCamera
 			currentZfar = scriptData.camFarClip.get();
 		}
 
-		projMatrix.perspective(currentVfov, currentAspectRatio, currentZnear, currentZfar);
+		if (editor.thumbnailMode) {
+			float halfH = editor.thumbnailOrthoHalfHeight;
+			float halfW = halfH * currentAspectRatio;
+			projMatrix.ortho(-halfW, halfW, -halfH, halfH, -currentZfar, currentZfar);
+		}
+		else {
+			projMatrix.perspective(currentVfov, currentAspectRatio, currentZnear, currentZfar);
+		}
 	}
 
 	@Override

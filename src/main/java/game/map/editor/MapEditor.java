@@ -399,6 +399,7 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 	public PostProcessFX postProcessFX = PostProcessFX.NONE;
 
 	public boolean thumbnailMode = false;
+	public float thumbnailOrthoHalfHeight = 500f;
 	public boolean showModels;
 	public boolean showColliders;
 	public boolean showZones;
@@ -747,10 +748,61 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 			obj.hidden = true;
 		for (MapObject obj : getCollisionMap().zoneTree)
 			obj.hidden = true;
-		// for(MapObject obj : map.markerTree) obj.hidden = true;
 
 		if (!thumbnailInitialized)
 			initThumbnail();
+
+		// Isometric camera: 45 degrees right, 45 degrees down
+		var camera = perspectiveView.camera;
+		camera.yaw = -45f;
+		camera.pitch = 45f;
+
+		// Frame the map's model tree AABB
+		BoundingBox aabb = map.modelTree.getRoot().getUserObject().AABB;
+		Vector3f center = aabb.getCenter();
+		camera.setPosition(center);
+
+		// Project all 8 AABB corners through the view rotation to find
+		// the screen-space bounding box. View = Rx(pitch) * Ry(yaw) * (p - center).
+		Vector3f bmin = aabb.getMin();
+		Vector3f bmax = aabb.getMax();
+		float[] xs = { bmin.x, bmax.x };
+		float[] ys = { bmin.y, bmax.y };
+		float[] zs = { bmin.z, bmax.z };
+
+		double yawRad = Math.toRadians(-45);
+		double pitchRad = Math.toRadians(45);
+		double cy = Math.cos(yawRad), sy = Math.sin(yawRad);
+		double cp = Math.cos(pitchRad), sp = Math.sin(pitchRad);
+
+		float screenMinX = Float.MAX_VALUE, screenMaxX = -Float.MAX_VALUE;
+		float screenMinY = Float.MAX_VALUE, screenMaxY = -Float.MAX_VALUE;
+		for (float wx : xs) {
+			for (float wy : ys) {
+				for (float wz : zs) {
+					// translate to camera-relative
+					float px = wx - center.x;
+					float py = wy - center.y;
+					float pz = wz - center.z;
+					// Ry(yaw)
+					float rx = (float)(px * cy + pz * sy);
+					float ry = py;
+					float rz = (float)(-px * sy + pz * cy);
+					// Rx(pitch)
+					float sx = rx;
+					float syt = (float)(ry * cp - rz * sp);
+					// screen X = sx, screen Y = syt
+					screenMinX = Math.min(screenMinX, sx);
+					screenMaxX = Math.max(screenMaxX, sx);
+					screenMinY = Math.min(screenMinY, syt);
+					screenMaxY = Math.max(screenMaxY, syt);
+				}
+			}
+		}
+
+		float halfW = (screenMaxX - screenMinX) / 2f;
+		float halfH = (screenMaxY - screenMinY) / 2f;
+		thumbnailOrthoHalfHeight = Math.max(Math.max(halfW, halfH), 50f);
 
 		perspectiveView.resize(0, 0, size, size);
 
