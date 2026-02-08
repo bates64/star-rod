@@ -11,10 +11,13 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
 import javax.swing.UIManager;
+import javax.swing.SwingUtilities;
 
 import org.apache.commons.text.WordUtils;
 
 import com.formdev.flatlaf.IntelliJTheme;
+
+import com.jthemedetecor.OsThemeDetector;
 
 import app.input.IOUtils;
 import util.CaseInsensitiveMap;
@@ -154,14 +157,44 @@ public abstract class Themes
 
 	public static void setThemeByKey(String themeKey)
 	{
-		if (themeKey == null || themeKey.isEmpty())
-			themeKey = DEFAULT_THEME.key;
+		if (themeKey == null || themeKey.isEmpty()) {
+			setSystemTheme();
+			return;
+		}
 
 		if (currentTheme != null && themeKey.equalsIgnoreCase(currentTheme.key))
 			return;
 
 		Theme newTheme = THEME_MAP.get(themeKey);
 		setTheme(newTheme);
+	}
+
+	private static boolean isSystem = false;
+
+	public static void setSystemTheme()
+	{
+		isSystem = true;
+		if (OsThemeDetector.getDetector().isDark())
+			setThemeByKey("macOS Dark");
+		else
+			setThemeByKey("macOS Light");
+	}
+
+	public static boolean isSystemTheme()
+	{
+		return isSystem;
+	}
+
+	private static void registerSystemThemeListener()
+	{
+    	final OsThemeDetector detector = OsThemeDetector.getDetector();
+        detector.registerListener(isDark -> {
+            if (isSystem) {
+                SwingUtilities.invokeLater(() -> {
+                    setSystemTheme();
+                });
+            }
+        });
 	}
 
 	private static void addCustomJarTheme(File file)
@@ -200,10 +233,11 @@ public abstract class Themes
 	static {
 		if (!Environment.isCommandLine()) {
 			// @formatter:off
-			DEFAULT_THEME = Theme.createBuiltIn("Flat Dark",			     "com.formdev.flatlaf.FlatDarkLaf");
+            DEFAULT_THEME = Theme.createBuiltIn("Flat Light",              "com.formdev.flatlaf.FlatLightLaf");
 			addTheme(DEFAULT_THEME);
-
-            addTheme(Theme.createBuiltIn("Flat Light",               	   "com.formdev.flatlaf.FlatLightLaf"));
+            addTheme(Theme.createBuiltIn("Flat Dark",			           "com.formdev.flatlaf.FlatDarkLaf"));
+            addTheme(Theme.createBuiltIn("macOS Light",               	   "com.formdev.flatlaf.themes.FlatMacLightLaf"));
+            addTheme(Theme.createBuiltIn("macOS Dark",               	   "com.formdev.flatlaf.themes.FlatMacDarkLaf"));
 			addTheme(Theme.createBuiltIn("Arc Light",                      "com.formdev.flatlaf.intellijthemes.FlatArcIJTheme"));
 			addTheme(Theme.createBuiltIn("Arc Light Orange",               "com.formdev.flatlaf.intellijthemes.FlatArcOrangeIJTheme"));
 			addTheme(Theme.createBuiltIn("Arc Dark",                       "com.formdev.flatlaf.intellijthemes.FlatArcDarkIJTheme"));

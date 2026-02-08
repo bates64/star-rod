@@ -11,6 +11,7 @@ val appVersion = appProperties.getProperty("version")
 
 repositories {
     mavenCentral()
+    maven { url = uri("https://jitpack.io") }
 }
 
 plugins {
@@ -28,28 +29,28 @@ java {
 
 dependencies {
     implementation(platform("org.lwjgl:lwjgl-bom:3.3.3"))
-    
+
     implementation("org.lwjgl", "lwjgl")
     implementation("org.lwjgl", "lwjgl-opengl")
     implementation("org.lwjgl", "lwjgl-jawt")
     implementation("org.lwjgl", "lwjgl-glfw")
     implementation("org.lwjgl", "lwjgl-tinyfd")
     implementation("org.lwjgl", "lwjgl-assimp")
-            
+
     runtimeOnly("org.lwjgl:lwjgl::natives-windows")
     runtimeOnly("org.lwjgl:lwjgl::natives-windows-arm64")
     runtimeOnly("org.lwjgl:lwjgl::natives-macos")
     runtimeOnly("org.lwjgl:lwjgl::natives-macos-arm64")
     runtimeOnly("org.lwjgl:lwjgl::natives-linux")
     runtimeOnly("org.lwjgl:lwjgl::natives-linux-arm64")
-    
+
     runtimeOnly("org.lwjgl:lwjgl-opengl::natives-windows")
     runtimeOnly("org.lwjgl:lwjgl-opengl::natives-windows-arm64")
     runtimeOnly("org.lwjgl:lwjgl-opengl::natives-macos")
     runtimeOnly("org.lwjgl:lwjgl-opengl::natives-macos-arm64")
     runtimeOnly("org.lwjgl:lwjgl-opengl::natives-linux")
     runtimeOnly("org.lwjgl:lwjgl-opengl::natives-linux-arm64")
-    
+
     runtimeOnly("org.lwjgl:lwjgl-glfw::natives-windows")
     runtimeOnly("org.lwjgl:lwjgl-glfw::natives-windows-arm64")
     runtimeOnly("org.lwjgl:lwjgl-glfw::natives-macos")
@@ -63,38 +64,40 @@ dependencies {
     runtimeOnly("org.lwjgl:lwjgl-tinyfd::natives-macos-arm64")
     runtimeOnly("org.lwjgl:lwjgl-tinyfd::natives-linux")
     runtimeOnly("org.lwjgl:lwjgl-tinyfd::natives-linux-arm64")
-    
+
     runtimeOnly("org.lwjgl:lwjgl-assimp::natives-windows")
     runtimeOnly("org.lwjgl:lwjgl-assimp::natives-windows-arm64")
     runtimeOnly("org.lwjgl:lwjgl-assimp::natives-macos")
     runtimeOnly("org.lwjgl:lwjgl-assimp::natives-macos-arm64")
     runtimeOnly("org.lwjgl:lwjgl-assimp::natives-linux")
     runtimeOnly("org.lwjgl:lwjgl-assimp::natives-linux-arm64")
-    
+
     implementation("org.lwjglx:lwjgl3-awt:0.2.2") {
         exclude(group = "org.lwjgl") // https://github.com/LWJGLX/lwjgl3-awt/issues/74
     }
-    
+
     implementation("commons-io:commons-io:2.16.1")
     implementation("org.apache.commons:commons-text:1.12.0")
     implementation("org.apache.commons:commons-lang3:3.14.0")
-    
+
     implementation("com.miglayout:miglayout-core:11.3")
     implementation("com.miglayout:miglayout-swing:11.3")
-    
+
     implementation("com.alexandriasoftware.swing:jsplitbutton:1.3.1")
     implementation("com.alexdupre:pngj:2.1.2.1")
-    
+
     implementation("com.google.code.gson:gson:2.10.1")
     implementation("org.yaml:snakeyaml:2.2")
-        
+
     implementation("com.formdev:flatlaf:3.4.1")
     implementation("com.formdev:flatlaf-intellij-themes:3.4.1")
     implementation("com.formdev:flatlaf-extras:3.4.1")
-    
+
+    implementation("com.github.Dansoftowner:jSystemThemeDetector:3.6")
+
     implementation(files("lib/org.eclipse.cdt.core-5.11.0.jar"))
     implementation(files("lib/org.eclipse.equinox.common-3.6.0.jar"))
-    
+
     implementation("org.ahocorasick:ahocorasick:0.6.3")
 }
 
@@ -111,7 +114,7 @@ tasks {
         classpath = files() // use empty classpath since there are no dependencies
         options.release.set(8)
     }
-    
+
     val jarBoot = register<Jar>("jarBoot") {
         dependsOn(compileBoot)
         archiveBaseName.set("boot")
@@ -120,7 +123,7 @@ tasks {
         }
         from(bootBuildDir)
     }
-    
+
     val compileApp = register<JavaCompile>("compileApp") {
         source = fileTree("src/main/java")
         destinationDirectory.set(appBuildDir.get().asFile)
@@ -128,7 +131,7 @@ tasks {
         options.release.set(17)
         options.compilerArgs.add("-Xlint:deprecation")
     }
-    
+
     val jarApp = register<Jar>("jarApp") {
         dependsOn(compileApp)
         archiveBaseName.set("main-app")
@@ -140,16 +143,16 @@ tasks {
 
     shadowJar {
         dependsOn(jarBoot, jarApp)
-        
+
         from(bootBuildDir, appBuildDir)
-        
+
         mergeServiceFiles("META-INF/spring.*")
         exclude("META-INF/*.SF")
         exclude("META-INF/*.DSA")
         exclude("META-INF/*.RSA")
         exclude("META-INF/LICENSE")
         archiveFileName.set("StarRod.jar")
-        
+
         manifest {
             attributes["Main-Class"] = bootMain
             attributes["App-Version"] = appVersion
@@ -162,20 +165,20 @@ tasks {
 
     register<Zip>("createReleaseZip") {
         dependsOn(clean, licenseReport, shadowJar)
-        
+
         group = "release"
         description = "Create zip file for Star Rod release"
 
         from(shadowJar.get().outputs.files)
-        
+
         from(file(licenseBuildDir)) {
             into("licenses")
         }
-        
+
         from(file("exec")) {
             into("")
         }
-        
+
         val versionTag = versioning.info.tag
         val commitHash = versioning.info.build
 
