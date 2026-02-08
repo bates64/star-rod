@@ -39,7 +39,7 @@ import util.ui.UniformGridLayout;
 public class AssetsPanel extends JPanel
 {
 	private String currentPath = "";
-	private AssetHandle selectedAsset;
+	private String selectedName;
 	private JPanel selectedPanel;
 
 	private JPanel breadcrumbBar;
@@ -58,6 +58,13 @@ public class AssetsPanel extends JPanel
 		add(breadcrumbBar, "growx, wrap");
 
 		resultsPanel = new JPanel(new UniformGridLayout(80, 80, 0, 0));
+		resultsPanel.addMouseListener(new MouseAdapter() {
+			@Override
+			public void mouseClicked(MouseEvent e)
+			{
+				clearSelection();
+			}
+		});
 		scrollPane = new JScrollPane(resultsPanel);
 		scrollPane.setBorder(null);
 		add(scrollPane, "grow, push");
@@ -78,23 +85,31 @@ public class AssetsPanel extends JPanel
 	private void navigateTo(String path)
 	{
 		currentPath = path;
-		selectedAsset = null;
-		selectedPanel = null;
+		clearSelection();
 		rebuildBreadcrumb();
 		refresh();
 		registerWatchers();
 	}
 
-	private void selectAsset(AssetHandle asset, JPanel panel)
+	private void select(String name, JPanel panel)
 	{
-		// Deselect previous
 		if (selectedPanel != null) {
 			selectedPanel.repaint();
 		}
 
-		selectedAsset = asset;
+		selectedName = name;
 		selectedPanel = panel;
 		panel.repaint();
+		rebuildBreadcrumb();
+	}
+
+	private void clearSelection()
+	{
+		if (selectedPanel != null) {
+			selectedPanel.repaint();
+		}
+		selectedName = null;
+		selectedPanel = null;
 		rebuildBreadcrumb();
 	}
 
@@ -140,11 +155,11 @@ public class AssetsPanel extends JPanel
 			}
 		}
 
-		// Selected asset filename
-		if (selectedAsset != null) {
+		// Selected item name
+		if (selectedName != null) {
 			breadcrumbBar.add(createSeparatorLabel());
 
-			JLabel fileLabel = new JLabel(selectedAsset.getAssetName());
+			JLabel fileLabel = new JLabel(selectedName);
 			fileLabel.setFont(fileLabel.getFont().deriveFont(Font.BOLD));
 			breadcrumbBar.add(fileLabel);
 		}
@@ -218,7 +233,10 @@ public class AssetsPanel extends JPanel
 			@Override
 			public void mouseClicked(MouseEvent e)
 			{
-				if (e.getClickCount() == 2) {
+				if (e.getClickCount() == 1) {
+					select(name, panel);
+				}
+				else if (e.getClickCount() == 2) {
 					navigateTo(currentPath + name + "/");
 				}
 			}
@@ -263,7 +281,7 @@ public class AssetsPanel extends JPanel
 			public void mouseClicked(MouseEvent e)
 			{
 				if (e.getClickCount() == 1) {
-					selectAsset(asset, panel);
+					select(asset.getAssetName(), panel);
 				}
 				else if (e.getClickCount() == 2) {
 					openAsset(asset);
