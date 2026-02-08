@@ -753,8 +753,13 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 		for (MapObject obj : getCollisionMap().zoneTree)
 			obj.hidden = true;
 
-		if (!thumbnailInitialized)
+		if (!thumbnailInitialized) {
 			initThumbnail();
+
+			// Warm-up render to initialize GL state, textures, etc.
+			step();
+			glCanvas.render();
+		}
 
 		// Isometric camera: 45 degrees right, 30 degrees down - like SMRPG
 		var camera = perspectiveView.camera;
