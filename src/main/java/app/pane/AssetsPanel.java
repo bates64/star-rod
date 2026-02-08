@@ -11,7 +11,6 @@ import java.awt.Image;
 import java.awt.RenderingHints;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.FileSystems;
@@ -256,9 +255,9 @@ public class AssetsPanel extends JPanel
 		JLabel icon = new JLabel(ThemedIcon.PACKAGE_24);
 
 		// Load thumbnail asynchronously
-		new SwingWorker<BufferedImage, Void>() {
+		new SwingWorker<Image, Void>() {
 			@Override
-			protected BufferedImage doInBackground()
+			protected Image doInBackground()
 			{
 				return asset.loadThumbnail();
 			}
@@ -267,10 +266,9 @@ public class AssetsPanel extends JPanel
 			protected void done()
 			{
 				try {
-					BufferedImage thumb = get();
+					Image thumb = get();
 					if (thumb != null) {
-						Image scaled = thumb.getScaledInstance(64, -1, Image.SCALE_FAST);
-						icon.setIcon(new ImageIcon(scaled));
+						icon.setIcon(new ImageIcon(thumb));
 						panel.revalidate();
 					}
 				}

@@ -734,13 +734,14 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 
 	private boolean thumbnailInitialized = false;
 
-	public void generateThumbnail(File mapFile, File thumbFile)
+	public void generateThumbnail(File mapFile, File thumbFile, int size)
 	{
 		Map newMap = Map.loadMap(mapFile);
 		if (newMap == null)
 			return;
 
 		thumbnailMode = true;
+		thumbnailSize = size;
 		openMap(newMap, true);
 		for (MapObject obj : getCollisionMap().colliderTree)
 			obj.hidden = true;
@@ -750,6 +751,8 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 
 		if (!thumbnailInitialized)
 			initThumbnail();
+
+		perspectiveView.resize(0, 0, size, size);
 
 		for (int i = 0; i < 2; i++) {
 			step();
@@ -3446,8 +3449,8 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 	{
 		RenderingOptions opts = new RenderingOptions();
 		if (thumbnailMode) {
-			opts.canvasSizeX = THUMBNAIL_SIZE;
-			opts.canvasSizeY = THUMBNAIL_SIZE;
+			opts.canvasSizeX = thumbnailSize;
+			opts.canvasSizeY = thumbnailSize;
 		}
 		else {
 			opts.canvasSizeX = glCanvasPixelWidth();
@@ -3581,7 +3584,7 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 			obj.prepareVertexBuffers(opts);
 	}
 
-	private static final int THUMBNAIL_SIZE = 64;
+	private int thumbnailSize;
 
 	private void initThumbnail()
 	{
@@ -3600,8 +3603,6 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 		useTextureLOD = true;
 		useMapBackgroundColor = true;
 
-		perspectiveView.resize(0, 0, THUMBNAIL_SIZE, THUMBNAIL_SIZE);
-
 		thumbnailMode = true;
 	}
 
@@ -3610,21 +3611,21 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 		runInContext(() -> {
 			glBindFramebuffer(GL_READ_FRAMEBUFFER, perspectiveView.getSceneFrameBuffer());
 			glReadBuffer(GL_COLOR_ATTACHMENT0);
+			int size = thumbnailSize;
 			int bpp = 4;
-			ByteBuffer buffer = BufferUtils.createByteBuffer(THUMBNAIL_SIZE * THUMBNAIL_SIZE * bpp);
-			glReadPixels(0, 0, THUMBNAIL_SIZE, THUMBNAIL_SIZE,
-				GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, buffer);
+			ByteBuffer buffer = BufferUtils.createByteBuffer(size * size * bpp);
+			glReadPixels(0, 0, size, size, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, buffer);
 			glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
 
-			BufferedImage image = new BufferedImage(THUMBNAIL_SIZE, THUMBNAIL_SIZE, BufferedImage.TYPE_INT_ARGB);
-			for (int x = 0; x < THUMBNAIL_SIZE; x++) {
-				for (int y = 0; y < THUMBNAIL_SIZE; y++) {
-					int i = (x + (THUMBNAIL_SIZE * y)) * bpp;
+			BufferedImage image = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
+			for (int x = 0; x < size; x++) {
+				for (int y = 0; y < size; y++) {
+					int i = (x + (size * y)) * bpp;
 					int r = buffer.get(i) & 0xFF;
 					int g = buffer.get(i + 1) & 0xFF;
 					int b = buffer.get(i + 2) & 0xFF;
 					int a = buffer.get(i + 3) & 0xFF;
-					image.setRGB(x, THUMBNAIL_SIZE - (y + 1), (a << 24) | (r << 16) | (g << 8) | b);
+					image.setRGB(x, size - (y + 1), (a << 24) | (r << 16) | (g << 8) | b);
 				}
 			}
 

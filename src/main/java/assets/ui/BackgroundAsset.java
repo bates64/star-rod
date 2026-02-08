@@ -1,6 +1,7 @@
 package assets.ui;
 
 import java.awt.Graphics2D;
+import java.awt.Image;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -28,7 +29,7 @@ public class BackgroundAsset extends AssetHandle
 	}
 
 	@Override
-	public BufferedImage loadThumbnail()
+	public Image loadThumbnail()
 	{
 		return thumbnail;
 	}

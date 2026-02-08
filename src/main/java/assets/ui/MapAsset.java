@@ -2,12 +2,14 @@ package assets.ui;
 
 import static app.Directories.PROJ_THUMBNAIL;
 
-import java.awt.image.BufferedImage;
+import java.awt.GraphicsEnvironment;
+import java.awt.Image;
+import java.awt.image.BaseMultiResolutionImage;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-
+import java.util.ArrayList;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -85,37 +87,61 @@ public class MapAsset extends AssetHandle
 	}
 
 	@Override
-	public BufferedImage loadThumbnail()
+	public Image loadThumbnail()
 	{
+		var variants = new ArrayList<Image>();
+
 		File thumbFile = new File(PROJ_THUMBNAIL + assetPath + ".png");
 		if (thumbFile.exists()) {
 			try {
-				return ImageIO.read(thumbFile);
+				variants.add(ImageIO.read(thumbFile));
 			}
-			catch (IOException e) {
-				return null;
-			}
+			catch (IOException e) {}
 		}
-		return null;
+
+		File thumb2xFile = new File(PROJ_THUMBNAIL + assetPath + "@2x.png");
+		if (thumb2xFile.exists()) {
+			try {
+				variants.add(ImageIO.read(thumb2xFile));
+			}
+			catch (IOException e) {}
+		}
+
+		if (variants.isEmpty())
+			return null;
+
+		return new BaseMultiResolutionImage(variants.toArray(new Image[0]));
 	}
 
 	/**
 	 * Generates thumbnails for all maps that don't already have one.
 	 * Creates a MapEditor instance, so must not be called while one is open.
 	 */
+	private static final int THUMBNAIL_SIZE = 64;
+
 	public static void generateMissingThumbnails()
 	{
+		boolean hiDpi = GraphicsEnvironment.getLocalGraphicsEnvironment()
+			.getDefaultScreenDevice().getDefaultConfiguration()
+			.getDefaultTransform().getScaleX() > 1;
+
 		MapEditor editor = null;
 
 		try {
 			for (AssetHandle asset : AssetManager.getMapSources()) {
 				File thumbFile = new File(PROJ_THUMBNAIL + asset.assetPath + ".png");
-				if (thumbFile.exists())
+				File thumb2xFile = new File(PROJ_THUMBNAIL + asset.assetPath + "@2x.png");
+				boolean need1x = !thumbFile.exists();
+				boolean need2x = hiDpi && !thumb2xFile.exists();
+				if (!need1x && !need2x)
 					continue;
 				Logger.log("Capturing thumbnail for " + asset.assetPath + "...", Priority.MILESTONE);
 				if (editor == null)
 					editor = new MapEditor(false);
-				editor.generateThumbnail(asset, thumbFile);
+				if (need1x)
+					editor.generateThumbnail(asset, thumbFile, THUMBNAIL_SIZE);
+				if (need2x)
+					editor.generateThumbnail(asset, thumb2xFile, THUMBNAIL_SIZE * 2);
 			}
 		}
 		catch (Exception e) {
