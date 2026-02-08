@@ -27,6 +27,12 @@ public class BackgroundAsset extends AssetHandle
 		}
 	}
 
+	@Override
+	public BufferedImage loadThumbnail()
+	{
+		return thumbnail;
+	}
+
 	private static BufferedImage resizeImage(BufferedImage src, int targetHeight)
 	{
 		float ratio = ((float) src.getHeight() / (float) src.getWidth());

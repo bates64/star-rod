@@ -379,34 +379,6 @@ public class StarRodMain extends StarRodFrame
 		dialog.startBuild();
 	}
 
-	private void action_captureThumbnails()
-	{
-		new EditorWorker(() -> {
-			Logger.log("Capturing missing map thumbnails...", Priority.MILESTONE);
-			MapEditor editor = null;
-
-			try {
-				editor = new MapEditor(false);
-
-				for (File f : AssetManager.getMapSources()) {
-					String mapName = FilenameUtils.getBaseName(f.getName());
-					File thumbFile = new File(PROJ_THUMBNAIL + mapName + ".jpg");
-					if (thumbFile.exists())
-						continue;
-					Logger.log("Capturing thumbnail for " + mapName + "...", Priority.MILESTONE);
-					editor.generateThumbnail(f, thumbFile);
-				}
-			}
-			catch (Exception e) {
-				Logger.printStackTrace(e);
-			}
-			finally {
-				if (editor != null)
-					editor.shutdownThumbnail();
-			}
-		});
-	}
-
 	private void action_openDir(File dir)
 	{
 		if (dir.exists()) {

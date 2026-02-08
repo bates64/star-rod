@@ -7,9 +7,11 @@ import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.Image;
 import java.awt.RenderingHints;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.FileSystems;
@@ -21,10 +23,12 @@ import java.nio.file.WatchService;
 import java.util.ArrayList;
 import java.util.List;
 
+import javax.swing.ImageIcon;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.SwingUtilities;
+import javax.swing.SwingWorker;
 import javax.swing.UIManager;
 
 import app.Environment;
@@ -250,6 +254,31 @@ public class AssetsPanel extends JPanel
 		JPanel panel = createItemPanel();
 
 		JLabel icon = new JLabel(ThemedIcon.PACKAGE_24);
+
+		// Load thumbnail asynchronously
+		new SwingWorker<BufferedImage, Void>() {
+			@Override
+			protected BufferedImage doInBackground()
+			{
+				return asset.loadThumbnail();
+			}
+
+			@Override
+			protected void done()
+			{
+				try {
+					BufferedImage thumb = get();
+					if (thumb != null) {
+						Image scaled = thumb.getScaledInstance(64, -1, Image.SCALE_FAST);
+						icon.setIcon(new ImageIcon(scaled));
+						panel.revalidate();
+					}
+				}
+				catch (Exception e) {
+					// ignore — keep default icon
+				}
+			}
+		}.execute();
 
 		JLabel name = new JLabel(asset.getAssetName());
 		name.setPreferredSize(new Dimension(80, 20));

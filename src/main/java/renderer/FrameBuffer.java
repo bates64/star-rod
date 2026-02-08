@@ -13,6 +13,7 @@ public final class FrameBuffer
 {
 	private final int frameBuffer;
 	private final boolean hasDepth;
+	private final boolean hasAlpha;
 
 	private int colorTexture;
 	private int depthTexture;
@@ -27,7 +28,13 @@ public final class FrameBuffer
 
 	public FrameBuffer(boolean hasDepth)
 	{
+		this(hasDepth, false);
+	}
+
+	public FrameBuffer(boolean hasDepth, boolean hasAlpha)
+	{
 		this.hasDepth = hasDepth;
+		this.hasAlpha = hasAlpha;
 
 		frameBuffer = glGenFramebuffers();
 		glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
@@ -45,10 +52,11 @@ public final class FrameBuffer
 			glDeleteTextures(colorTexture);
 			glDeleteTextures(depthTexture);
 
+			int colorFormat = hasAlpha ? GL_RGBA : GL_RGB;
 			colorTexture = glGenTextures();
 			glBindTexture(GL_TEXTURE_2D, colorTexture);
-			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, sizeX, sizeY,
-				0, GL_RGB, GL_UNSIGNED_BYTE, (ByteBuffer) null);
+			glTexImage2D(GL_TEXTURE_2D, 0, colorFormat, sizeX, sizeY,
+				0, colorFormat, GL_UNSIGNED_BYTE, (ByteBuffer) null);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 			glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, colorTexture, 0);

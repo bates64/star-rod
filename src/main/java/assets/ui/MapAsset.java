@@ -1,16 +1,25 @@
 package assets.ui;
 
+import static app.Directories.PROJ_THUMBNAIL;
+
+import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import javax.imageio.ImageIO;
 
 import app.Environment;
 import assets.AssetHandle;
 import assets.AssetManager;
 import game.map.Map;
+import game.map.editor.MapEditor;
 import util.Logger;
+import util.Priority;
 
 public class MapAsset extends AssetHandle
 {
@@ -73,5 +82,48 @@ public class MapAsset extends AssetHandle
 	@Override
 	public String getAssetDescription() {
 		return desc;
+	}
+
+	@Override
+	public BufferedImage loadThumbnail()
+	{
+		File thumbFile = new File(PROJ_THUMBNAIL + assetPath + ".png");
+		if (thumbFile.exists()) {
+			try {
+				return ImageIO.read(thumbFile);
+			}
+			catch (IOException e) {
+				return null;
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Generates thumbnails for all maps that don't already have one.
+	 * Creates a MapEditor instance, so must not be called while one is open.
+	 */
+	public static void generateMissingThumbnails()
+	{
+		MapEditor editor = null;
+
+		try {
+			for (AssetHandle asset : AssetManager.getMapSources()) {
+				File thumbFile = new File(PROJ_THUMBNAIL + asset.assetPath + ".png");
+				if (thumbFile.exists())
+					continue;
+				Logger.log("Capturing thumbnail for " + asset.assetPath + "...", Priority.MILESTONE);
+				if (editor == null)
+					editor = new MapEditor(false);
+				editor.generateThumbnail(asset, thumbFile);
+			}
+		}
+		catch (Exception e) {
+			Logger.printStackTrace(e);
+		}
+		finally {
+			if (editor != null)
+				editor.shutdownThumbnail();
+		}
 	}
 }

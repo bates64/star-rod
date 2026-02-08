@@ -49,6 +49,7 @@ import project.Manifest;
 import project.ui.ProjectSwitcherDialog;
 import assets.AssetExtractor;
 import assets.ExpectedAsset;
+import assets.ui.MapAsset;
 import dev.kdl.parse.KdlParseException;
 import game.ProjectDatabase;
 import game.entity.EntityExtractor;
@@ -262,7 +263,7 @@ public abstract class Environment
 				ProjectListing listing = chooseProject();
 				if (listing == null)
 					exit();
-				LoadingBar.show("Loading " + listing.getName(), true);
+				LoadingBar.show("Loading " + listing.getName(), Priority.MILESTONE, false);
 				boolean validProject = loadProject(listing);
 				if (!validProject)
 					exit(1);
@@ -539,6 +540,7 @@ public abstract class Environment
 
 		reloadIcons();
 		ProjectDatabase.initialize();
+		MapAsset.generateMissingThumbnails();
 
 		ProjectManager.getInstance().recordProjectOpened(project);
 		return true;

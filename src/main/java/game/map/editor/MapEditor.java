@@ -4,12 +4,11 @@ import static app.Directories.*;
 import static game.map.MapKey.*;
 import static game.map.editor.EditorShortcut.*;
 import static org.lwjgl.opengl.GL11.*;
+import static org.lwjgl.opengl.GL30.*;
 
 import java.awt.Dimension;
-import java.awt.Graphics2D;
 import java.awt.KeyEventDispatcher;
 import java.awt.KeyboardFocusManager;
-import java.awt.RenderingHints;
 import java.awt.Toolkit;
 import java.awt.Window;
 import java.awt.event.KeyEvent;
@@ -3446,8 +3445,14 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 	public RenderingOptions getRenderingOptions()
 	{
 		RenderingOptions opts = new RenderingOptions();
-		opts.canvasSizeX = glCanvasPixelWidth();
-		opts.canvasSizeY = glCanvasPixelHeight();
+		if (thumbnailMode) {
+			opts.canvasSizeX = THUMBNAIL_SIZE;
+			opts.canvasSizeY = THUMBNAIL_SIZE;
+		}
+		else {
+			opts.canvasSizeX = glCanvasPixelWidth();
+			opts.canvasSizeY = glCanvasPixelHeight();
+		}
 		opts.editorMode = getEditorMode();
 		opts.selectionMode = selectionManager.getSelectionMode();
 		opts.worldFogEnabled = map.scripts.worldFogSettings.enabled.get();
@@ -3576,6 +3581,8 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 			obj.prepareVertexBuffers(opts);
 	}
 
+	private static final int THUMBNAIL_SIZE = 64;
+
 	private void initThumbnail()
 	{
 		enableXDivider = false;
@@ -3593,63 +3600,42 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 		useTextureLOD = true;
 		useMapBackgroundColor = true;
 
+		perspectiveView.resize(0, 0, THUMBNAIL_SIZE, THUMBNAIL_SIZE);
+
 		thumbnailMode = true;
 	}
 
 	private void renderThumbnail(File thumbFile)
 	{
 		runInContext(() -> {
-			glReadBuffer(GL_FRONT);
-			int width = perspectiveView.maxX - perspectiveView.minX;
-			int height = perspectiveView.maxY - perspectiveView.minY;
+			glBindFramebuffer(GL_READ_FRAMEBUFFER, perspectiveView.getSceneFrameBuffer());
+			glReadBuffer(GL_COLOR_ATTACHMENT0);
 			int bpp = 4;
-			ByteBuffer buffer = BufferUtils.createByteBuffer(width * height * bpp);
-			glReadPixels(perspectiveView.minX, perspectiveView.minY, width, height,
+			ByteBuffer buffer = BufferUtils.createByteBuffer(THUMBNAIL_SIZE * THUMBNAIL_SIZE * bpp);
+			glReadPixels(0, 0, THUMBNAIL_SIZE, THUMBNAIL_SIZE,
 				GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, buffer);
+			glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
 
-			BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-			for (int x = 0; x < width; x++) {
-				for (int y = 0; y < height; y++) {
-					int i = (x + (width * y)) * bpp;
+			BufferedImage image = new BufferedImage(THUMBNAIL_SIZE, THUMBNAIL_SIZE, BufferedImage.TYPE_INT_ARGB);
+			for (int x = 0; x < THUMBNAIL_SIZE; x++) {
+				for (int y = 0; y < THUMBNAIL_SIZE; y++) {
+					int i = (x + (THUMBNAIL_SIZE * y)) * bpp;
 					int r = buffer.get(i) & 0xFF;
 					int g = buffer.get(i + 1) & 0xFF;
 					int b = buffer.get(i + 2) & 0xFF;
-					image.setRGB(x, height - (y + 1), (0xFF << 24) | (r << 16) | (g << 8) | b);
+					int a = buffer.get(i + 3) & 0xFF;
+					image.setRGB(x, THUMBNAIL_SIZE - (y + 1), (a << 24) | (r << 16) | (g << 8) | b);
 				}
 			}
 
-			image = resizeImage(image, 480);
-
 			try {
-				FileUtils.touch(thumbFile);
-				ImageIO.write(image, "JPG", thumbFile);
+				FileUtils.forceMkdirParent(thumbFile);
+				ImageIO.write(image, "PNG", thumbFile);
 			}
 			catch (IOException e) {
 				Logger.printStackTrace(e);
 			}
 		});
-	}
-
-	private static BufferedImage resizeImage(BufferedImage src, int targetSize)
-	{
-		if (targetSize <= 0) {
-			return src; // this can't be resized
-		}
-		int targetWidth = targetSize;
-		int targetHeight = targetSize;
-		float ratio = ((float) src.getHeight() / (float) src.getWidth());
-		if (ratio <= 1) { // square or landscape-oriented image
-			targetHeight = (int) Math.ceil(targetWidth * ratio);
-		}
-		else { // portrait image
-			targetWidth = Math.round(targetHeight / ratio);
-		}
-		BufferedImage bi = new BufferedImage(targetWidth, targetHeight, BufferedImage.TYPE_INT_RGB);
-		Graphics2D g2d = bi.createGraphics();
-		g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-		g2d.drawImage(src, 0, 0, targetWidth, targetHeight, null);
-		g2d.dispose();
-		return bi;
 	}
 
 	private void setViewMode(ViewMode mode)

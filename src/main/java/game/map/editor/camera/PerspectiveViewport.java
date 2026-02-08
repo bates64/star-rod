@@ -41,7 +41,7 @@ public class PerspectiveViewport extends MapEditViewport
 		super(editor, renderer, ViewType.PERSPECTIVE);
 		wireframeMode = false;
 
-		sceneBuffer = new FrameBuffer(true);
+		sceneBuffer = new FrameBuffer(true, true);
 		effectBufferA = new FrameBuffer(false);
 		effectBufferB = new FrameBuffer(false);
 	}
@@ -51,6 +51,11 @@ public class PerspectiveViewport extends MapEditViewport
 		super(editor, renderer, ViewType.PERSPECTIVE, minX, minY, maxX, maxY);
 		wireframeMode = false;
 		camera = new PerspFreeCamera(this);
+	}
+
+	public int getSceneFrameBuffer()
+	{
+		return sceneBuffer.getFrameBuffer();
 	}
 
 	public void setCamera(PerspBaseCamera cam)
@@ -88,7 +93,7 @@ public class PerspectiveViewport extends MapEditViewport
 
 		// clear whole buffer
 		RenderState.setViewport(0, 0, opts.canvasSizeX, opts.canvasSizeY);
-		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+		glClearColor(0.0f, 0.0f, 0.0f, opts.thumbnailMode ? 0.0f : 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
 		// draw the actual viewport contents
@@ -143,7 +148,7 @@ public class PerspectiveViewport extends MapEditViewport
 
 		// set viewport to final position and clear
 		RenderState.setViewport(minX, minY, sizeX, sizeY);
-		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+		glClearColor(0.0f, 0.0f, 0.0f, opts.thumbnailMode ? 0.0f : 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		// render final viewport
@@ -182,7 +187,9 @@ public class PerspectiveViewport extends MapEditViewport
 		}
 
 		ScriptData scriptData = editor.map.scripts;
-		if (editor.useMapBackgroundColor)
+		if (opts.thumbnailMode)
+			glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+		else if (editor.useMapBackgroundColor)
 			glClearColor(scriptData.bgColorR.get() / 255.0f, scriptData.bgColorG.get() / 255.0f, scriptData.bgColorB.get() / 255.0f, 1.0f);
 		else
 			glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -190,7 +197,7 @@ public class PerspectiveViewport extends MapEditViewport
 
 		Renderer.setFogEnabled(editor.map.scripts, editor.usingInGameCameraProperties());
 
-		if (!wireframeMode && (editor.map.hasBackground || !editor.useMapBackgroundColor))
+		if (!opts.thumbnailMode && !wireframeMode && (editor.map.hasBackground || !editor.useMapBackgroundColor))
 			camera.drawBackground();
 
 		camera.glLoadProjection();
@@ -288,7 +295,8 @@ public class PerspectiveViewport extends MapEditViewport
 		if (opts.screenFade != 0.0f)
 			renderFade(0.0f, 0.0f, 0.0f, opts.screenFade);
 
-		renderUI();
+		if (!opts.thumbnailMode)
+			renderUI();
 
 		if (doPerspProfiling)
 			profiler.record("lines");

@@ -1,5 +1,6 @@
 package assets;
 
+import java.awt.image.BufferedImage;
 import java.io.File;
 
 import assets.ui.BackgroundAsset;
@@ -34,6 +35,14 @@ public class AssetHandle extends File
 	}
 
 	public String getAssetDescription() {
+		return null;
+	}
+
+	/**
+	 * Loads a thumbnail image for this asset.
+	 * Returns null if no thumbnail is available.
+	 */
+	public BufferedImage loadThumbnail() {
 		return null;
 	}
 
