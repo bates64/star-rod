@@ -60,7 +60,7 @@ public class AssetsPanel extends JPanel
 		breadcrumbBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
 		add(breadcrumbBar, "growx, wrap");
 
-		resultsPanel = new JPanel(new UniformGridLayout(80, 80, 0, 0));
+		resultsPanel = new JPanel(new UniformGridLayout(88, 88, 2, 2));
 		resultsPanel.addMouseListener(new MouseAdapter() {
 			@Override
 			public void mouseClicked(MouseEvent e)
@@ -213,10 +213,10 @@ public class AssetsPanel extends JPanel
 
 		JLabel icon = new JLabel(ThemedIcon.FOLDER_OPEN_24);
 		JLabel label = new JLabel(name);
-		label.setPreferredSize(new Dimension(80, 20));
+		label.setFont(label.getFont().deriveFont(12f));
 
-		panel.add(icon, "wrap, align center");
-		panel.add(label, "align center, wmax 80");
+		panel.add(icon, "wrap, alignx center");
+		panel.add(label, "alignx center, aligny center, wmax 80");
 
 		panel.addMouseListener(new MouseAdapter() {
 			@Override
@@ -278,11 +278,11 @@ public class AssetsPanel extends JPanel
 			}
 		}.execute();
 
-		JLabel name = new JLabel(asset.getAssetName());
-		name.setPreferredSize(new Dimension(80, 20));
+		JLabel name = createShadowLabel(asset.getAssetName());
 
-		panel.add(icon, "wrap, align center");
-		panel.add(name, "align center, wmax 80");
+		panel.add(icon, "alignx center");
+		panel.add(name, "pos 0 null 100% (100%-4), alignx center");
+		panel.setComponentZOrder(name, 0);
 
 		String desc = asset.getAssetDescription();
 		if (desc != null && !desc.isEmpty()) {
@@ -321,7 +321,7 @@ public class AssetsPanel extends JPanel
 
 	private JPanel createItemPanel()
 	{
-		JPanel panel = new JPanel(new MigLayout("ins 4, fill")) {
+		JPanel panel = new JPanel(new MigLayout("ins 4, fill", "[grow]", "[grow]")) {
 			@Override
 			protected void paintComponent(Graphics g)
 			{
@@ -347,9 +347,44 @@ public class AssetsPanel extends JPanel
 				super.paintComponent(g);
 			}
 		};
-		panel.setPreferredSize(new Dimension(80, 80));
+		panel.setPreferredSize(new Dimension(88, 88));
 		panel.setOpaque(false);
 		return panel;
+	}
+
+	private JLabel createShadowLabel(String text)
+	{
+		return new JLabel(text) {
+			@Override
+			protected void paintComponent(Graphics g)
+			{
+				Graphics2D g2 = (Graphics2D) g.create();
+				g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+				g2.setFont(getFont());
+
+				var fm = g2.getFontMetrics();
+				int textW = fm.stringWidth(getText());
+				int x = (getWidth() - textW) / 2;
+				int y = fm.getAscent();
+
+				// Soft shadow: draw text at nearby offsets with low alpha
+				int radius = 3;
+				for (int dx = -radius; dx <= radius; dx++) {
+					for (int dy = -radius; dy <= radius; dy++) {
+						float dist = (float) Math.sqrt(dx * dx + dy * dy);
+						if (dist > radius)
+							continue;
+						int alpha = (int)(40 * (1f - dist / radius));
+						g2.setColor(new Color(0, 0, 0, alpha));
+						g2.drawString(getText(), x + dx, y + dy + 1);
+					}
+				}
+
+				g2.setColor(getForeground());
+				g2.drawString(getText(), x, y);
+				g2.dispose();
+			}
+		};
 	}
 
 	private void openAsset(AssetHandle asset)

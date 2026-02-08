@@ -7,8 +7,10 @@ import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.opengl.GL30.*;
 
 import java.awt.Dimension;
+import java.awt.Graphics2D;
 import java.awt.KeyEventDispatcher;
 import java.awt.KeyboardFocusManager;
+import java.awt.RenderingHints;
 import java.awt.Toolkit;
 import java.awt.Window;
 import java.awt.event.KeyEvent;
@@ -735,14 +737,16 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 
 	private boolean thumbnailInitialized = false;
 
-	public void generateThumbnail(File mapFile, File thumbFile, int size)
+	/** Renders a thumbnail at 4x resolution and saves both the 2x and downsampled 1x images. */
+	public void generateThumbnail(File mapFile, File thumbFile1x, File thumbFile2x, int size)
 	{
 		Map newMap = Map.loadMap(mapFile);
 		if (newMap == null)
 			return;
 
+		int renderSize = size * 4;
 		thumbnailMode = true;
-		thumbnailSize = size;
+		thumbnailSize = renderSize;
 		openMap(newMap, true);
 		for (MapObject obj : getCollisionMap().colliderTree)
 			obj.hidden = true;
@@ -752,38 +756,28 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 		if (!thumbnailInitialized)
 			initThumbnail();
 
-		// Isometric camera: 45 degrees right, 45 degrees down
+		// Isometric camera: 45 degrees right, 30 degrees down - like SMRPG
 		var camera = perspectiveView.camera;
 		camera.yaw = -45f;
-		camera.pitch = 45f;
+		camera.pitch = 30f;
 
-		// Frame the map's model tree AABB
-		BoundingBox aabb = map.modelTree.getRoot().getUserObject().AABB;
-		Vector3f center = aabb.getCenter();
-		camera.setPosition(center);
-
-		// Project all 8 AABB corners through the view rotation to find
-		// the screen-space bounding box. View = Rx(pitch) * Ry(yaw) * (p - center).
-		Vector3f bmin = aabb.getMin();
-		Vector3f bmax = aabb.getMax();
-		float[] xs = { bmin.x, bmax.x };
-		float[] ys = { bmin.y, bmax.y };
-		float[] zs = { bmin.z, bmax.z };
-
-		double yawRad = Math.toRadians(-45);
-		double pitchRad = Math.toRadians(45);
+		// Project all vertices through the view rotation to find the tight
+		// screen-space bounding box. View = Rx(pitch) * Ry(yaw) * v.
+		double yawRad = Math.toRadians(camera.yaw);
+		double pitchRad = Math.toRadians(camera.pitch);
 		double cy = Math.cos(yawRad), sy = Math.sin(yawRad);
 		double cp = Math.cos(pitchRad), sp = Math.sin(pitchRad);
 
 		float screenMinX = Float.MAX_VALUE, screenMaxX = -Float.MAX_VALUE;
 		float screenMinY = Float.MAX_VALUE, screenMaxY = -Float.MAX_VALUE;
-		for (float wx : xs) {
-			for (float wy : ys) {
-				for (float wz : zs) {
-					// translate to camera-relative
-					float px = wx - center.x;
-					float py = wy - center.y;
-					float pz = wz - center.z;
+		for (Model mdl : map.modelTree) {
+			if (!mdl.hasMesh.get())
+				continue;
+			for (Triangle tri : mdl.getMesh()) {
+				for (Vertex v : tri.vert) {
+					float px = v.getCurrentX();
+					float py = v.getCurrentY();
+					float pz = v.getCurrentZ();
 					// Ry(yaw)
 					float rx = (float)(px * cy + pz * sy);
 					float ry = py;
@@ -791,7 +785,6 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 					// Rx(pitch)
 					float sx = rx;
 					float syt = (float)(ry * cp - rz * sp);
-					// screen X = sx, screen Y = syt
 					screenMinX = Math.min(screenMinX, sx);
 					screenMaxX = Math.max(screenMaxX, sx);
 					screenMinY = Math.min(screenMinY, syt);
@@ -800,18 +793,32 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 			}
 		}
 
+		// Center the camera on the screen-space midpoint of the geometry.
+		// Inverse rotation: world = Ry(-yaw) * Rx(-pitch) * screen
+		float screenCX = (screenMinX + screenMaxX) / 2f;
+		float screenCY = (screenMinY + screenMaxY) / 2f;
+		// Rx(-pitch)
+		float iz = (float)(-screenCY * sp);
+		float iy = (float)(screenCY * cp);
+		float ix = screenCX;
+		// Ry(-yaw)
+		float wx = (float)(ix * cy - iz * sy);
+		float wy = iy;
+		float wz = (float)(ix * sy + iz * cy);
+		camera.setPosition(new Vector3f(wx, wy, wz));
+
 		float halfW = (screenMaxX - screenMinX) / 2f;
 		float halfH = (screenMaxY - screenMinY) / 2f;
-		thumbnailOrthoHalfHeight = Math.max(Math.max(halfW, halfH), 50f);
+		thumbnailOrthoHalfHeight = Math.max(50f, Math.min(Math.max(halfW, halfH), 5000f));
 
-		perspectiveView.resize(0, 0, size, size);
+		perspectiveView.resize(0, 0, renderSize, renderSize);
 
 		for (int i = 0; i < 2; i++) {
 			step();
 			glCanvas.render();
 		}
 
-		renderThumbnail(thumbFile);
+		renderThumbnail(thumbFile1x, thumbFile2x, size);
 	}
 
 	public void shutdownThumbnail()
@@ -3658,32 +3665,47 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 		thumbnailMode = true;
 	}
 
-	private void renderThumbnail(File thumbFile)
+	private void renderThumbnail(File thumbFile1x, File thumbFile2x, int size)
 	{
 		runInContext(() -> {
 			glBindFramebuffer(GL_READ_FRAMEBUFFER, perspectiveView.getSceneFrameBuffer());
 			glReadBuffer(GL_COLOR_ATTACHMENT0);
-			int size = thumbnailSize;
+			int renderSize = thumbnailSize;
 			int bpp = 4;
-			ByteBuffer buffer = BufferUtils.createByteBuffer(size * size * bpp);
-			glReadPixels(0, 0, size, size, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, buffer);
+			ByteBuffer buffer = BufferUtils.createByteBuffer(renderSize * renderSize * bpp);
+			glReadPixels(0, 0, renderSize, renderSize, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, buffer);
 			glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
 
-			BufferedImage image = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
-			for (int x = 0; x < size; x++) {
-				for (int y = 0; y < size; y++) {
-					int i = (x + (size * y)) * bpp;
+			var image4x = new BufferedImage(renderSize, renderSize, BufferedImage.TYPE_INT_ARGB);
+			for (int x = 0; x < renderSize; x++) {
+				for (int y = 0; y < renderSize; y++) {
+					int i = (x + (renderSize * y)) * bpp;
 					int r = buffer.get(i) & 0xFF;
 					int g = buffer.get(i + 1) & 0xFF;
 					int b = buffer.get(i + 2) & 0xFF;
 					int a = buffer.get(i + 3) & 0xFF;
-					image.setRGB(x, size - (y + 1), (a << 24) | (r << 16) | (g << 8) | b);
+					image4x.setRGB(x, renderSize - (y + 1), (a << 24) | (r << 16) | (g << 8) | b);
 				}
 			}
 
+			// Downsample to 2x and 1x with bilinear filtering
+			int size2x = size * 2;
+			var image2x = new BufferedImage(size2x, size2x, BufferedImage.TYPE_INT_ARGB);
+			Graphics2D g2 = image2x.createGraphics();
+			g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+			g2.drawImage(image4x, 0, 0, size2x, size2x, null);
+			g2.dispose();
+
+			var image1x = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
+			Graphics2D g1 = image1x.createGraphics();
+			g1.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+			g1.drawImage(image2x, 0, 0, size, size, null);
+			g1.dispose();
+
 			try {
-				FileUtils.forceMkdirParent(thumbFile);
-				ImageIO.write(image, "PNG", thumbFile);
+				FileUtils.forceMkdirParent(thumbFile1x);
+				ImageIO.write(image1x, "PNG", thumbFile1x);
+				ImageIO.write(image2x, "PNG", thumbFile2x);
 			}
 			catch (IOException e) {
 				Logger.printStackTrace(e);
