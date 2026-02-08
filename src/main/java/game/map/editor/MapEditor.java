@@ -741,6 +741,7 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 		if (newMap == null)
 			return;
 
+		thumbnailMode = true;
 		openMap(newMap, true);
 		for (MapObject obj : getCollisionMap().colliderTree)
 			obj.hidden = true;
@@ -1002,7 +1003,7 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 		generateFromPathsPreview.init();
 		drawGeometryPreview.init();
 
-		if (changeMapState == ChangeMapState.NONE) {
+		if (changeMapState == ChangeMapState.NONE && !thumbnailMode) {
 			hDivRatio = 0.5f;
 			vDivRatio = 0.5f;
 
@@ -1039,7 +1040,7 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 		uvViews[0] = perspectiveView;
 		uvViews[1] = uvEditView;
 
-		if (changeMapState == ChangeMapState.NONE) {
+		if (changeMapState == ChangeMapState.NONE && !thumbnailMode) {
 			mainViewMode = ViewMode.FOUR;
 			setViewMode(mainViewMode);
 			resizeViews();
@@ -1073,6 +1074,18 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 
 			gui.updateSnapLabel();
 		}
+		else if (thumbnailMode) {
+			activeView = perspectiveView;
+			mainViewMode = ViewMode.ONE;
+			setViewMode(ViewMode.ONE);
+			objectGrid = new Grid(false, 4);
+			grid = objectGrid;
+			dummyCameraController = new CameraController();
+			showModels = true;
+			showColliders = true;
+			showZones = true;
+			showMarkers = true;
+		}
 
 		canDoNudgeTranslation = true;
 		doingNudgeTranslation = false;
@@ -1087,7 +1100,7 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 		selectionManager = new SelectionManager(this);
 		commandManager = new CommandManager(UNDO_LIMIT, this::onModified);
 
-		if (changeMapState == ChangeMapState.NONE) {
+		if (changeMapState == ChangeMapState.NONE && !thumbnailMode) {
 			showModels = true;
 			showColliders = true;
 			showZones = true;
@@ -1127,9 +1140,14 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 		// switch to modify mode, bootstrap if necessary
 		if (lastModeChange == null)
 			lastModeChange = new ChangeMode(EditorMode.Modify);
-		ChangeMode resetMode = new ChangeMode(EditorMode.Modify);
-		resetMode.silence();
-		resetMode.exec();
+		if (!thumbnailMode) {
+			ChangeMode resetMode = new ChangeMode(EditorMode.Modify);
+			resetMode.silence();
+			resetMode.exec();
+		}
+		else {
+			editorMode = EditorMode.Modify;
+		}
 
 		guiEventQueue = new LinkedBlockingQueue<>();
 		keyEventQueue = new LinkedBlockingQueue<>();
@@ -3997,8 +4015,10 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 			loadMapResourcesAfterTextures();
 			loadOverrides();
 
-			updateRecentMaps();
-			gui.setRecentMaps(recentMaps);
+			if (!thumbnailMode) {
+				updateRecentMaps();
+				gui.setRecentMaps(recentMaps);
+			}
 
 			resetEditorSettings();
 			map.initializeAllObjects();
