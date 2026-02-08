@@ -7,10 +7,13 @@ import java.io.IOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -237,6 +240,69 @@ public class AssetManager
 		}
 
 		return assetMap;
+	}
+
+	// --- Generic directory listing ---
+
+	public record DirectoryListing(List<AssetHandle> files, List<String> subdirectories) {}
+
+	/**
+	 * Lists all files and subdirectories at a relative path across the asset stack.
+	 * Files are returned as AssetHandles (first occurrence in the stack wins).
+	 * Subdirectories are returned as names (union across all stack levels).
+	 * @param relativePath Relative path from asset root, e.g. "" for root, "mapfs/", "mapfs/geom/"
+	 */
+	public static DirectoryListing listDirectory(String relativePath)
+	{
+		Map<String, AssetHandle> fileMap = new HashMap<>();
+		TreeSet<String> subdirSet = new TreeSet<>();
+
+		for (File stackDir : Environment.assetDirectories) {
+			Path dir = stackDir.toPath().resolve(relativePath);
+
+			if (!Files.exists(dir) || !Files.isDirectory(dir))
+				continue;
+
+			try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir)) {
+				for (Path entry : stream) {
+					String name = entry.getFileName().toString();
+
+					if (Files.isDirectory(entry)) {
+						subdirSet.add(name);
+					}
+					else {
+						String relPath = relativePath + name;
+						AssetHandle ah = new AssetHandle(stackDir, relPath);
+						fileMap.putIfAbsent(name, ah);
+					}
+				}
+			}
+			catch (IOException e) {
+				Logger.logError("Failed to read directory: " + dir);
+			}
+		}
+
+		List<AssetHandle> files = fileMap.entrySet().stream()
+			.sorted(Map.Entry.comparingByKey())
+			.map(Map.Entry::getValue)
+			.collect(Collectors.toList());
+
+		return new DirectoryListing(files, new ArrayList<>(subdirSet));
+	}
+
+	/**
+	 * Returns the real directories across the asset stack that correspond to a relative path.
+	 * Only directories that actually exist are returned.
+	 */
+	public static List<File> getStackDirsForPath(String relativePath)
+	{
+		List<File> dirs = new ArrayList<>();
+		for (File stackDir : Environment.assetDirectories) {
+			File dir = new File(stackDir, relativePath);
+			if (dir.isDirectory())
+				dirs.add(dir);
+		}
+		return dirs;
 	}
 
 	public static Collection<AssetHandle> getIcons() throws IOException

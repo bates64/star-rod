@@ -9,7 +9,6 @@ import javax.swing.JTabbedPane;
 import javax.swing.JTextArea;
 
 import util.Logger;
-import util.ui.AssetsPanel;
 import util.ui.ThemedIcon;
 
 public class Dock extends JPanel

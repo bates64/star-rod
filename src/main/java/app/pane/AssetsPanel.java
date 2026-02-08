@@ -1,0 +1,392 @@
+package app.pane;
+
+import java.awt.Color;
+import java.awt.Cursor;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Font;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.FileSystems;
+import java.nio.file.Path;
+import java.nio.file.StandardWatchEventKinds;
+import java.nio.file.WatchEvent;
+import java.nio.file.WatchKey;
+import java.nio.file.WatchService;
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
+
+import app.Environment;
+import assets.AssetHandle;
+import assets.AssetManager;
+import assets.AssetManager.DirectoryListing;
+import net.miginfocom.swing.MigLayout;
+import util.Logger;
+import util.ui.ThemedIcon;
+import util.ui.WrapLayout;
+
+public class AssetsPanel extends JPanel
+{
+	private String currentPath = "";
+	private AssetHandle selectedAsset;
+	private JPanel selectedPanel;
+
+	private JPanel breadcrumbBar;
+	private JPanel resultsPanel;
+	private JScrollPane scrollPane;
+
+	private WatchService watchService;
+	private Thread watchThread;
+	private List<WatchKey> watchKeys = new ArrayList<>();
+
+	public AssetsPanel()
+	{
+		setLayout(new MigLayout("ins 4, fill", "[grow]", "[pref!][grow]"));
+
+		breadcrumbBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+		add(breadcrumbBar, "growx, wrap");
+
+		resultsPanel = new JPanel(new WrapLayout(FlowLayout.LEFT, 0, 0));
+		scrollPane = new JScrollPane(resultsPanel);
+		scrollPane.setBorder(null);
+		add(scrollPane, "grow, push");
+
+		try {
+			watchService = FileSystems.getDefault().newWatchService();
+			startWatchThread();
+		}
+		catch (IOException e) {
+			Logger.logError("Failed to create file watch service: " + e.getMessage());
+		}
+
+		navigateTo("");
+	}
+
+	// --- Navigation ---
+
+	private void navigateTo(String path)
+	{
+		currentPath = path;
+		selectedAsset = null;
+		selectedPanel = null;
+		rebuildBreadcrumb();
+		refresh();
+		registerWatchers();
+	}
+
+	private void selectAsset(AssetHandle asset, JPanel panel)
+	{
+		// Deselect previous
+		if (selectedPanel != null) {
+			selectedPanel.repaint();
+		}
+
+		selectedAsset = asset;
+		selectedPanel = panel;
+		panel.repaint();
+		rebuildBreadcrumb();
+	}
+
+	// --- Breadcrumb ---
+
+	private void rebuildBreadcrumb()
+	{
+		breadcrumbBar.removeAll();
+
+		// Project name as root
+		String projectName = Environment.getProject().getManifest().getName();
+		JLabel rootLabel = createClickableLabel(projectName);
+		rootLabel.addMouseListener(new MouseAdapter() {
+			@Override
+			public void mouseClicked(MouseEvent e)
+			{
+				navigateTo("");
+			}
+		});
+		breadcrumbBar.add(rootLabel);
+
+		// Path components
+		if (!currentPath.isEmpty()) {
+			String[] parts = currentPath.split("/");
+			StringBuilder pathSoFar = new StringBuilder();
+			for (String part : parts) {
+				if (part.isEmpty())
+					continue;
+				pathSoFar.append(part).append("/");
+
+				breadcrumbBar.add(createSeparatorLabel());
+
+				String targetPath = pathSoFar.toString();
+				JLabel partLabel = createClickableLabel(part);
+				partLabel.addMouseListener(new MouseAdapter() {
+					@Override
+					public void mouseClicked(MouseEvent e)
+					{
+						navigateTo(targetPath);
+					}
+				});
+				breadcrumbBar.add(partLabel);
+			}
+		}
+
+		// Selected asset filename
+		if (selectedAsset != null) {
+			breadcrumbBar.add(createSeparatorLabel());
+
+			JLabel fileLabel = new JLabel(selectedAsset.getAssetName());
+			fileLabel.setFont(fileLabel.getFont().deriveFont(Font.BOLD));
+			breadcrumbBar.add(fileLabel);
+		}
+
+		breadcrumbBar.revalidate();
+		breadcrumbBar.repaint();
+	}
+
+	private JLabel createClickableLabel(String text)
+	{
+		JLabel label = new JLabel(text);
+		label.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+		return label;
+	}
+
+	private JLabel createSeparatorLabel()
+	{
+		JLabel sep = new JLabel(" / ");
+		sep.setForeground(UIManager.getColor("Label.disabledForeground"));
+		return sep;
+	}
+
+	// --- Results ---
+
+	private void refresh()
+	{
+		resultsPanel.removeAll();
+
+		DirectoryListing listing = AssetManager.listDirectory(currentPath);
+
+		// Subdirectories first
+		for (String subdirName : listing.subdirectories()) {
+			resultsPanel.add(createSubdirItem(subdirName));
+		}
+
+		// Then files
+		for (AssetHandle asset : listing.files()) {
+			resultsPanel.add(createAssetItem(asset));
+		}
+
+		resultsPanel.revalidate();
+		resultsPanel.repaint();
+	}
+
+	private JPanel createSubdirItem(String name)
+	{
+		JPanel panel = createItemPanel();
+
+		JLabel icon = new JLabel(ThemedIcon.FOLDER_OPEN_24);
+		JLabel label = new JLabel(name);
+		label.setPreferredSize(new Dimension(80, 20));
+
+		panel.add(icon, "wrap, align center");
+		panel.add(label, "align center, wmax 80");
+
+		panel.addMouseListener(new MouseAdapter() {
+			@Override
+			public void mouseEntered(MouseEvent e)
+			{
+				panel.putClientProperty("hovered", true);
+				panel.repaint();
+			}
+
+			@Override
+			public void mouseExited(MouseEvent e)
+			{
+				panel.putClientProperty("hovered", false);
+				panel.repaint();
+			}
+
+			@Override
+			public void mouseClicked(MouseEvent e)
+			{
+				if (e.getClickCount() == 2) {
+					navigateTo(currentPath + name + "/");
+				}
+			}
+		});
+
+		return panel;
+	}
+
+	private JPanel createAssetItem(AssetHandle asset)
+	{
+		JPanel panel = createItemPanel();
+
+		JLabel icon = new JLabel(ThemedIcon.PACKAGE_24);
+
+		JLabel name = new JLabel(asset.getAssetName());
+		name.setPreferredSize(new Dimension(80, 20));
+
+		panel.add(icon, "wrap, align center");
+		panel.add(name, "align center, wmax 80");
+
+		String desc = asset.getAssetDescription();
+		if (desc != null && !desc.isEmpty()) {
+			panel.setToolTipText(desc);
+		}
+
+		panel.addMouseListener(new MouseAdapter() {
+			@Override
+			public void mouseEntered(MouseEvent e)
+			{
+				panel.putClientProperty("hovered", true);
+				panel.repaint();
+			}
+
+			@Override
+			public void mouseExited(MouseEvent e)
+			{
+				panel.putClientProperty("hovered", false);
+				panel.repaint();
+			}
+
+			@Override
+			public void mouseClicked(MouseEvent e)
+			{
+				if (e.getClickCount() == 1) {
+					selectAsset(asset, panel);
+				}
+				else if (e.getClickCount() == 2) {
+					openAsset(asset);
+				}
+			}
+		});
+
+		return panel;
+	}
+
+	private JPanel createItemPanel()
+	{
+		JPanel panel = new JPanel(new MigLayout("ins 4, fill")) {
+			@Override
+			protected void paintComponent(Graphics g)
+			{
+				boolean hovered = Boolean.TRUE.equals(getClientProperty("hovered"));
+				boolean selected = (this == selectedPanel);
+
+				if (selected || hovered) {
+					Graphics2D g2 = (Graphics2D) g.create();
+					g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+					Color bg = UIManager.getColor("Table.selectionBackground");
+					if (selected) {
+						g2.setColor(bg);
+					}
+					else {
+						// Lighter for hover
+						g2.setColor(new Color(bg.getRed(), bg.getGreen(), bg.getBlue(), 80));
+					}
+					g2.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8);
+					g2.dispose();
+				}
+
+				super.paintComponent(g);
+			}
+		};
+		panel.setPreferredSize(new Dimension(80, 80));
+		panel.setOpaque(false);
+		return panel;
+	}
+
+	private void openAsset(AssetHandle asset)
+	{
+		// TODO
+	}
+
+	// --- File watching ---
+
+	private void registerWatchers()
+	{
+		if (watchService == null)
+			return;
+
+		// Cancel existing keys
+		for (WatchKey key : watchKeys) {
+			key.cancel();
+		}
+		watchKeys.clear();
+
+		// Register all stack dirs for current path
+		for (File dir : AssetManager.getStackDirsForPath(currentPath)) {
+			try {
+				WatchKey key = dir.toPath().register(watchService,
+					StandardWatchEventKinds.ENTRY_CREATE,
+					StandardWatchEventKinds.ENTRY_DELETE,
+					StandardWatchEventKinds.ENTRY_MODIFY);
+				watchKeys.add(key);
+			}
+			catch (IOException e) {
+				Logger.logError("Failed to watch directory: " + dir);
+			}
+		}
+	}
+
+	private void startWatchThread()
+	{
+		watchThread = new Thread(() -> {
+			while (!Thread.interrupted()) {
+				try {
+					WatchKey key = watchService.take();
+
+					// Drain events
+					for (WatchEvent<?> event : key.pollEvents()) {
+						// just need to know something changed
+					}
+					key.reset();
+
+					// Debounce: wait a bit for rapid changes to settle
+					Thread.sleep(200);
+
+					// Drain any additional events that arrived during debounce
+					WatchKey extra;
+					while ((extra = watchService.poll()) != null) {
+						extra.pollEvents();
+						extra.reset();
+					}
+
+					SwingUtilities.invokeLater(this::refresh);
+				}
+				catch (InterruptedException e) {
+					Thread.currentThread().interrupt();
+					break;
+				}
+			}
+		}, "AssetsPanel-FileWatcher");
+		watchThread.setDaemon(true);
+		watchThread.start();
+	}
+
+	public void dispose()
+	{
+		if (watchThread != null) {
+			watchThread.interrupt();
+		}
+		if (watchService != null) {
+			try {
+				watchService.close();
+			}
+			catch (IOException e) {
+				// ignore on shutdown
+			}
+		}
+	}
+}
