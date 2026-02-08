@@ -34,7 +34,7 @@ import assets.AssetManager.DirectoryListing;
 import net.miginfocom.swing.MigLayout;
 import util.Logger;
 import util.ui.ThemedIcon;
-import util.ui.WrapLayout;
+import util.ui.UniformGridLayout;
 
 public class AssetsPanel extends JPanel
 {
@@ -57,7 +57,7 @@ public class AssetsPanel extends JPanel
 		breadcrumbBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
 		add(breadcrumbBar, "growx, wrap");
 
-		resultsPanel = new JPanel(new WrapLayout(FlowLayout.LEFT, 0, 0));
+		resultsPanel = new JPanel(new UniformGridLayout(80, 80, 0, 0));
 		scrollPane = new JScrollPane(resultsPanel);
 		scrollPane.setBorder(null);
 		add(scrollPane, "grow, push");
