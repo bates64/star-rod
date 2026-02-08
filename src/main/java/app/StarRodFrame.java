@@ -1,5 +1,6 @@
 package app;
 
+import com.formdev.flatlaf.util.SystemInfo;
 import javax.swing.JFrame;
 
 public class StarRodFrame extends JFrame
@@ -9,6 +10,7 @@ public class StarRodFrame extends JFrame
 		super();
 
 		reloadIcon();
+		setTransparentTitleBar(true);
 	}
 
 	public StarRodFrame(String title)
@@ -16,10 +18,17 @@ public class StarRodFrame extends JFrame
 		super(title);
 
 		reloadIcon();
+		setTransparentTitleBar(true);
 	}
 
 	public void reloadIcon()
 	{
 		setIconImage(Environment.getDefaultIconImage());
+	}
+
+	public void setTransparentTitleBar(boolean transparent)
+	{
+    	if (SystemInfo.isMacFullWindowContentSupported)
+            getRootPane().putClientProperty("apple.awt.transparentTitleBar", transparent);
 	}
 }

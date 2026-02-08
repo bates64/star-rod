@@ -241,11 +241,20 @@ public abstract class Environment
 			Logger.setDefaultOuputPriority(logDetails ? Priority.DETAIL : Priority.STANDARD);
 
 			if (!isCommandLine) {
+				System.setProperty("apple.laf.useScreenMenuBar", "true");
+				System.setProperty("apple.awt.application.name", "Star Rod");
+				System.setProperty("apple.awt.application.appearance", "system");
+
+                //FlatLaf.setGlobalExtraDefaults(Collections.singletonMap("@accentColor", "#3bff6c"));
+
 				Themes.setThemeByKey(Environment.mainConfig.getString(Options.Theme));
+
 				// UIManager.put("TabbedPane.tabWidthMode", "compact");
 				// UIManager.put("TabbedPane.showTabSeparators", true);
 				// UIManager.put("TabbedPane.tabSeparatorsFullHeight", true);
 				UIManager.put("SplitPaneDivider.style", "plain");
+				UIManager.put("Component.arrowType", "chevron");
+				UIManager.put("Component.focusWidth", 1);
 
 				if (fromJar && gitBuildTag != null && mainConfig.getBoolean(Options.CheckForUpdates))
 					checkForUpdate();
