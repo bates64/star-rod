@@ -44,7 +44,7 @@ public class CollisionCompiler
 		raf.writeInt(zoneHeaderOffset);
 		raf.close();
 
-		File headerFile = Directories.PROJ_INCLUDE_MAPFS.file(map.getName() + "_hit.h");
+		File headerFile = Directories.ENGINE_INCLUDE_MAPFS.file(map.getName() + "_hit.h");
 		try (PrintWriter pw = IOUtils.getBufferedPrintWriter(headerFile)) {
 			for (Collider c : map.colliderTree.getList()) {
 				pw.printf("#define %-23s 0x%X%n", "COLLIDER_" + c.getName(), c.getNode().getTreeIndex());

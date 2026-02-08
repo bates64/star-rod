@@ -55,7 +55,7 @@ public class Extractor
 	{
 		LoadingBar.show("Extracting Map Data", Priority.IMPORTANT);
 
-		File f = Directories.PROJ_SRC_WORLD.toFile();
+		File f = Directories.ENGINE_SRC_WORLD.toFile();
 		File[] worldDirs = f.listFiles();
 		Arrays.sort(worldDirs);
 

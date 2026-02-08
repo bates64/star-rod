@@ -81,7 +81,7 @@ public class GlobalsData
 
 	private void loadItems()
 	{
-		File yamlFile = Directories.PROJ_SRC.file("item_table.yaml");
+		File yamlFile = Directories.ENGINE_SRC.file("item_table.yaml");
 		List<ItemRecord> itemList = ItemRecord.fromYAML(yamlFile);
 
 		items.clear();
@@ -103,7 +103,7 @@ public class GlobalsData
 			item.saveBackup();
 		}
 
-		File yamlFile = Directories.PROJ_SRC.file("item_table.yaml");
+		File yamlFile = Directories.ENGINE_SRC.file("item_table.yaml");
 		ItemRecord.toYAML(yamlFile, itemList);
 
 		Logger.log("Saved item table");
@@ -111,7 +111,7 @@ public class GlobalsData
 
 	private void loadMoves()
 	{
-		File yamlFile = Directories.PROJ_SRC.file("move_table.yaml");
+		File yamlFile = Directories.ENGINE_SRC.file("move_table.yaml");
 		List<MoveRecord> moveList = MoveRecord.fromYAML(yamlFile);
 
 		moves.clear();
@@ -133,7 +133,7 @@ public class GlobalsData
 			move.saveBackup();
 		}
 
-		File yamlFile = Directories.PROJ_SRC.file("move_table.yaml");
+		File yamlFile = Directories.ENGINE_SRC.file("move_table.yaml");
 		MoveRecord.toYAML(yamlFile, moveList);
 
 		Logger.log("Saved moves table");

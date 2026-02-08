@@ -23,11 +23,12 @@ import game.map.editor.ui.dialogs.ChooseDialogResult;
 import game.map.editor.ui.dialogs.DirChooser;
 import net.miginfocom.swing.MigLayout;
 import project.Project;
+import project.ProjectListing;
 import util.Logger;
 
 public class CreateProjectDialog extends JDialog
 {
-	private Project result = null;
+	private ProjectListing result = null;
 
 	private JTextField nameField;
 	private JTextField idField;
@@ -40,7 +41,7 @@ public class CreateProjectDialog extends JDialog
 	/**
 	 * Shows the dialog and returns the created project, or null if cancelled.
 	 */
-	public static Project showDialog(JFrame parent)
+	public static ProjectListing showDialog(JFrame parent)
 	{
 		CreateProjectDialog dialog = new CreateProjectDialog(parent);
 		dialog.setVisible(true);
@@ -134,7 +135,7 @@ public class CreateProjectDialog extends JDialog
 		add(nameField, "growx");
 
 		JLabel idLabel = new JLabel("ID");
-		JLabel idDesc = new JLabel("The internal name of your mod. Must be unique between all mods.");
+		JLabel idDesc = new JLabel("Unique internal identifier");
 		idDesc.setForeground(SwingUtils.getGrayTextColor());
 		SwingUtils.setFontSize(idDesc, 11);
 		add(idLabel, "split 2, gaptop 8");

@@ -15,8 +15,8 @@ public class Manifest {
 	private final File file;
 	private final KdlDocument doc;
 
-	public Manifest(Project project) throws IOException, KdlParseException {
-		file = new File(project.getPath(), FILENAME);
+	public Manifest(File directory) throws IOException, KdlParseException {
+		file = new File(directory, FILENAME);
 
 		if (!file.exists()) {
 			throw new IOException(FILENAME + " does not exist");
@@ -24,6 +24,9 @@ public class Manifest {
 
 		var parser = KdlParser.v2();
 		doc = parser.parse(Path.of(file.getAbsolutePath()));
+
+		if (!hasEngine())
+			throw new IOException(FILENAME + " is missing required 'engine' node");
 	}
 	public String toString() {
 		return "Manifest(" + file.getPath() + ")";
@@ -35,5 +38,32 @@ public class Manifest {
 			.findFirst()
 			.map(n -> n.arguments().get(0).value().toString())
 			.orElse(file.getParentFile().getName());
+	}
+
+	public String getId() {
+		return doc.nodes().stream()
+			.filter(n -> n.name().equals("id"))
+			.findFirst()
+			.map(n -> n.arguments().get(0).value().toString())
+			.orElse(null);
+	}
+
+	private boolean hasEngine() {
+		return doc.nodes().stream()
+			.anyMatch(n -> n.name().equals("engine"));
+	}
+
+	/**
+	 * Returns the engine ref (git ref to checkout).
+	 * Defaults to "main" if the ref property is omitted.
+	 */
+	public String getEngineRef() {
+		return doc.nodes().stream()
+			.filter(n -> n.name().equals("engine"))
+			.findFirst()
+			.map(n -> n.getProperty("ref")
+				.map(v -> v.value().toString())
+				.orElse("main"))
+			.orElse("main");
 	}
 }

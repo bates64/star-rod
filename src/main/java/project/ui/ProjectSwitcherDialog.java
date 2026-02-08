@@ -52,7 +52,7 @@ import app.Themes;
 import app.Themes.Theme;
 import app.config.Options;
 import dev.kdl.parse.KdlParseException;
-import project.Project;
+import project.ProjectListing;
 import project.ProjectManager;
 import game.map.editor.ui.dialogs.ChooseDialogResult;
 import game.map.editor.ui.dialogs.DirChooser;
@@ -68,9 +68,9 @@ public class ProjectSwitcherDialog extends StarRodFrame
 {
 	private final String TAB_PROJECTS = "Projects";
 
-	private JList<Project> list;
-	private DefaultListModel<Project> listModel;
-	private FilteredListModel<Project> filteredListModel;
+	private JList<ProjectListing> list;
+	private DefaultListModel<ProjectListing> listModel;
+	private FilteredListModel<ProjectListing> filteredListModel;
 	private JTextField filterTextField;
 	private JPopupMenu contextMenu;
 	private CardLayout cardLayout;
@@ -80,14 +80,14 @@ public class ProjectSwitcherDialog extends StarRodFrame
 	private final DirChooser dirChooser;
 
 	private final CountDownLatch latch = new CountDownLatch(1);
-	private Project selectedProject = null;
+	private ProjectListing selectedProject = null;
 
 	/**
-	 * Shows the project switcher and returns the selected project.
+	 * Shows the project switcher and returns the selected project listing.
 	 * Blocks until the user makes a selection or closes the window.
-	 * @return The selected project, or null if cancelled
+	 * @return The selected project listing, or null if cancelled
 	 */
-	public static Project showPrompt()
+	public static ProjectListing showPrompt()
 	{
 		ProjectSwitcherDialog window = new ProjectSwitcherDialog();
 		window.setVisible(true);
@@ -229,7 +229,7 @@ public class ProjectSwitcherDialog extends StarRodFrame
 		JPanel panel = new JPanel(new MigLayout("ins 16, fill, wrap"));
 
 		// Load projects
-		listModel = new DefaultListModel<>();
+		listModel = new DefaultListModel<ProjectListing>();
 		refreshProjectList();
 
 		// Create list
@@ -332,7 +332,7 @@ public class ProjectSwitcherDialog extends StarRodFrame
 		// Buttons
 		JButton createButton = new JButton("New Project");
 		createButton.addActionListener(e -> {
-			Project newProject = CreateProjectDialog.showDialog(this);
+			ProjectListing newProject = CreateProjectDialog.showDialog(this);
 			if (newProject != null) {
 				projectManager.recordProjectOpened(newProject);
 				refreshProjectList();
@@ -371,8 +371,8 @@ public class ProjectSwitcherDialog extends StarRodFrame
 	private void refreshProjectList()
 	{
 		listModel.clear();
-		List<Project> projects = projectManager.getRecentProjects();
-		for (Project project : projects) {
+		List<ProjectListing> projects = projectManager.getRecentProjects();
+		for (ProjectListing project : projects) {
 			listModel.addElement(project);
 		}
 	}
@@ -380,7 +380,7 @@ public class ProjectSwitcherDialog extends StarRodFrame
 	private void updateListFilter()
 	{
 		filteredListModel.setFilter(element -> {
-			Project project = (Project) element;
+			ProjectListing project = (ProjectListing) element;
 			String filterText = filterTextField.getText().toUpperCase();
 			String name = project.getName().toUpperCase();
 			String path = project.getPath().toUpperCase();
@@ -390,7 +390,7 @@ public class ProjectSwitcherDialog extends StarRodFrame
 
 	private void openSelectedProject()
 	{
-		Project selected = list.getSelectedValue();
+		ProjectListing selected = list.getSelectedValue();
 		if (selected == null) {
 			return;
 		}
@@ -404,9 +404,9 @@ public class ProjectSwitcherDialog extends StarRodFrame
 	{
 		if (dirChooser.prompt() == ChooseDialogResult.APPROVE) {
 			File selectedDir = dirChooser.getSelectedFile();
-			Project newProject;
+			ProjectListing newProject;
 			try {
-				newProject = new Project(selectedDir);
+				newProject = new ProjectListing(selectedDir);
 			} catch (IOException | KdlParseException e) {
 				Environment.showErrorMessage("Failed to open project", "The folder you selected is not a valid project: %s", e.getMessage());
 				return;
@@ -425,7 +425,7 @@ public class ProjectSwitcherDialog extends StarRodFrame
 
 	private void removeSelectedProject()
 	{
-		Project selected = list.getSelectedValue();
+		ProjectListing selected = list.getSelectedValue();
 		if (selected == null) {
 			return;
 		}
@@ -450,7 +450,7 @@ public class ProjectSwitcherDialog extends StarRodFrame
 
 	private void deleteSelectedProjectFromDisk()
 	{
-		Project selected = list.getSelectedValue();
+		ProjectListing selected = list.getSelectedValue();
 		if (selected == null) {
 			return;
 		}

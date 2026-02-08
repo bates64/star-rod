@@ -267,6 +267,19 @@ public abstract class EntityInfo
 
 	public static void loadModels()
 	{
+		// Ensure dump is extracted (will prompt for baserom if needed)
+		if (!DUMP_ENTITY_SRC.toFile().exists()) {
+			try {
+				if (!Environment.ensureDumpExtracted())
+					return; // user cancelled baserom selection
+			}
+			catch (IOException e) {
+				Logger.logError("Failed to extract dump: " + e.getMessage());
+				Logger.printStackTrace(e);
+				return;
+			}
+		}
+
 		for (EntityType type : EntityType.values()) {
 			if (type.model != null)
 				type.model.freeTextures();

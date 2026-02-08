@@ -62,7 +62,14 @@ public class FontManager
 
 	public static void loadData() throws IOException
 	{
-		XmlReader xmr = new XmlReader(new File(DUMP_MSG_FONT.toFile(), "fonts.xml"));
+		// Ensure dump is extracted (will prompt for baserom if needed)
+		File fontsXml = new File(DUMP_MSG_FONT.toFile(), "fonts.xml");
+		if (!fontsXml.exists()) {
+			if (!Environment.ensureDumpExtracted())
+				return; // user cancelled baserom selection
+		}
+
+		XmlReader xmr = new XmlReader(fontsXml);
 
 		List<Element> fontElems = xmr.getTags(xmr.getRootElement(), TAG_FONT);
 		if (fontElems.size() != 4)

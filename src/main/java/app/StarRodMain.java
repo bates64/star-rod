@@ -18,6 +18,7 @@ import java.util.concurrent.CountDownLatch;
 
 import javax.imageio.ImageIO;
 import javax.swing.AbstractButton;
+import javax.swing.BorderFactory;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JLabel;
@@ -39,11 +40,9 @@ import javax.swing.WindowConstants;
 
 import org.apache.commons.io.FilenameUtils;
 
-import app.build.BuildEnvironment;
-import app.build.BuildOutputListener;
-import app.build.BuildResult;
-import app.build.NixEnvironment;
-import app.build.WslNixOsEnvironment;
+import project.engine.BuildEnvironment;
+import project.engine.BuildOutputListener;
+import project.engine.BuildResult;
 import app.config.Options;
 import app.input.InvalidInputException;
 import app.pane.Dock;
@@ -51,6 +50,7 @@ import assets.AssetHandle;
 import assets.AssetManager;
 import assets.ExpectedAsset;
 import common.BaseEditor;
+import project.engine.Engine;
 import game.globals.editor.GlobalsEditor;
 import game.map.Map;
 import game.map.compiler.BuildException;
@@ -64,6 +64,7 @@ import game.sprite.editor.SpriteEditor;
 import game.texture.editor.ImageEditor;
 import game.worldmap.WorldMapEditor;
 import net.miginfocom.swing.MigLayout;
+import project.Project;
 import util.Logger;
 import util.Priority;
 
@@ -101,10 +102,9 @@ public class StarRodMain extends StarRodFrame
 		setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 		setMinimumSize(new Dimension(MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT));
 
-
-		// Display current project path (read-only, restart app to change projects)
-		JLabel projectPathLabel = new JLabel(Environment.getProjectDirectory().getAbsolutePath());
-		SwingUtils.setFontSize(projectPathLabel, 11);
+		// TODO: click this to change project
+		JLabel projectIdLabel = new JLabel(Environment.getProject().getManifest().getId());
+		SwingUtils.setFontSize(projectIdLabel, 11);
 
 		JButton mapEditorButton = new JButton("Map Editor");
 		trySetIcon(mapEditorButton, ExpectedAsset.ICON_MAP_EDITOR);
@@ -162,15 +162,6 @@ public class StarRodMain extends StarRodFrame
 		});
 		buttons.add(themesMenuButton);
 
-		// Extract Data button
-		JButton extractDataButton = new JButton("Extract Map Data");
-		trySetIcon(extractDataButton, ExpectedAsset.ICON_EXTRACT);
-		SwingUtils.setFontSize(extractDataButton, 12);
-		extractDataButton.addActionListener((e) -> {
-			action_extractMapData();
-		});
-		buttons.add(extractDataButton);
-
 		// Build Project button
 		JButton buildProjectButton = new JButton("Build Project");
 		trySetIcon(buildProjectButton, ExpectedAsset.ICON_GOLD);
@@ -222,8 +213,6 @@ public class StarRodMain extends StarRodFrame
 
 		// Left pane - buttons panel
 		JPanel leftPane = new JPanel(new MigLayout("fill, ins 8, wrap 1"));
-		leftPane.add(new JLabel("Project:"), "split 2");
-		leftPane.add(projectPathLabel, "pushx, growx, gapbottom 8, wrap");
 
 		JPanel buttonsPanel = new JPanel(new MigLayout("fillx, wrap 1, hidemode 3"));
 		buttonsPanel.add(mapEditorButton, "growx");
@@ -233,7 +222,6 @@ public class StarRodMain extends StarRodFrame
 		buttonsPanel.add(worldEditorButton, "growx");
 		buttonsPanel.add(imageEditorButton, "growx");
 		buttonsPanel.add(themesMenuButton, "growx");
-		buttonsPanel.add(extractDataButton, "growx");
 		buttonsPanel.add(openConfigDirButton, "growx");
 		buttonsPanel.add(openProjectDirButton, "growx");
 		buttonsPanel.add(buildProjectButton, "growx, gaptop 8");
@@ -272,9 +260,18 @@ public class StarRodMain extends StarRodFrame
 		verticalSplit.setDividerSize(4);
 		verticalSplit.setResizeWeight(1.0); // Give most space to top pane
 
+		// Status bar
+		JLabel statusBarLabel = new JLabel("Status bar");
+		statusBarLabel.setBorder(BorderFactory.createCompoundBorder(
+			BorderFactory.createMatteBorder(1, 0, 0, 0, UIManager.getColor("Separator.foreground")),
+			BorderFactory.createEmptyBorder(2, 8, 2, 8)
+		));
+		SwingUtils.setFontSize(statusBarLabel, 11);
+
 		// Layout
-		setLayout(new MigLayout("fill, ins 0"));
+		setLayout(new MigLayout("fill, ins 0, wrap"));
 		add(verticalSplit, "grow, push");
+		add(statusBarLabel, "growx, h 20!");
 
 		pack();
 		setLocationRelativeTo(null);
@@ -373,42 +370,6 @@ public class StarRodMain extends StarRodFrame
 			CountDownLatch editorClosedSignal = new CountDownLatch(1);
 			new ThemesEditor(editorClosedSignal);
 			editorClosedSignal.await();
-		});
-	}
-
-	private void action_extractMapData()
-	{
-		new EditorWorker(() -> {
-			if (!Environment.projectConfig.getBoolean(Options.ExtractedMapData)) {
-				int choice = SwingUtils.getConfirmDialog()
-					.setTitle("Extraction Warning")
-					.setMessage("This action will modify the source files of almost every map.",
-						"Consider creating a backup or committing any changes before proceeding.",
-						"Are you ready to begin extracting?")
-					.setMessageType(JOptionPane.WARNING_MESSAGE)
-					.setOptionsType(JOptionPane.YES_NO_CANCEL_OPTION)
-					.choose();
-
-				if (choice == JOptionPane.YES_OPTION) {
-					Logger.log("Extracting map data...", Priority.MILESTONE);
-					Extractor.extractAll();
-
-					SwingUtils.getMessageDialog()
-						.setTitle("All Data Extracted")
-						.setMessage("Complete!")
-						.setMessageType(JOptionPane.PLAIN_MESSAGE)
-						.show();
-
-					Environment.projectConfig.setBoolean(Options.ExtractedMapData, true);
-					Environment.projectConfig.saveConfigFile();
-				}
-			}
-			else {
-				SwingUtils.getWarningDialog()
-					.setTitle("Data Already Extracted")
-					.setMessage("Map data has already been extracted for this project.")
-					.show();
-			}
 		});
 	}
 
@@ -607,35 +568,11 @@ public class StarRodMain extends StarRodFrame
 					break;
 
 				case "-BUILDPROJECT":
-					BuildEnvironment env = null;
 					try {
-						if (Environment.isWindows()) {
-							env = new WslNixOsEnvironment();
-						}
-						else {
-							env = new NixEnvironment();
-						}
-
-						BuildResult result = env.configure(BuildOutputListener.toLogger());
-						if (result.isSuccess()) {
-							result = env.build(BuildOutputListener.toLogger());
-						}
-
-						if (!result.isSuccess()) {
-							throw new StarRodException("Build failed: " + result.getErrorMessage().orElse("unknown"));
-						}
-						Logger.log("ROM built: " + result.getOutputRom().get());
+						Environment.getProject().build();
 					}
-					catch (app.build.BuildException e) {
-						if (!e.isSilent()) {
-							Logger.logError("Build environment error: " + e.getMessage());
-						}
-						else {
-							Logger.log(e.getMessage());
-						}
-					}
-					catch (IOException e) {
-						Logger.logError("Build environment error: " + e.getMessage());
+					catch (Exception e) {
+						Logger.logError("Build failed: " + e.getMessage());
 					}
 					break;
 
@@ -647,7 +584,7 @@ public class StarRodMain extends StarRodFrame
 
 	private static final void trySetIcon(AbstractButton button, ExpectedAsset asset)
 	{
-		if (!(new File(Directories.getDumpPath())).exists()) {
+		if (Directories.getDumpPath() == null || !(new File(Directories.getDumpPath())).exists()) {
 			Logger.log("Dump directory could not be found.");
 			SwingUtils.addBorderPadding(button);
 			return;

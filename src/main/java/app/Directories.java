@@ -45,12 +45,17 @@ public enum Directories
 
 	PROJ_STAR_ROD		(Root.PROJECT,					"/.starrod/"),
 	PROJ_CFG			(Root.PROJECT, PROJ_STAR_ROD,		"/cfg/"),
-	PROJ_THUMBNAIL		(Root.PROJECT,						"/thumbnail/"),
-	PROJ_SRC			(Root.PROJECT,					"/src/"),
-	PROJ_SRC_WORLD		(Root.PROJECT, PROJ_SRC,			"/world/"),
-	PROJ_SRC_STAGE		(Root.PROJECT, PROJ_SRC,			"/battle/common/stage/"),
-	PROJ_INCLUDE		(Root.PROJECT,					"/include/"),
-	PROJ_INCLUDE_MAPFS	(Root.PROJECT, PROJ_INCLUDE,		"/mapfs/");
+	PROJ_THUMBNAIL		(Root.PROJECT, PROJ_STAR_ROD,		"/thumbnail/"),
+
+	//=======================================================================================
+	// Directories relative to the current project's engine (papermario-dx)
+
+	ENGINE_SRC			(Root.ENGINE,					"/src/"),
+	ENGINE_SRC_WORLD		(Root.ENGINE, ENGINE_SRC,			"/world/"),
+	ENGINE_SRC_STAGE		(Root.ENGINE, ENGINE_SRC,			"/battle/common/stage/"),
+	ENGINE_INCLUDE		(Root.ENGINE,			 		"/include/"),
+	ENGINE_INCLUDE_MAPFS	(Root.ENGINE, ENGINE_INCLUDE,		"/mapfs/"),
+	ENGINE_ASSETS_US	(Root.ENGINE, 					"/assets/us/");
 
 	// @formatter:on
 	//=======================================================================================
@@ -129,7 +134,7 @@ public enum Directories
 
 	private enum Root
 	{
-		NONE, DUMP, PROJECT, CONFIG, STATE
+		NONE, DUMP, PROJECT, CONFIG, STATE, ENGINE
 	}
 
 	private static String getRootPath(Root root)
@@ -145,6 +150,8 @@ public enum Directories
 				return Environment.getUserConfigDir().getAbsolutePath();
 			case STATE:
 				return Environment.getUserStateDir().getAbsolutePath();
+			case ENGINE:
+				return Environment.getProject().getEngine().getDirectory().getAbsolutePath();
 
 		}
 		return null;

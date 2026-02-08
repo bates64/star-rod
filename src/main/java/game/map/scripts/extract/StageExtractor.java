@@ -26,7 +26,7 @@ public class StageExtractor
 		Environment.initialize();
 		LoadingBar.show("Extracting Stage Data");
 
-		File f = Directories.PROJ_SRC_STAGE.toFile();
+		File f = Directories.ENGINE_SRC_STAGE.toFile();
 		File[] areaDirs = f.listFiles();
 		Arrays.sort(areaDirs);
 

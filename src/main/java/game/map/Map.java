@@ -321,7 +321,7 @@ public class Map implements XmlSerializable
 		}
 
 		areaName = "area_" + areaAffix;
-		projDir = Directories.PROJ_SRC_WORLD.file(areaName + "/" + name);
+		projDir = Directories.ENGINE_SRC_WORLD.file(areaName + "/" + name);
 	}
 
 	public String getName()
@@ -709,7 +709,7 @@ public class Map implements XmlSerializable
 	public void loadVarNames()
 	{
 		String areaHeaderName = String.format("%s/%s.h", areaName, areaAffix);
-		File areaHeader = Directories.PROJ_SRC_WORLD.file(areaHeaderName);
+		File areaHeader = Directories.ENGINE_SRC_WORLD.file(areaHeaderName);
 
 		areaByteNames.clear();
 		areaFlagNames.clear();
@@ -737,7 +737,7 @@ public class Map implements XmlSerializable
 		}
 
 		String mapHeaderName = String.format("%s/%s/%s.h", areaName, name, name);
-		File mapHeader = Directories.PROJ_SRC_WORLD.file(mapHeaderName);
+		File mapHeader = Directories.ENGINE_SRC_WORLD.file(mapHeaderName);
 
 		mapVarNames.clear();
 		mapFlagNames.clear();

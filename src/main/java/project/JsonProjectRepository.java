@@ -38,12 +38,12 @@ public class JsonProjectRepository implements ProjectRepository
 	}
 
 	@Override
-	public synchronized List<Project> getAllProjects()
+	public synchronized List<ProjectListing> getAllProjects()
 	{
 		List<ProjectData> dataList = loadProjectData();
-		List<Project> projects = new ArrayList<>();
+		List<ProjectListing> projects = new ArrayList<>();
 
-		// Convert to Project objects, filtering out invalid entries
+		// Convert to ProjectListing objects, filtering out invalid entries
 		Iterator<ProjectData> iter = dataList.iterator();
 		boolean modified = false;
 
@@ -51,7 +51,7 @@ public class JsonProjectRepository implements ProjectRepository
 			ProjectData data = iter.next();
 
 			try {
-				projects.add(new Project(new File(data.path), data.lastOpened));
+				projects.add(new ProjectListing(new File(data.path), data.lastOpened));
 			} catch (IOException | KdlParseException e) {
 				Logger.logWarning("Ignoring invalid project: " + data.path);
 				iter.remove();
@@ -71,37 +71,37 @@ public class JsonProjectRepository implements ProjectRepository
 	}
 
 	@Override
-	public synchronized void addProject(Project project)
+	public synchronized void addProject(ProjectListing listing)
 	{
 		List<ProjectData> dataList = loadProjectData();
 
 		// Remove existing entry with same path (will be re-added with new timestamp)
-		String absolutePath = project.getPath();
+		String absolutePath = listing.getPath();
 		dataList.removeIf(data -> data.path.equals(absolutePath));
 
 		// Add new entry
 		ProjectData newData = new ProjectData();
 		newData.path = absolutePath;
-		newData.lastOpened = project.getLastOpened();
+		newData.lastOpened = listing.getLastOpened();
 		dataList.add(0, newData); // Add to beginning (most recent)
 
 		saveProjectData(dataList);
 	}
 
 	@Override
-	public synchronized void removeProject(Project project)
+	public synchronized void removeProject(ProjectListing listing)
 	{
 		List<ProjectData> dataList = loadProjectData();
-		String absolutePath = project.getPath();
+		String absolutePath = listing.getPath();
 		dataList.removeIf(data -> data.path.equals(absolutePath));
 		saveProjectData(dataList);
 	}
 
 	@Override
-	public synchronized void updateLastOpened(Project project)
+	public synchronized void updateLastOpened(ProjectListing listing)
 	{
 		List<ProjectData> dataList = loadProjectData();
-		String absolutePath = project.getPath();
+		String absolutePath = listing.getPath();
 
 		for (ProjectData data : dataList) {
 			if (data.path.equals(absolutePath)) {

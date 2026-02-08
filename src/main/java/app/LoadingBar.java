@@ -77,6 +77,7 @@ public class LoadingBar
 			setTitle("Initializing");
 
 			setMinimumSize(new Dimension(320, 64));
+			setMaximumSize(new Dimension(320, 64));
 			setLocationRelativeTo(null);
 			setUndecorated(true);
 			progressBar = new JProgressBar();

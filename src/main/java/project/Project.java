@@ -8,56 +8,36 @@ import java.io.IOException;
 import org.apache.commons.io.FileUtils;
 
 import dev.kdl.parse.KdlParseException;
+import project.engine.BuildException;
+import project.engine.Engine;
 
-public class Project implements Comparable<Project>
+/**
+ * A fully-loaded project with an initialized engine.
+ * Extends {@link ProjectListing} so it can be used anywhere a listing is expected.
+ */
+public class Project extends ProjectListing
 {
-	private final File directory;
-	private final long lastOpened; // TODO: move this, Comparable, and compareTo to a new class
-	private final Manifest manifest;
+	private final Engine engine;
 
-	/** Loads a project from a directory. */
-	public Project(File path, long lastOpened) throws IOException, KdlParseException
-	{
-		if (!path.isDirectory())
-			throw new IllegalArgumentException("Project path must be a directory: " + path);
-		this.directory = path.getAbsoluteFile();
-		this.lastOpened = lastOpened;
-		this.manifest = new Manifest(this);
-	}
-
-	/** Loads a project from a directory. */
+	/** Loads a project from a directory, initializing the engine. */
 	public Project(File path) throws IOException, KdlParseException
 	{
-		this(path, System.currentTimeMillis());
+		super(path);
+		try {
+			this.engine = Engine.forProject(this);
+		}
+		catch (BuildException e) {
+			throw new IOException("Failed to initialize engine: " + e.getMessage(), e);
+		}
 	}
 
-	public String getPath()
+	public Engine getEngine()
 	{
-		return directory.getPath();
-	}
-
-	public File getDirectory()
-	{
-		return directory;
-	}
-
-	public long getLastOpened()
-	{
-		return lastOpened;
-	}
-
-	public String getName()
-	{
-		return manifest.getName();
-	}
-
-	public Manifest getManifest()
-	{
-		return manifest;
+		return engine;
 	}
 
 	/** Creates a new project from a template. */
-	public static Project create(File path, String template, String id, String name) throws IOException, KdlParseException
+	public static ProjectListing create(File path, String template, String id, String name) throws IOException, KdlParseException
 	{
 		if (!path.exists())
 			path.mkdirs();
@@ -74,42 +54,17 @@ public class Project implements Comparable<Project>
 		File manifestFile = new File(path, Manifest.FILENAME);
 		if (manifestFile.exists()) {
 			String content = FileUtils.readFileToString(manifestFile, "UTF-8");
-			content = content.replace("$PROJECT_ID", id);
-			content = content.replace("$PROJECT_NAME", name);
-			content = content.replace("$PROJECT_DESCRIPTION", "");
+			content = content.replace("$PROJECT_ID", '"' + id + '"');
+			content = content.replace("$PROJECT_NAME", '"' + name.replace('"', '\\') + '"');
+			content = content.replace("$PROJECT_DESCRIPTION", '"' + "An amazing mod of Paper Mario" + '"'); // TODO: ui
 			FileUtils.writeStringToFile(manifestFile, content, "UTF-8");
 		}
 
-		return new Project(path);
+		return new ProjectListing(path);
 	}
 
-	@Override
-	public int compareTo(Project other)
+	public void build()
 	{
-		// Sort by lastOpened descending (most recent first)
-		return Long.compare(other.lastOpened, this.lastOpened);
-	}
-
-	@Override
-	public boolean equals(Object obj)
-	{
-		if (this == obj)
-			return true;
-		if (obj == null || getClass() != obj.getClass())
-			return false;
-		Project other = (Project) obj;
-		return directory.equals(other.directory);
-	}
-
-	@Override
-	public int hashCode()
-	{
-		return directory.hashCode();
-	}
-
-	@Override
-	public String toString()
-	{
-		return getName() + " (" + directory.getAbsolutePath() + ")";
+		// TODO
 	}
 }

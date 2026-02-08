@@ -1,4 +1,4 @@
-package app.build;
+package project.engine;
 
 import util.Logger;
 
@@ -21,12 +21,7 @@ public interface BuildOutputListener
 	static BuildOutputListener toLogger()
 	{
 		return (line, isError) -> {
-			if (isError) {
-				Logger.logError(line);
-			}
-			else {
-				Logger.log(line);
-			}
+			Logger.log(line);
 		};
 	}
 

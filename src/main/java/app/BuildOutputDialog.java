@@ -3,6 +3,7 @@ package app;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Frame;
+import java.io.File;
 import java.io.IOException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -17,12 +18,10 @@ import javax.swing.SwingUtilities;
 import javax.swing.WindowConstants;
 import javax.swing.text.DefaultCaret;
 
-import app.build.BuildEnvironment;
-import app.build.BuildException;
-import app.build.BuildOutputListener;
-import app.build.BuildResult;
-import app.build.NixEnvironment;
-import app.build.WslNixOsEnvironment;
+import project.engine.BuildEnvironment;
+import project.engine.BuildException;
+import project.engine.BuildOutputListener;
+import project.engine.BuildResult;
 import net.miginfocom.swing.MigLayout;
 
 /**
@@ -100,44 +99,26 @@ public class BuildOutputDialog extends JDialog
 
 		// Create build environment on background thread
 		Environment.getExecutor().submit(() -> {
+			File projectDir = Environment.getProject().getDirectory();
+			buildEnv = Environment.getProject().getEngine().getBuildEnvironment();
+
 			try {
-				if (Environment.isWindows()) {
-					buildEnv = new WslNixOsEnvironment();
-				}
-				else {
-					buildEnv = new NixEnvironment();
-				}
-
-				try {
-					buildEnv.configure(getOutputListener());
-				}
-				catch (IOException | BuildException e) {
-					SwingUtilities.invokeLater(() -> {
-						appendOutput("Configuration error: " + e.getMessage(), true);
-						handleBuildError(e);
-					});
-					return;
-				}
-
-				buildEnv.buildAsync(getOutputListener()).thenAccept(result -> {
-					SwingUtilities.invokeLater(() -> handleBuildComplete(result));
-				}).exceptionally(ex -> {
-					SwingUtilities.invokeLater(() -> handleBuildError(ex));
-					return null;
-				});
+				buildEnv.configure(projectDir, getOutputListener());
 			}
-			catch (BuildException e) {
+			catch (IOException | BuildException e) {
 				SwingUtilities.invokeLater(() -> {
-					if (!e.isSilent()) {
-						appendOutput("Build environment error: " + e.getMessage(), true);
-						handleBuildError(e);
-					}
-					else {
-						appendOutput(e.getMessage(), false);
-						handleBuildComplete(BuildResult.cancelled(java.time.Duration.ZERO));
-					}
+					appendOutput("Configuration error: " + e.getMessage(), true);
+					handleBuildError(e);
 				});
+				return;
 			}
+
+			buildEnv.buildAsync(projectDir, getOutputListener()).thenAccept(result -> {
+				SwingUtilities.invokeLater(() -> handleBuildComplete(result));
+			}).exceptionally(ex -> {
+				SwingUtilities.invokeLater(() -> handleBuildError(ex));
+				return null;
+			});
 		});
 	}
 

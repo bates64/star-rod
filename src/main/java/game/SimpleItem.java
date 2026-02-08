@@ -52,7 +52,7 @@ public class SimpleItem
 	{
 		ArrayList<SimpleItemTemplate> templates = new ArrayList<>();
 
-		File yamlFile = Directories.PROJ_SRC.file("item_table.yaml");
+		File yamlFile = Directories.ENGINE_SRC.file("item_table.yaml");
 		ArrayList<Object> itemList = YamlHelper.readAsList(yamlFile);
 		if (itemList == null)
 			return null;

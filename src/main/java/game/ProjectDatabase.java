@@ -44,16 +44,16 @@ public class ProjectDatabase
 		if (initialized)
 			return;
 
-		savedFlags = loadSavedVarNames(Directories.PROJ_INCLUDE.file("saved_flag_names.h"));
-		savedBytes = loadSavedVarNames(Directories.PROJ_INCLUDE.file("saved_byte_names.h"));
+		savedFlags = loadSavedVarNames(Directories.ENGINE_INCLUDE.file("saved_flag_names.h"));
+		savedBytes = loadSavedVarNames(Directories.ENGINE_INCLUDE.file("saved_byte_names.h"));
 
 		// TODO the following block takes a half-second at startup and could be optimized better
 		{
 			decompEnums = new CaseInsensitiveMap<>();
-			DecompEnum.addEnums(decompEnums, Directories.PROJ_INCLUDE.file("enums.h").getAbsolutePath());
-			DecompEnum.addEnums(decompEnums, Directories.PROJ_INCLUDE.file("effects.h").getAbsolutePath());
-			DecompEnum.addEnums(decompEnums, Directories.PROJ_SRC.file("battle/battle_names.h").getAbsolutePath());
-			DecompEnum.addEnums(decompEnums, Directories.PROJ_SRC.file("battle/stage_names.h").getAbsolutePath());
+			DecompEnum.addEnums(decompEnums, Directories.ENGINE_INCLUDE.file("enums.h").getAbsolutePath());
+			DecompEnum.addEnums(decompEnums, Directories.ENGINE_INCLUDE.file("effects.h").getAbsolutePath());
+			DecompEnum.addEnums(decompEnums, Directories.ENGINE_SRC.file("battle/battle_names.h").getAbsolutePath());
+			DecompEnum.addEnums(decompEnums, Directories.ENGINE_SRC.file("battle/stage_names.h").getAbsolutePath());
 		}
 
 		ESurfaceTypes = decompEnums.get("SurfaceType");

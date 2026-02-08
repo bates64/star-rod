@@ -38,7 +38,7 @@ public class ProjectManager
 	 * Gets all recent projects, sorted by last opened (most recent first).
 	 * Invalid projects (non-existent paths) are automatically removed.
 	 */
-	public List<Project> getRecentProjects()
+	public List<ProjectListing> getRecentProjects()
 	{
 		return repository.getAllProjects();
 	}
@@ -46,31 +46,29 @@ public class ProjectManager
 	/**
 	 * Records that a project was opened (adds or updates its timestamp).
 	 */
-	public void recordProjectOpened(Project project)
+	public void recordProjectOpened(ProjectListing listing)
 	{
-		repository.updateLastOpened(project);
+		repository.updateLastOpened(listing);
 	}
 
 	/**
 	 * Removes a project from the recent projects list.
 	 * Does NOT delete files from disk.
-	 * @param project The project to remove
 	 */
-	public void removeFromHistory(Project project)
+	public void removeFromHistory(ProjectListing listing)
 	{
-		repository.removeProject(project);
+		repository.removeProject(listing);
 	}
 
 	/**
 	 * Deletes a project from disk and removes it from the history.
-	 * @param project The project to delete
 	 * @return true if deletion was successful, false otherwise
 	 */
-	public boolean deleteFromDisk(Project project)
+	public boolean deleteFromDisk(ProjectListing listing)
 	{
-		File projectDir = new File(project.getPath());
+		File projectDir = new File(listing.getPath());
 
-		repository.removeProject(project);
+		repository.removeProject(listing);
 
 		try {
 			FileUtils.deleteDirectory(projectDir);

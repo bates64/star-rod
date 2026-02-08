@@ -43,6 +43,7 @@ import app.config.Options;
 import app.config.Options.Scope;
 import app.input.IOUtils;
 import project.Project;
+import project.ProjectListing;
 import project.ProjectManager;
 import project.Manifest;
 import project.ui.ProjectSwitcherDialog;
@@ -53,6 +54,7 @@ import game.ProjectDatabase;
 import game.entity.EntityExtractor;
 import game.map.editor.ui.dialogs.ChooseDialogResult;
 import game.map.editor.ui.dialogs.DirChooser;
+import game.map.editor.ui.dialogs.OpenFileChooser;
 import game.message.font.FontManager;
 import util.Logger;
 import util.Priority;
@@ -90,7 +92,6 @@ public abstract class Environment
 	private static File codeSource;
 
 	public static Config mainConfig = null;
-	public static Config projectConfig = null;
 
 	private static Project project = null;
 
@@ -258,11 +259,11 @@ public abstract class Environment
 			}
 
 			try {
-				Project project = chooseProject();
-				if (project == null)
+				ProjectListing listing = chooseProject();
+				if (listing == null)
 					exit();
-				LoadingBar.show("Loading " + project.getName(), true);
-				boolean validProject = loadProject(project);
+				LoadingBar.show("Loading " + listing.getName(), true);
+				boolean validProject = loadProject(listing);
 				if (!validProject)
 					exit(1);
 			} catch (IOException | KdlParseException e) {
@@ -492,14 +493,14 @@ public abstract class Environment
 		}
 	}
 
-	private static Project chooseProject() throws IOException, KdlParseException
+	private static ProjectListing chooseProject() throws IOException, KdlParseException
 	{
 		// Search current directory and its parents for a project manifest
 		File currentDir = new File(".");
 		while (currentDir != null) {
 			File projectDir = new File(currentDir, Manifest.FILENAME);
 			if (projectDir.isFile()) {
-				return new Project(projectDir);
+				return new ProjectListing(projectDir.getParentFile());
 			}
 			currentDir = currentDir.getParentFile();
 		}
@@ -512,47 +513,34 @@ public abstract class Environment
 		return ProjectSwitcherDialog.showPrompt();
 	}
 
-	public static boolean loadProject(Project newProject) throws IOException
+	public static boolean loadProject(ProjectListing listing) throws IOException
 	{
-		project = newProject;
-
-		// TODO: get similar to classic
-		/*
-		// get US baserom
-		usBaseRom = new File(project.getDirectory(), FN_BASEROM);
-		if (!usBaseRom.exists()) {
-			showErrorMessage("Missing US Base ROM",
-				"Could not find US baserom for project. %n" +
-					"Star Rod requries one for asset extraction.");
+		try {
+			project = new Project(listing.getDirectory());
+		} catch (IOException | KdlParseException e) {
+			Logger.logError(e.getMessage());
+			showErrorMessage("Error Loading Project", "Failed to load project: %s", listing.getName());
 			return false;
 		}
-		*/
 
-		// save project dir
 		Directories.setProjectDirectory(project.getPath());
+		Directories.setDumpDirectory(project.getEngine().getDumpDir().getAbsolutePath());
 
-		reloadIcons();
+		// Asset stack (TODO: move to Project?)
+		assetDirectories = new ArrayList<>();
+		assetDirectories.add(project.getDirectory());
+		// ...dependencies...
+		assetDirectories.add(Directories.ENGINE_ASSETS_US.toFile());
 
-		ProjectDatabase.initialize();
-
-		// set dump dir
-		File dumpDir = new File(usBaseRom.getParentFile(), "/dump/");
-		Directories.setDumpDirectory(dumpDir.getAbsolutePath());
-
-		// dump if missing
-		if (!dumpDir.exists()) {
-			LoadingBar.show("Extracting Baserom");
-			Logger.log("Extracting assets from baserom");
-			Directories.createDumpDirectories();
-			EntityExtractor.extractAll();
-			FontManager.dump();
+		usBaseRom = project.getEngine().getBaseRom();
+		if (!ensureDumpExtracted()) {
+			return false;
 		}
 
-		AssetExtractor.extractAll();
+		reloadIcons();
+		ProjectDatabase.initialize();
 
-		// Record that this project was opened
 		ProjectManager.getInstance().recordProjectOpened(project);
-
 		return true;
 	}
 
@@ -586,9 +574,11 @@ public abstract class Environment
 
 	public static ByteBuffer getBaseRomBuffer()
 	{
-		// lazy load
 		if (romBytes != null)
 			return romBytes;
+
+		if (usBaseRom == null || !usBaseRom.exists())
+			return null;
 
 		try {
 			romBytes = IOUtils.getDirectBuffer(usBaseRom).asReadOnlyBuffer();
@@ -603,20 +593,66 @@ public abstract class Environment
 		return romBytes;
 	}
 
-	private static List<File> getAssetDirs(File directory, File splatFile) throws IOException
+	/**
+	 * Prompts the user to select a baserom file, validates it, and copies
+	 * it to the appropriate location.
+	 * @return the validated ROM file, or null if cancelled
+	 */
+	public static File promptForBaserom()
 	{
-		Map<String, Object> topLevelMap = new Yaml().load(new FileInputStream(splatFile));
+		OpenFileChooser chooser = new OpenFileChooser(
+			null, "Select Paper Mario (US) ROM", "N64 ROM", "z64", "n64", "v64");
 
-		@SuppressWarnings("unchecked")
-		List<String> assetDirNames = (List<String>) topLevelMap.get("asset_stack");
+		if (chooser.prompt() != ChooseDialogResult.APPROVE)
+			return null;
 
-		File assetsDir = new File(directory, "assets");
+		File selected = chooser.getSelectedFile();
+		if (selected == null)
+			return null;
 
-		List<File> assetDirectories = new ArrayList<>();
-		for (String dirName : assetDirNames) {
-			assetDirectories.add(new File(assetsDir, dirName));
+		try {
+			File validated = RomValidator.validateROM(selected);
+			if (validated == null)
+				return null;
+
+			// Copy to target location
+			FileUtils.copyFile(validated, usBaseRom);
+			Logger.log("Baserom installed to " + usBaseRom.getAbsolutePath());
+
+			return usBaseRom;
 		}
-		return assetDirectories;
+		catch (IOException e) {
+			Logger.printStackTrace(e);
+			showErrorMessage("ROM Copy Error", "Failed to copy ROM: %s", e.getMessage());
+			return null;
+		}
+	}
+
+	/**
+	 * Ensures the dump directory is extracted. If it doesn't exist,
+	 * extracts from the baserom (prompting for the ROM if needed).
+	 * Sets usBaseRom and dumpPath as side effects when the user provides a ROM.
+	 * @return true if dump is available, false if user cancelled or extraction failed
+	 */
+	public static boolean ensureDumpExtracted() throws IOException
+	{
+		String dumpPath = Directories.getDumpPath();
+
+		if (dumpPath == null || !(new File(dumpPath).exists())) {
+			// Need baserom to create dump
+			if (usBaseRom == null || !usBaseRom.exists()) {
+				Logger.logError("Cannot extract dump: baserom not found");
+				return false;
+			}
+
+			Logger.log("Extracting assets");
+			Directories.createDumpDirectories();
+			EntityExtractor.extractAll();
+			FontManager.dump();
+		}
+
+		AssetExtractor.extractAll();
+		return true;
 	}
 
 	public static boolean isWindows()

@@ -169,7 +169,7 @@ public class WorldMapModder
 
 	public static List<WorldLocation> loadLocations() throws IOException
 	{
-		List<WorldLocation> locations = readXML(Directories.PROJ_SRC.file(Directories.FN_WORLD_MAP));
+		List<WorldLocation> locations = readXML(Directories.ENGINE_SRC.file(Directories.FN_WORLD_MAP));
 
 		HashMap<String, WorldLocation> locationMap = new HashMap<>();
 		for (WorldLocation loc : locations) {
@@ -192,7 +192,7 @@ public class WorldMapModder
 				loc.parentName = loc.parent.name;
 		}
 
-		writeXML(locations, Directories.PROJ_SRC.file(Directories.FN_WORLD_MAP));
+		writeXML(locations, Directories.ENGINE_SRC.file(Directories.FN_WORLD_MAP));
 	}
 
 	public static String stripPrefix(String s, String prefix)

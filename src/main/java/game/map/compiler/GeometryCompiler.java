@@ -164,7 +164,7 @@ public class GeometryCompiler
 			throw new BuildException("Build failed: " + mapType + " size exceeds engine limit.\n" + breakdown);
 		}
 
-		File headerFile = Directories.PROJ_INCLUDE_MAPFS.file(map.getName() + "_shape.h");
+		File headerFile = Directories.ENGINE_INCLUDE_MAPFS.file(map.getName() + "_shape.h");
 		try (PrintWriter pw = IOUtils.getBufferedPrintWriter(headerFile)) {
 			for (Model mdl : map.modelTree.getList()) {
 				pw.printf("#define %-23s 0x%X%n", "MODEL_" + mdl.getName(), mdl.getNode().getTreeIndex());

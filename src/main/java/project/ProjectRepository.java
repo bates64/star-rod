@@ -10,23 +10,23 @@ public interface ProjectRepository
 {
 	/**
 	 * Gets all projects sorted by last opened (most recent first).
-	 * @return List of projects, or empty list if none exist
+	 * @return List of project listings, or empty list if none exist
 	 */
-	List<Project> getAllProjects();
+	List<ProjectListing> getAllProjects();
 
 	/**
 	 * Adds a project to the repository or updates its timestamp if it already exists.
-	 * @param project The project to add or update
+	 * @param listing The project listing to add or update
 	 */
-	void addProject(Project project);
+	void addProject(ProjectListing listing);
 
 	/**
 	 * Removes a project from the repository.
 	 */
-	void removeProject(Project project);
+	void removeProject(ProjectListing listing);
 
 	/**
 	 * Updates the last opened timestamp for a project.
-     */
-	void updateLastOpened(Project project);
+	 */
+	void updateLastOpened(ProjectListing listing);
 }

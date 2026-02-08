@@ -14,14 +14,14 @@ import javax.swing.ListCellRenderer;
 import javax.swing.SwingConstants;
 
 import app.SwingUtils;
-import project.Project;
+import project.ProjectListing;
 import net.miginfocom.swing.MigLayout;
 
 /**
  * Cell renderer for projects in the project list.
  * Displays project name (bold), path, and last opened time.
  */
-public class ProjectCellRenderer extends JPanel implements ListCellRenderer<Project>
+public class ProjectCellRenderer extends JPanel implements ListCellRenderer<ProjectListing>
 {
 	private final JLabel nameLabel;
 	private final JLabel pathLabel;
@@ -49,8 +49,8 @@ public class ProjectCellRenderer extends JPanel implements ListCellRenderer<Proj
 
 	@Override
 	public Component getListCellRendererComponent(
-		JList<? extends Project> list,
-		Project project,
+		JList<? extends ProjectListing> list,
+		ProjectListing project,
 		int index,
 		boolean isSelected,
 		boolean cellHasFocus)

@@ -34,7 +34,7 @@ public class HeaderEntry
 		Environment.initialize();
 		LoadingBar.show("Testing Map Data");
 
-		File f = Directories.PROJ_SRC_WORLD.toFile();
+		File f = Directories.ENGINE_SRC_WORLD.toFile();
 		File[] worldDirs = f.listFiles();
 		Arrays.sort(worldDirs);
 		int mismatchCount = 0;
@@ -69,8 +69,8 @@ public class HeaderEntry
 
 	public static boolean test(String mapPath) throws IOException
 	{
-		File in = Directories.PROJ_SRC_WORLD.file(mapPath + "/generated.h");
-		File out = Directories.PROJ_SRC_WORLD.file(mapPath + "/test.h");
+		File in = Directories.ENGINE_SRC_WORLD.file(mapPath + "/generated.h");
+		File out = Directories.ENGINE_SRC_WORLD.file(mapPath + "/test.h");
 
 		List<HeaderEntry> entries = parseFile(in);
 

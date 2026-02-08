@@ -1,4 +1,4 @@
-package app.build;
+package project.engine;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -42,6 +42,76 @@ public class WslNixOsEnvironment implements BuildEnvironment
 		registerShutdownHook();
 	}
 
+	// --- Engine storage and git operations ---
+
+	private static final String WSL_ENGINE_BASE = "/home/nixos/star-rod/engine";
+
+	@Override
+	public File getEngineBaseDir()
+	{
+		return new File("\\\\" + "wsl$\\" + DISTRO_NAME + WSL_ENGINE_BASE.replace('/', '\\'));
+	}
+
+	@Override
+	public void gitCloneBare(String url, File targetDir, BuildOutputListener listener) throws IOException
+	{
+		String wslTarget = convertToWslPath(targetDir);
+		runWslGitCommand(null, listener, "clone", "--bare", url, wslTarget);
+	}
+
+	@Override
+	public void gitWorktreeAdd(File bareRepo, File worktreeDir, String ref, BuildOutputListener listener) throws IOException
+	{
+		String wslBareRepo = convertToWslPath(bareRepo);
+		String wslWorktree = convertToWslPath(worktreeDir);
+		runWslGitCommand(wslBareRepo, listener, "worktree", "add", wslWorktree, ref);
+	}
+
+	@Override
+	public void gitFetchAll(File repo, BuildOutputListener listener) throws IOException
+	{
+		runWslGitCommand(convertToWslPath(repo), listener, "fetch", "--all");
+	}
+
+	@Override
+	public void gitCheckout(File dir, String ref, BuildOutputListener listener) throws IOException
+	{
+		runWslGitCommand(convertToWslPath(dir), listener, "checkout", ref);
+	}
+
+	/**
+	 * Runs a git command inside WSL.
+	 * @param wslWorkingDir WSL-native path for working directory, or null
+	 * @param listener Callback for output
+	 * @param args git arguments (paths must already be WSL-native)
+	 */
+	private void runWslGitCommand(String wslWorkingDir, BuildOutputListener listener, String... args) throws IOException
+	{
+		int baseLen = 3; // wsl -d <distro>
+		if (wslWorkingDir != null)
+			baseLen += 2; // --cd <path>
+		baseLen += 1; // git
+
+		String[] cmd = new String[baseLen + args.length];
+		int i = 0;
+		cmd[i++] = "wsl";
+		cmd[i++] = "-d";
+		cmd[i++] = DISTRO_NAME;
+		if (wslWorkingDir != null) {
+			cmd[i++] = "--cd";
+			cmd[i++] = wslWorkingDir;
+		}
+		cmd[i++] = "git";
+		System.arraycopy(args, 0, cmd, i, args.length);
+
+		ProcessRunner.ProcessResult result = runner.run(cmd, null, listener);
+		if (!result.isSuccess()) {
+			throw new IOException("WSL git command failed with exit code " + result.getExitCode());
+		}
+	}
+
+	// --- Build operations ---
+
 	@Override
 	public String getName()
 	{
@@ -49,23 +119,23 @@ public class WslNixOsEnvironment implements BuildEnvironment
 	}
 
 	@Override
-	public BuildResult configure(BuildOutputListener listener) throws BuildException, IOException
+	public BuildResult configure(File projectDir, BuildOutputListener listener) throws BuildException, IOException
 	{
 		ensureDistroExists(listener);
-		return runWslCommand("./configure", listener);
+		return runWslCommand(projectDir, "./configure", listener);
 	}
 
 	@Override
-	public BuildResult build(BuildOutputListener listener) throws BuildException, IOException
+	public BuildResult build(File projectDir, BuildOutputListener listener) throws BuildException, IOException
 	{
 		ensureDistroExists(listener);
-		ProcessRunner.ProcessResult result = runWslCommandRaw("NINJA_STATUS='" + BuildOutputDialog.NINJA_STATUS + "' ./configure && ninja", listener);
+		ProcessRunner.ProcessResult result = runWslCommandRaw(projectDir, "NINJA_STATUS='" + BuildOutputDialog.NINJA_STATUS + "' ./configure && ninja", listener);
 
 		if (result.wasCancelled()) {
 			return BuildResult.cancelled(result.getDuration());
 		}
 
-		File rom = new File(Environment.getProjectDirectory(), ROM_PATH);
+		File rom = new File(projectDir, ROM_PATH);
 		if (result.isSuccess() && rom.exists()) {
 			return BuildResult.success(result.getExitCode(), result.getDuration(), rom);
 		}
@@ -76,18 +146,18 @@ public class WslNixOsEnvironment implements BuildEnvironment
 	}
 
 	@Override
-	public BuildResult clean(BuildOutputListener listener) throws BuildException, IOException
+	public BuildResult clean(File projectDir, BuildOutputListener listener) throws BuildException, IOException
 	{
 		ensureDistroExists(listener);
-		return runWslCommand("./configure --clean", listener);
+		return runWslCommand(projectDir, "./configure --clean", listener);
 	}
 
 	@Override
-	public CompletableFuture<BuildResult> buildAsync(BuildOutputListener listener)
+	public CompletableFuture<BuildResult> buildAsync(File projectDir, BuildOutputListener listener)
 	{
 		return CompletableFuture.supplyAsync(() -> {
 			try {
-				return build(listener);
+				return build(projectDir, listener);
 			}
 			catch (BuildException | IOException e) {
 				return BuildResult.failure(-1, java.time.Duration.ZERO, e.getMessage());
@@ -457,6 +527,11 @@ public class WslNixOsEnvironment implements BuildEnvironment
 	private String convertToWslPath(File windowsPath)
 	{
 		String absPath = windowsPath.getAbsolutePath();
+		// Convert WSL paths to local ones
+		if (absPath.startsWith("\\\\wsl$\\" + DISTRO_NAME + "\\")) {
+			String rest = absPath.substring(absPath.indexOf(DISTRO_NAME) + DISTRO_NAME.length() + 1).replace('\\', '/');
+			return rest.replace("\\", "/");
+		}
 		// Convert C:\foo\bar to /mnt/c/foo/bar
 		if (absPath.length() >= 2 && absPath.charAt(1) == ':') {
 			char driveLetter = Character.toLowerCase(absPath.charAt(0));
@@ -466,9 +541,9 @@ public class WslNixOsEnvironment implements BuildEnvironment
 		return absPath.replace('\\', '/');
 	}
 
-	private BuildResult runWslCommand(String command, BuildOutputListener listener) throws IOException
+	private BuildResult runWslCommand(File projectDir, String command, BuildOutputListener listener) throws IOException
 	{
-		ProcessRunner.ProcessResult result = runWslCommandRaw(command, listener);
+		ProcessRunner.ProcessResult result = runWslCommandRaw(projectDir, command, listener);
 
 		if (result.wasCancelled()) {
 			return BuildResult.cancelled(result.getDuration());
@@ -482,9 +557,8 @@ public class WslNixOsEnvironment implements BuildEnvironment
 		}
 	}
 
-	private ProcessRunner.ProcessResult runWslCommandRaw(String command, BuildOutputListener listener) throws IOException
+	private ProcessRunner.ProcessResult runWslCommandRaw(File projectDir, String command, BuildOutputListener listener) throws IOException
 	{
-		File projectDir = Environment.getProjectDirectory();
 		String wslPath = convertToWslPath(projectDir);
 
 		String[] cmd = new String[] {
