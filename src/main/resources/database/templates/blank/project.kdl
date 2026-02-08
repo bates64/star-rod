@@ -1,0 +1,6 @@
+id $PROJECT_ID
+name $PROJECT_NAME
+description $PROJECT_DESCRIPTION
+license "CC0"
+
+engine version="0.0.0"

@@ -16,6 +16,7 @@ public enum Directories
 	DATABASE			(Root.CONFIG,			"/database/"),
 	DATABASE_EDITOR		(Root.CONFIG, DATABASE,		"/editor/"),
 	DATABASE_THEMES		(Root.CONFIG, DATABASE,		"/themes/"),
+	DATABASE_TEMPLATES	(Root.CONFIG, DATABASE,		"/templates/"),
 
 	LOGS				(Root.STATE, 			"/logs/"),
 	TEMP				(Root.STATE, 			"/temp/"),

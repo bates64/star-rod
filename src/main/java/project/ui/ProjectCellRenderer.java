@@ -72,7 +72,7 @@ public class ProjectCellRenderer extends JPanel implements ListCellRenderer<Proj
 
 		if (project != null) {
 			nameLabel.setText(project.getName());
-			pathLabel.setText(project.getPath().getAbsolutePath());
+			pathLabel.setText(project.getPath());
 			timeLabel.setText(formatRelativeTime(project.getLastOpened()));
 		}
 		else {

@@ -6,7 +6,6 @@ import java.util.List;
 
 import org.apache.commons.io.FileUtils;
 
-import app.Environment;
 import util.Logger;
 
 /**
@@ -46,11 +45,10 @@ public class ProjectManager
 
 	/**
 	 * Records that a project was opened (adds or updates its timestamp).
-	 * @param projectPath The path to the project
 	 */
-	public void recordProjectOpened(File projectPath)
+	public void recordProjectOpened(Project project)
 	{
-		repository.updateLastOpened(projectPath);
+		repository.updateLastOpened(project);
 	}
 
 	/**
@@ -60,7 +58,7 @@ public class ProjectManager
 	 */
 	public void removeFromHistory(Project project)
 	{
-		repository.removeProject(project.getPath());
+		repository.removeProject(project);
 	}
 
 	/**
@@ -70,45 +68,17 @@ public class ProjectManager
 	 */
 	public boolean deleteFromDisk(Project project)
 	{
-		File projectDir = project.getPath();
+		File projectDir = new File(project.getPath());
 
-		// First remove from history
-		repository.removeProject(projectDir);
+		repository.removeProject(project);
 
-		// Then delete from disk
-		if (projectDir.exists()) {
-			try {
-				FileUtils.deleteDirectory(projectDir);
-				Logger.log("Deleted project directory: " + projectDir.getAbsolutePath());
-				return true;
-			}
-			catch (IOException e) {
-				Logger.logError("Failed to delete project: " + e.getMessage());
-				return false;
-			}
+		try {
+			FileUtils.deleteDirectory(projectDir);
+			return true;
 		}
-		return true; // Already doesn't exist
-	}
-
-	/**
-	 * Checks if a directory is a valid Star Rod project.
-	 */
-	public boolean isValidProject(File dir)
-	{
-		return ProjectValidator.isValidProject(dir);
-	}
-
-	/**
-	 * Loads a project using Environment.loadProject().
-	 * @param projectPath The path to the project
-	 * @return true if the project was loaded successfully
-	 */
-	public boolean openProject(File projectPath) throws IOException
-	{
-		boolean success = Environment.loadProject(projectPath);
-		if (success) {
-			recordProjectOpened(projectPath);
+		catch (IOException e) {
+			Logger.logError("Failed to delete project: " + e.getMessage());
+			return false;
 		}
-		return success;
 	}
 }

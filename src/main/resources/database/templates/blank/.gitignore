@@ -1,0 +1,20 @@
+# Build artifacts
+/build
+compile_commands.json
+*.z64
+*.n64
+
+# IDE settings
+.vscode
+.zed
+.starrod
+.claude
+.cache
+
+# Miscellaneous
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.lnk
+*.log
+*.tmp

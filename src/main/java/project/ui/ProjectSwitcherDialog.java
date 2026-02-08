@@ -14,6 +14,7 @@ import java.awt.event.MouseEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.File;
+import java.io.IOException;
 import java.net.URI;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -50,9 +51,9 @@ import app.SwingUtils;
 import app.Themes;
 import app.Themes.Theme;
 import app.config.Options;
+import dev.kdl.parse.KdlParseException;
 import project.Project;
 import project.ProjectManager;
-import project.ProjectValidator;
 import game.map.editor.ui.dialogs.ChooseDialogResult;
 import game.map.editor.ui.dialogs.DirChooser;
 import net.miginfocom.swing.MigLayout;
@@ -331,13 +332,14 @@ public class ProjectSwitcherDialog extends StarRodFrame
 		// Buttons
 		JButton createButton = new JButton("New Project");
 		createButton.addActionListener(e -> {
-			// TODO
-			SwingUtils.getMessageDialog()
-				.setTitle("Coming Soon")
-				.setMessage("Project creation is not yet implemented.",
-					"For now, please clone the papermario or papermario-dx repository manually.")
-				.setMessageType(JOptionPane.INFORMATION_MESSAGE)
-				.show();
+			Project newProject = CreateProjectDialog.showDialog(this);
+			if (newProject != null) {
+				projectManager.recordProjectOpened(newProject);
+				refreshProjectList();
+				updateListFilter();
+				list.setSelectedValue(newProject, true);
+				openSelectedProject();
+			}
 		});
 
 		JButton browseButton = new JButton("Browse...");
@@ -381,7 +383,7 @@ public class ProjectSwitcherDialog extends StarRodFrame
 			Project project = (Project) element;
 			String filterText = filterTextField.getText().toUpperCase();
 			String name = project.getName().toUpperCase();
-			String path = project.getPath().getAbsolutePath().toUpperCase();
+			String path = project.getPath().toUpperCase();
 			return name.contains(filterText) || path.contains(filterText);
 		});
 	}
@@ -390,23 +392,6 @@ public class ProjectSwitcherDialog extends StarRodFrame
 	{
 		Project selected = list.getSelectedValue();
 		if (selected == null) {
-			return;
-		}
-
-		// Validate project
-		if (!ProjectValidator.isValidProject(selected.getPath())) {
-			int choice = SwingUtils.getConfirmDialog()
-				.setTitle("Invalid Project")
-				.setMessage("This directory is no longer a valid Star Rod project.",
-					"Would you like to remove it from the list?")
-				.setOptionsType(JOptionPane.YES_NO_OPTION)
-				.choose();
-
-			if (choice == JOptionPane.YES_OPTION) {
-				projectManager.removeFromHistory(selected);
-				refreshProjectList();
-				updateListFilter();
-			}
 			return;
 		}
 
@@ -419,19 +404,14 @@ public class ProjectSwitcherDialog extends StarRodFrame
 	{
 		if (dirChooser.prompt() == ChooseDialogResult.APPROVE) {
 			File selectedDir = dirChooser.getSelectedFile();
-
-			if (!ProjectValidator.isValidProject(selectedDir)) {
-				SwingUtils.getErrorDialog()
-					.setTitle("Invalid Project")
-					.setMessage("The selected directory is not a valid Star Rod project.",
-						"A valid project must have ver/us/splat.yaml")
-					.show();
+			Project newProject;
+			try {
+				newProject = new Project(selectedDir);
+			} catch (IOException | KdlParseException e) {
+				Environment.showErrorMessage("Failed to open project", "The folder you selected is not a valid project: %s", e.getMessage());
 				return;
 			}
-
-			// Add to history and select
-			Project newProject = new Project(selectedDir);
-			projectManager.recordProjectOpened(selectedDir);
+			projectManager.recordProjectOpened(newProject);
 
 			// Refresh and select the new project
 			refreshProjectList();
@@ -451,7 +431,7 @@ public class ProjectSwitcherDialog extends StarRodFrame
 		}
 
 		int choice = SwingUtils.getConfirmDialog()
-			.setTitle("Remove Project")
+			.setTitle("Remove project")
 			.setMessage("Remove \"" + selected.getName() + "\" from the project list?",
 				"The project files will not be deleted.")
 			.setOptionsType(JOptionPane.YES_NO_OPTION)
@@ -481,7 +461,7 @@ public class ProjectSwitcherDialog extends StarRodFrame
 
 		Object[] message = {
 			"WARNING: This will permanently delete all files in:",
-			selected.getPath().getAbsolutePath(),
+			selected.getPath(),
 			"",
 			confirmCheck
 		};

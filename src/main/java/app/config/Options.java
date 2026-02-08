@@ -20,9 +20,10 @@ public enum Options
 	GameVersion			(true, Scope.Main, Type.String, "GameVersion", "us"),
 
 	LogDetails			(true, Scope.Main, Type.Boolean, "LogDetails", "false"),
-	Theme				(true, Scope.Main, Type.String, "Theme", "FlatDark"),
+	Theme				(false, Scope.Main, Type.String, "Theme", ""),
 	ExitToMenu			(true, Scope.Main, Type.Boolean, "ExitToMenu", "true"),
 	CheckForUpdates		(true, Scope.Main, Type.Boolean, "CheckForUpdates", "true"),
+	ProjectsDir			(false, Scope.Main, Type.String, "ProjectsDir", ""),
 
 	ExtractedMapData	(true, Scope.Project, Type.Boolean, "ExtractedMapData", "false"),
 

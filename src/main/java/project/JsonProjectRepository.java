@@ -15,6 +15,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 
 import app.Environment;
+import dev.kdl.parse.KdlParseException;
 import util.Logger;
 
 /**
@@ -48,16 +49,15 @@ public class JsonProjectRepository implements ProjectRepository
 
 		while (iter.hasNext()) {
 			ProjectData data = iter.next();
-			File path = new File(data.path);
 
-			// Remove invalid entries
-			if (!path.exists()) {
+			try {
+				projects.add(new Project(new File(data.path), data.lastOpened));
+			} catch (IOException | KdlParseException e) {
+				Logger.logWarning("Ignoring invalid project: " + data.path);
 				iter.remove();
 				modified = true;
 				continue;
 			}
-
-			projects.add(new Project(path, data.lastOpened));
 		}
 
 		// Save if we removed any invalid entries
@@ -76,7 +76,7 @@ public class JsonProjectRepository implements ProjectRepository
 		List<ProjectData> dataList = loadProjectData();
 
 		// Remove existing entry with same path (will be re-added with new timestamp)
-		String absolutePath = project.getPath().getAbsolutePath();
+		String absolutePath = project.getPath();
 		dataList.removeIf(data -> data.path.equals(absolutePath));
 
 		// Add new entry
@@ -89,19 +89,19 @@ public class JsonProjectRepository implements ProjectRepository
 	}
 
 	@Override
-	public synchronized void removeProject(File projectPath)
+	public synchronized void removeProject(Project project)
 	{
 		List<ProjectData> dataList = loadProjectData();
-		String absolutePath = projectPath.getAbsolutePath();
+		String absolutePath = project.getPath();
 		dataList.removeIf(data -> data.path.equals(absolutePath));
 		saveProjectData(dataList);
 	}
 
 	@Override
-	public synchronized void updateLastOpened(File projectPath)
+	public synchronized void updateLastOpened(Project project)
 	{
 		List<ProjectData> dataList = loadProjectData();
-		String absolutePath = projectPath.getAbsolutePath();
+		String absolutePath = project.getPath();
 
 		for (ProjectData data : dataList) {
 			if (data.path.equals(absolutePath)) {

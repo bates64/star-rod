@@ -21,7 +21,6 @@ import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.jar.Attributes;
-import java.util.jar.Manifest;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -45,10 +44,11 @@ import app.config.Options.Scope;
 import app.input.IOUtils;
 import project.Project;
 import project.ProjectManager;
-import project.ProjectValidator;
+import project.Manifest;
 import project.ui.ProjectSwitcherDialog;
 import assets.AssetExtractor;
 import assets.ExpectedAsset;
+import dev.kdl.parse.KdlParseException;
 import game.ProjectDatabase;
 import game.entity.EntityExtractor;
 import game.map.editor.ui.dialogs.ChooseDialogResult;
@@ -92,8 +92,7 @@ public abstract class Environment
 	public static Config mainConfig = null;
 	public static Config projectConfig = null;
 
-	private static DirChooser projectChooser;
-	private static File projectDirectory = null;
+	private static Project project = null;
 
 	private static String gameVersion = "";
 
@@ -192,7 +191,7 @@ public abstract class Environment
 		if (fromJar) {
 			ClassLoader cl = Environment.class.getClassLoader();
 			try {
-				Manifest manifest = new Manifest(cl.getResourceAsStream("META-INF/MANIFEST.MF"));
+				var manifest = new java.util.jar.Manifest(cl.getResourceAsStream("META-INF/MANIFEST.MF"));
 				Attributes attr = manifest.getMainAttributes();
 
 				versionString = attr.getValue("App-Version");
@@ -227,8 +226,6 @@ public abstract class Environment
 			}
 		}
 
-		projectChooser = new DirChooser(codeSource.getParentFile(), "Select Project Directory");
-
 		// Create user directories
 		getUserConfigDir().mkdirs();
 		getUserStateDir().mkdirs();
@@ -260,14 +257,18 @@ public abstract class Environment
 					checkForUpdate();
 			}
 
-			File projDir = chooseProjectDir();
-			if (projDir == null)
-				exit();
-
-			LoadingBar.show("Loading Project", true);
-			boolean validProject = loadProject(projDir);
-			if (!validProject)
-				exit();
+			try {
+				Project project = chooseProject();
+				if (project == null)
+					exit();
+				LoadingBar.show("Loading " + project.getName(), true);
+				boolean validProject = loadProject(project);
+				if (!validProject)
+					exit(1);
+			} catch (IOException | KdlParseException e) {
+				showErrorMessage("Failed To Load Project", e.getMessage());
+				exit(1);
+			}
 		}
 		catch (Throwable t) {
 			StarRodMain.handleEarlyCrash(t);
@@ -328,19 +329,27 @@ public abstract class Environment
 			return new File(".");
 	}
 
+	public static Project getProject()
+	{
+		return project;
+	}
+
+	@Deprecated
 	public static File getProjectDirectory()
 	{
-		return projectDirectory;
+		return project.getDirectory();
 	}
 
+	@Deprecated
 	public static File getSourceDirectory()
 	{
-		return new File(projectDirectory, "/src/");
+		return new File(project.getDirectory(), "/src/");
 	}
 
+	@Deprecated
 	public static File getProjectFile(String relativePath)
 	{
-		return new File(projectDirectory, relativePath);
+		return new File(project.getDirectory(), relativePath);
 	}
 
 	public static void checkForUpdate()
@@ -424,6 +433,23 @@ public abstract class Environment
 		return new File(dotConfig, "/star-rod/");
 	}
 
+	public static final File getUserDocumentsDir()
+	{
+		String userHome = System.getProperty("user.home");
+
+		if (isWindows())
+			return new File(System.getenv("USERPROFILE"), "Documents");
+
+		if (isMacOS())
+			return new File(userHome, "Documents");
+
+		// Linux: XDG_DOCUMENTS_DIR, fallback to ~/Documents
+		String xdgDocsDir = System.getenv("XDG_DOCUMENTS_DIR");
+		if (xdgDocsDir != null && !xdgDocsDir.isEmpty())
+			return new File(xdgDocsDir);
+		return new File(userHome, "Documents");
+	}
+
 	public static final File getUserStateDir()
 	{
 		String userHome = System.getProperty("user.home");
@@ -466,111 +492,45 @@ public abstract class Environment
 		}
 	}
 
-	private static File chooseProjectDir() throws IOException
+	private static Project chooseProject() throws IOException, KdlParseException
 	{
-		// if current directory seems to be a decomp project, use it
-		if (ProjectValidator.isCurrentDirectoryProject()) {
-			return new File(".");
+		// Search current directory and its parents for a project manifest
+		File currentDir = new File(".");
+		while (currentDir != null) {
+			File projectDir = new File(currentDir, Manifest.FILENAME);
+			if (projectDir.isFile()) {
+				return new Project(projectDir);
+			}
+			currentDir = currentDir.getParentFile();
 		}
 
-		// show project switcher to select a project
+		// Show project switcher to select a project
 		if (commandLine) {
 			Logger.logError("CWD is not a valid project. Please run Star Rod from a project.");
 			return null;
 		}
-		Project selected = ProjectSwitcherDialog.showPrompt();
-		if (selected != null) {
-			return selected.getPath();
-		}
-		return null;
+		return ProjectSwitcherDialog.showPrompt();
 	}
 
-	public static void promptChangeProject() throws IOException
+	public static boolean loadProject(Project newProject) throws IOException
 	{
-		if (projectChooser.prompt() == ChooseDialogResult.APPROVE) {
-			File dirChoice = projectChooser.getSelectedFile();
-			loadProject(dirChoice);
-		}
-	}
+		project = newProject;
 
-	private static File promptSelectProject()
-	{
-		if (projectChooser.prompt() == ChooseDialogResult.APPROVE)
-			return projectChooser.getSelectedFile();
-		else
-			return null;
-	}
-
-	private static void showErrorMessage(String title, String fmt, Object ... args)
-	{
-		String message = String.format(fmt, args);
-		if (isCommandLine())
-			Logger.logError(message);
-		else
-			SwingUtils.getErrorDialog()
-				.setTitle(title)
-				.setMessage(message)
-				.show();
-	}
-
-	public static boolean loadProject(File projectDir) throws IOException
-	{
-		if (projectDir == null) {
-			showErrorMessage("Invalid Decomp Project", "No project directory is set.");
-			return false;
-		}
-
-		if (!projectDir.exists() || !projectDir.isDirectory()) {
-			showErrorMessage("Invalid Decomp Project", "Not a valid directory: %n%s", projectDir.getAbsolutePath());
-			return false;
-		}
-
-		// check version to get appropriate splat
-		gameVersion = mainConfig.getString(Options.GameVersion);
-		File versionDir = new File(projectDir, "ver/" + gameVersion);
-		if (!versionDir.exists()) {
-			showErrorMessage("Invalid Decomp Project",
-				"Project does not have game version: %s", gameVersion);
-			return false;
-		}
-
-		// get splat config
-		File decompCfg = new File(versionDir, FN_SPLAT);
-		if (!decompCfg.exists()) {
-			showErrorMessage("Invalid Decomp Project",
-				"Could not find splat file for directory: %n%s", decompCfg.getAbsolutePath());
-			return false;
-		}
-
-		// resolve asset dirs
-		try {
-			assetDirectories = getAssetDirs(projectDir, decompCfg);
-		}
-		catch (IOException e) {
-			Logger.printStackTrace(e);
-			showErrorMessage("Splat Read Exception",
-				"IOException while attempting to read splat file: %n%s %n%s", decompCfg.getAbsolutePath(),
-				e.getMessage());
-			return false;
-		}
-
+		// TODO: get similar to classic
+		/*
 		// get US baserom
-		usBaseRom = new File(projectDir, FN_BASEROM);
+		usBaseRom = new File(project.getDirectory(), FN_BASEROM);
 		if (!usBaseRom.exists()) {
 			showErrorMessage("Missing US Base ROM",
 				"Could not find US baserom for project. %n" +
 					"Star Rod requries one for asset extraction.");
 			return false;
 		}
+		*/
 
 		// save project dir
-		projectDirectory = projectDir;
-		SwingUtilities.invokeLater(() -> {
-			projectChooser.setCurrentDirectory(projectDir);
-		});
-		Directories.setProjectDirectory(projectDirectory.getAbsolutePath());
+		Directories.setProjectDirectory(project.getPath());
 
-		readProjectConfig();
 		reloadIcons();
 
 		ProjectDatabase.initialize();
@@ -591,24 +551,22 @@ public abstract class Environment
 		AssetExtractor.extractAll();
 
 		// Record that this project was opened
-		ProjectManager.getInstance().recordProjectOpened(projectDirectory);
+		ProjectManager.getInstance().recordProjectOpened(project);
 
 		return true;
 	}
 
-	private static void readProjectConfig() throws IOException
+	public static void showErrorMessage(String title, String fmt, Object ... args)
 	{
-		File configFile = new File(projectDirectory, FN_PROJ_CONFIG);
-
-		if (!configFile.exists()) {
-			projectConfig = makeConfig(configFile, Scope.Project);
-			projectConfig.saveConfigFile();
-		}
-		else {
-			// config exists, read it
-			projectConfig = new Config(configFile, Scope.Project);
-			projectConfig.readConfig();
-		}
+		String message = String.format(fmt, args);
+		if (isCommandLine())
+			Logger.logError(message);
+		else
+			SwingUtils.getErrorDialog()
+				.setTitle(title)
+				.setMessage(message)
+				.setOptions("OK")
+				.show();
 	}
 
 	private static Config makeConfig(File configFile, Scope scope) throws IOException

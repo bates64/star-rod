@@ -22,13 +22,11 @@ public interface ProjectRepository
 
 	/**
 	 * Removes a project from the repository.
-	 * @param projectPath The path of the project to remove
 	 */
-	void removeProject(File projectPath);
+	void removeProject(Project project);
 
 	/**
 	 * Updates the last opened timestamp for a project.
-	 * @param projectPath The path of the project to update
-	 */
-	void updateLastOpened(File projectPath);
+     */
+	void updateLastOpened(Project project);
 }
