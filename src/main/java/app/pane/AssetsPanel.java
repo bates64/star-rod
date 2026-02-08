@@ -259,7 +259,7 @@ public class AssetsPanel extends JPanel
 			@Override
 			protected Image doInBackground()
 			{
-				return asset.loadThumbnail();
+				return asset.getThumbnail();
 			}
 
 			@Override

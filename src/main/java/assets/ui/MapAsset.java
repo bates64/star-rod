@@ -3,12 +3,10 @@ package assets.ui;
 import static app.Directories.PROJ_THUMBNAIL;
 
 import java.awt.Image;
-import java.awt.image.BaseMultiResolutionImage;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -86,33 +84,18 @@ public class MapAsset extends AssetHandle
 	}
 
 	@Override
-	public Image loadThumbnail()
+	protected Image loadThumbnail()
 	{
-		var variants = new ArrayList<Image>();
-
 		File thumbFile = new File(PROJ_THUMBNAIL + assetPath + ".png");
 		if (thumbFile.exists()) {
 			try {
-				variants.add(ImageIO.read(thumbFile));
+				return ImageIO.read(thumbFile);
 			}
 			catch (IOException e) {}
 		}
 
-		File thumb2xFile = new File(PROJ_THUMBNAIL + assetPath + "@2x.png");
-		if (thumb2xFile.exists()) {
-			try {
-				variants.add(ImageIO.read(thumb2xFile));
-			}
-			catch (IOException e) {}
-		}
-
-		if (variants.isEmpty())
-			return null;
-
-		return new BaseMultiResolutionImage(variants.toArray(new Image[0]));
+		return null;
 	}
-
-	public static final int THUMBNAIL_SIZE = 80;
 
 	/**
 	 * Generates thumbnails for all maps that don't already have one.
@@ -125,13 +108,12 @@ public class MapAsset extends AssetHandle
 		try {
 			for (AssetHandle asset : AssetManager.getMapSources()) {
 				File thumbFile = new File(PROJ_THUMBNAIL + asset.assetPath + ".png");
-				File thumb2xFile = new File(PROJ_THUMBNAIL + asset.assetPath + "@2x.png");
-				if (thumbFile.exists() && thumb2xFile.exists())
+				if (thumbFile.exists())
 					continue;
 				Logger.log("Capturing thumbnail for " + asset.assetPath + "...", Priority.MILESTONE);
 				if (editor == null)
 					editor = new MapEditor(false);
-				editor.generateThumbnail(asset, thumbFile, thumb2xFile, THUMBNAIL_SIZE);
+				editor.generateThumbnail(asset, thumbFile, THUMBNAIL_SIZE);
 			}
 		}
 		catch (Exception e) {

@@ -737,14 +737,14 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 
 	private boolean thumbnailInitialized = false;
 
-	/** Renders a thumbnail at 4x resolution and saves both the 2x and downsampled 1x images. */
-	public void generateThumbnail(File mapFile, File thumbFile1x, File thumbFile2x, int size)
+	/** Renders a thumbnail at 2x resolution and downsamples to the given size. */
+	public void generateThumbnail(File mapFile, File thumbFile, int size)
 	{
 		Map newMap = Map.loadMap(mapFile);
 		if (newMap == null)
 			return;
 
-		int renderSize = size * 4;
+		int renderSize = size * 2;
 		thumbnailMode = true;
 		thumbnailSize = renderSize;
 		openMap(newMap, true);
@@ -823,7 +823,7 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 			glCanvas.render();
 		}
 
-		renderThumbnail(thumbFile1x, thumbFile2x, size);
+		renderThumbnail(thumbFile, size);
 	}
 
 	public void shutdownThumbnail()
@@ -3670,7 +3670,7 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 		thumbnailMode = true;
 	}
 
-	private void renderThumbnail(File thumbFile1x, File thumbFile2x, int size)
+	private void renderThumbnail(File thumbFile, int size)
 	{
 		runInContext(() -> {
 			glBindFramebuffer(GL_READ_FRAMEBUFFER, perspectiveView.getSceneFrameBuffer());
@@ -3681,7 +3681,7 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 			glReadPixels(0, 0, renderSize, renderSize, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, buffer);
 			glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
 
-			var image4x = new BufferedImage(renderSize, renderSize, BufferedImage.TYPE_INT_ARGB);
+			var renderImage = new BufferedImage(renderSize, renderSize, BufferedImage.TYPE_INT_ARGB);
 			for (int x = 0; x < renderSize; x++) {
 				for (int y = 0; y < renderSize; y++) {
 					int i = (x + (renderSize * y)) * bpp;
@@ -3689,28 +3689,19 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 					int g = buffer.get(i + 1) & 0xFF;
 					int b = buffer.get(i + 2) & 0xFF;
 					int a = buffer.get(i + 3) & 0xFF;
-					image4x.setRGB(x, renderSize - (y + 1), (a << 24) | (r << 16) | (g << 8) | b);
+					renderImage.setRGB(x, renderSize - (y + 1), (a << 24) | (r << 16) | (g << 8) | b);
 				}
 			}
 
-			// Downsample to 2x and 1x with bilinear filtering
-			int size2x = size * 2;
-			var image2x = new BufferedImage(size2x, size2x, BufferedImage.TYPE_INT_ARGB);
-			Graphics2D g2 = image2x.createGraphics();
-			g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-			g2.drawImage(image4x, 0, 0, size2x, size2x, null);
-			g2.dispose();
-
-			var image1x = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
-			Graphics2D g1 = image1x.createGraphics();
-			g1.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-			g1.drawImage(image2x, 0, 0, size, size, null);
-			g1.dispose();
+			var image = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
+			Graphics2D g = image.createGraphics();
+			g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+			g.drawImage(renderImage, 0, 0, size, size, null);
+			g.dispose();
 
 			try {
-				FileUtils.forceMkdirParent(thumbFile1x);
-				ImageIO.write(image1x, "PNG", thumbFile1x);
-				ImageIO.write(image2x, "PNG", thumbFile2x);
+				FileUtils.forceMkdirParent(thumbFile);
+				ImageIO.write(image, "PNG", thumbFile);
 			}
 			catch (IOException e) {
 				Logger.printStackTrace(e);
