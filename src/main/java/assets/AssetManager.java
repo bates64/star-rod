@@ -267,14 +267,13 @@ public class AssetManager
 				for (Path entry : stream) {
 					String name = entry.getFileName().toString();
 
-					if (Files.isDirectory(entry)) {
+					String relPath = relativePath + name;
+					AssetHandle ah = new AssetHandle(stackDir, relPath);
+					AssetHandle upgraded = AssetHandle.upgrade(ah);
+					if (upgraded != null)
+						fileMap.putIfAbsent(name, upgraded);
+					else if (Files.isDirectory(entry))
 						subdirSet.add(name);
-					}
-					else {
-						String relPath = relativePath + name;
-						AssetHandle ah = new AssetHandle(stackDir, relPath);
-						fileMap.putIfAbsent(name, ah);
-					}
 				}
 			}
 			catch (IOException e) {

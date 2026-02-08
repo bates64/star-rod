@@ -2,6 +2,10 @@ package assets;
 
 import java.io.File;
 
+import assets.ui.BackgroundAsset;
+import assets.ui.MapAsset;
+import assets.ui.TexturesAsset;
+
 public class AssetHandle extends File
 {
 	public final File assetDir;
@@ -30,6 +34,19 @@ public class AssetHandle extends File
 	}
 
 	public String getAssetDescription() {
+		return null;
+	}
+
+	/**
+	 * Upgrades a plain AssetHandle to a typed subclass based on file extension.
+	 * Returns null if the file doesn't match any known asset type.
+	 */
+	public static AssetHandle upgrade(AssetHandle handle)
+	{
+		String name = handle.getAssetName();
+		if (name.endsWith(".xml")) return new MapAsset(handle);
+		if (name.endsWith(".png")) return new BackgroundAsset(handle);
+		if (name.endsWith(".json")) return new TexturesAsset(handle);
 		return null;
 	}
 }
