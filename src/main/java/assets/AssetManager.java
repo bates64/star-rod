@@ -257,6 +257,9 @@ public class AssetManager
 		Map<String, AssetHandle> fileMap = new HashMap<>();
 		TreeSet<String> subdirSet = new TreeSet<>();
 
+		TreeSet<String> ignoredPaths = new TreeSet<>();
+		ignoredPaths.add(project.engine.Engine.PROJECT_ENGINE_PATH);
+
 		for (File stackDir : Environment.assetDirectories) {
 			Path dir = stackDir.toPath().resolve(relativePath);
 
@@ -266,8 +269,13 @@ public class AssetManager
 			try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir)) {
 				for (Path entry : stream) {
 					String name = entry.getFileName().toString();
+					if (name.startsWith("."))
+						continue;
 
 					String relPath = relativePath + name;
+					if (ignoredPaths.contains(relPath))
+						continue;
+
 					AssetHandle ah = new AssetHandle(stackDir, relPath);
 					AssetHandle upgraded = AssetHandle.upgrade(ah);
 					if (upgraded != null)

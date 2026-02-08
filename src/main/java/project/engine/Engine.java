@@ -20,6 +20,9 @@ public class Engine
 	private static final String BASEROM_PATH = "ver/us/baserom.z64";
 	private static final String DUMP_PATH = "ver/us/build/star-rod-dump";
 
+	/** If a project provides a custom engine, it should be a git repo at this directory. */
+	public static final String PROJECT_ENGINE_PATH = "papermario-dx";
+
 	private final File directory; // the worktree or submodule directory
 	private final String ref;
 	private final boolean isSubmodule;
@@ -56,7 +59,7 @@ public class Engine
 		String ref = project.getManifest().getEngineRef();
 
 		// Check for submodule first
-		File submoduleDir = new File(project.getDirectory(), "papermario-dx");
+		File submoduleDir = new File(project.getDirectory(), PROJECT_ENGINE_PATH);
 		if (isGitRepo(submoduleDir))
 			return new Engine(submoduleDir, ref, true, buildEnv);
 
