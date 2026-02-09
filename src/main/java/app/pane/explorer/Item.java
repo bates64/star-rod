@@ -7,6 +7,7 @@ import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Insets;
+import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.TexturePaint;
@@ -22,8 +23,12 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
+
 import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
+import javax.swing.JLayeredPane;
 import javax.swing.Icon;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
@@ -164,7 +169,9 @@ abstract class Item extends JPanel
 	{
 		if (renameField == null)
 			return;
-		remove(renameField);
+		var layeredPane = getRootPane().getLayeredPane();
+		layeredPane.remove(renameField);
+		layeredPane.repaint();
 		renameField = null;
 		repaint();
 	}
@@ -187,8 +194,32 @@ abstract class Item extends JPanel
 
 		renameField = new JTextField(currentName);
 		renameField.setHorizontalAlignment(JTextField.CENTER);
-		renameField.setBounds(x, labelY, w, labelH);
 		renameField.selectAll();
+		renameField.setFont(renameField.getFont().deriveFont(12f));
+		renameField.setBorder(null);
+		renameField.setMargin(new Insets(0, 0, 0, 0));
+
+		final JLayeredPane layeredPane = getRootPane().getLayeredPane();
+		final int localCenterX = x + w / 2;
+		final int localY = labelY;
+
+		Runnable resizeRenameField = () -> {
+			FontMetrics fm = renameField.getFontMetrics(renameField.getFont());
+			int textW = fm.stringWidth(renameField.getText()) + fm.charWidth('W');
+			int fieldW = Math.max(w, textW);
+			Point origin = SwingUtilities.convertPoint(Item.this, localCenterX - fieldW / 2, localY, layeredPane);
+			renameField.setBounds(origin.x, origin.y, fieldW, labelH);
+		};
+		resizeRenameField.run();
+
+		renameField.getDocument().addDocumentListener(new DocumentListener() {
+			@Override
+			public void insertUpdate(DocumentEvent e) { resizeRenameField.run(); }
+			@Override
+			public void removeUpdate(DocumentEvent e) { resizeRenameField.run(); }
+			@Override
+			public void changedUpdate(DocumentEvent e) { resizeRenameField.run(); }
+		});
 
 		Runnable commit = () -> {
 			if (renameField == null)
@@ -227,8 +258,8 @@ abstract class Item extends JPanel
 			}
 		});
 
-		add(renameField);
-		revalidate();
+		layeredPane.add(renameField, JLayeredPane.POPUP_LAYER);
+		layeredPane.revalidate();
 		renameField.requestFocusInWindow();
 	}
 
@@ -279,22 +310,24 @@ abstract class Item extends JPanel
 
 		// Icon
 		if (icon != null) {
-			int iconW = icon.getIconWidth();
-			int iconH = icon.getIconHeight();
+			int iconW = Math.min(icon.getIconWidth(), AssetHandle.THUMBNAIL_WIDTH);
+			int iconH = Math.min(icon.getIconHeight(), AssetHandle.THUMBNAIL_HEIGHT);
 			int iconX = x + (w - iconW) / 2;
 			int iconY = y + (iconAreaH - iconH) / 2;
 
 			if (checkerboard)
 				paintCheckerboard(g2, iconX, iconY, iconW, iconH);
 
-			icon.paintIcon(this, g2, iconX, iconY);
+			Graphics2D clipped = (Graphics2D) g2.create(iconX, iconY, iconW, iconH);
+			icon.paintIcon(this, clipped, 0, 0);
+			clipped.dispose();
 		}
 
 		// Name label with ellipsis (hidden during inline rename)
 		if (renameField == null) {
 			g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 			g2.setColor(UIManager.getColor("Label.foreground"));
-			g2.setFont(getFont());
+			g2.setFont(getFont().deriveFont(12f));
 			FontMetrics fm = g2.getFontMetrics();
 
 			String displayText = name;
