@@ -21,7 +21,7 @@ class DirectoryItem extends Item
 
 	DirectoryItem(Explorer explorer, String name, String targetPath)
 	{
-		super(explorer, name, ThemedIcon.FOLDER_OPEN_24, false);
+		super(explorer, name, ThemedIcon.FOLDER_FILLED.derive(36, 36), false);
 		this.targetPath = targetPath;
 
 		new DropTarget(this, DnDConstants.ACTION_MOVE, new DropTargetAdapter() {

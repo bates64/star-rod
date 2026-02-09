@@ -75,6 +75,9 @@ public abstract class ThemedIcon
 	public static final FlatSVGIcon TERMINAL_24 = getIcon("terminal");
 	public static final FlatSVGIcon TERMINAL_16 = TERMINAL_24.derive(16, 16);
 
+	public static final FlatSVGIcon FOLDER = getIcon("folder");
+	public static final FlatSVGIcon FOLDER_FILLED = getIcon("folder_filled");
+
 	public static final FlatSVGIcon FOLDER_OPEN_24 = getIcon("folder-open");
 	public static final FlatSVGIcon FOLDER_OPEN_16 = FOLDER_OPEN_24.derive(16, 16);
 
