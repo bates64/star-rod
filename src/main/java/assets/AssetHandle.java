@@ -13,7 +13,8 @@ import assets.ui.TexturesAsset;
 
 public class AssetHandle extends File
 {
-	public static final int THUMBNAIL_SIZE = 80 * 2;
+	public static final int THUMBNAIL_WIDTH = 80;
+	public static final int THUMBNAIL_HEIGHT = 50;
 
 	public final File assetDir;
 	public final String assetPath; // relative path from assetDir
@@ -68,30 +69,37 @@ public class AssetHandle extends File
 
 	private static Image createMultiResThumbnail(Image src)
 	{
-		var img1x = resizeImage(src, THUMBNAIL_SIZE / 2);
-		var img2x = resizeImage(src, THUMBNAIL_SIZE);
+		var img1x = resizeImage(src, THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT);
+		var img2x = resizeImage(src, THUMBNAIL_WIDTH * 2, THUMBNAIL_HEIGHT * 2);
 		return new BaseMultiResolutionImage(img1x, img2x);
 	}
 
-	private static BufferedImage resizeImage(Image src, int targetSize)
+	private static BufferedImage resizeImage(Image src, int maxW, int maxH)
 	{
 		int srcW = src.getWidth(null);
 		int srcH = src.getHeight(null);
-		float srcRatio = (float) srcW / srcH;
-		int w, h;
-		if (srcRatio >= 1f) {
-			w = targetSize;
-			h = Math.max(1, Math.round(targetSize / srcRatio));
+
+		int dstW, dstH;
+		boolean scalingUp = maxW > srcW || maxH > srcH;
+		if (scalingUp) {
+			// Integer scaling with nearest neighbour
+			int scale = Math.max(1, Math.min(maxW / srcW, maxH / srcH));
+			dstW = srcW * scale;
+			dstH = srcH * scale;
 		}
 		else {
-			h = targetSize;
-			w = Math.max(1, Math.round(targetSize * srcRatio));
+			// Fit within bounds, preserving aspect ratio
+			float ratio = Math.min((float) maxW / srcW, (float) maxH / srcH);
+			dstW = Math.max(1, Math.round(srcW * ratio));
+			dstH = Math.max(1, Math.round(srcH * ratio));
 		}
 
-		var bi = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+		var bi = new BufferedImage(dstW, dstH, BufferedImage.TYPE_INT_ARGB);
 		Graphics2D g = bi.createGraphics();
-		g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-		g.drawImage(src, 0, 0, w, h, null);
+		g.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
+			scalingUp ? RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR
+			          : RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+		g.drawImage(src, 0, 0, dstW, dstH, null);
 		g.dispose();
 		return bi;
 	}

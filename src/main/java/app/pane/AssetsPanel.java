@@ -1,5 +1,6 @@
 package app.pane;
 
+import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Dimension;
@@ -22,6 +23,8 @@ import java.nio.file.WatchService;
 import java.util.ArrayList;
 import java.util.List;
 
+import javax.swing.BorderFactory;
+import javax.swing.Icon;
 import javax.swing.ImageIcon;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -53,6 +56,8 @@ public class AssetsPanel extends JPanel
 	private Thread watchThread;
 	private List<WatchKey> watchKeys = new ArrayList<>();
 
+	private static final int ITEM_SIZE = AssetHandle.THUMBNAIL_WIDTH + 4 * 2;
+
 	public AssetsPanel()
 	{
 		setLayout(new MigLayout("ins 4, fill", "[grow]", "[pref!][grow]"));
@@ -60,7 +65,7 @@ public class AssetsPanel extends JPanel
 		breadcrumbBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
 		add(breadcrumbBar, "growx, wrap");
 
-		resultsPanel = new JPanel(new UniformGridLayout(88, 88, 2, 2));
+		resultsPanel = new JPanel(new UniformGridLayout(ITEM_SIZE, ITEM_SIZE, 0, 0));
 		resultsPanel.addMouseListener(new MouseAdapter() {
 			@Override
 			public void mouseClicked(MouseEvent e)
@@ -209,14 +214,66 @@ public class AssetsPanel extends JPanel
 
 	private JPanel createSubdirItem(String name)
 	{
+		JPanel panel = createItem(name, ThemedIcon.FOLDER_OPEN_24, () -> {
+			navigateTo(currentPath + name + "/");
+		});
+		return panel;
+	}
+
+	private JPanel createAssetItem(AssetHandle asset)
+	{
+		JPanel panel = createItem(asset.getAssetName(), ThemedIcon.PACKAGE_24, () -> {
+			openAsset(asset);
+		});
+
+		JLabel icon = (JLabel) ((BorderLayout) panel.getLayout()).getLayoutComponent(BorderLayout.CENTER);
+
+		// Load thumbnail asynchronously
+		new SwingWorker<Image, Void>() {
+			@Override
+			protected Image doInBackground()
+			{
+				return asset.getThumbnail();
+			}
+
+			@Override
+			protected void done()
+			{
+				try {
+					Image thumb = get();
+					if (thumb != null) {
+						icon.setIcon(new ImageIcon(thumb));
+						panel.revalidate();
+						panel.repaint();
+					}
+				}
+				catch (Exception e) {
+					// ignore — keep default icon
+				}
+			}
+		}.execute();
+
+		String desc = asset.getAssetDescription();
+		if (desc != null && !desc.isEmpty()) {
+			panel.setToolTipText(desc);
+		}
+
+		return panel;
+	}
+
+	private JPanel createItem(String name, Icon defaultIcon, Runnable onDoubleClick)
+	{
 		JPanel panel = createItemPanel();
 
-		JLabel icon = new JLabel(ThemedIcon.FOLDER_OPEN_24);
-		JLabel label = new JLabel(name);
-		label.setFont(label.getFont().deriveFont(12f));
+		JLabel icon = new JLabel(defaultIcon);
+		icon.setHorizontalAlignment(JLabel.CENTER);
+		icon.setVerticalAlignment(JLabel.CENTER);
 
-		panel.add(icon, "wrap, alignx center");
-		panel.add(label, "alignx center, aligny center, wmax 80");
+		JLabel label = new JLabel(name);
+		label.setHorizontalAlignment(JLabel.CENTER);
+
+		panel.add(icon, BorderLayout.CENTER);
+		panel.add(label, BorderLayout.SOUTH);
 
 		panel.addMouseListener(new MouseAdapter() {
 			@Override
@@ -240,78 +297,7 @@ public class AssetsPanel extends JPanel
 					select(name, panel);
 				}
 				else if (e.getClickCount() == 2) {
-					navigateTo(currentPath + name + "/");
-				}
-			}
-		});
-
-		return panel;
-	}
-
-	private JPanel createAssetItem(AssetHandle asset)
-	{
-		JPanel panel = createItemPanel();
-
-		JLabel icon = new JLabel(ThemedIcon.PACKAGE_24);
-
-		// Load thumbnail asynchronously
-		new SwingWorker<Image, Void>() {
-			@Override
-			protected Image doInBackground()
-			{
-				return asset.getThumbnail();
-			}
-
-			@Override
-			protected void done()
-			{
-				try {
-					Image thumb = get();
-					if (thumb != null) {
-						icon.setIcon(new ImageIcon(thumb));
-						panel.revalidate();
-					}
-				}
-				catch (Exception e) {
-					// ignore — keep default icon
-				}
-			}
-		}.execute();
-
-		JLabel name = createShadowLabel(asset.getAssetName());
-
-		panel.add(icon, "alignx center");
-		panel.add(name, "pos 0 null 100% (100%-4), alignx center");
-		panel.setComponentZOrder(name, 0);
-
-		String desc = asset.getAssetDescription();
-		if (desc != null && !desc.isEmpty()) {
-			panel.setToolTipText(desc);
-		}
-
-		panel.addMouseListener(new MouseAdapter() {
-			@Override
-			public void mouseEntered(MouseEvent e)
-			{
-				panel.putClientProperty("hovered", true);
-				panel.repaint();
-			}
-
-			@Override
-			public void mouseExited(MouseEvent e)
-			{
-				panel.putClientProperty("hovered", false);
-				panel.repaint();
-			}
-
-			@Override
-			public void mouseClicked(MouseEvent e)
-			{
-				if (e.getClickCount() == 1) {
-					select(asset.getAssetName(), panel);
-				}
-				else if (e.getClickCount() == 2) {
-					openAsset(asset);
+					onDoubleClick.run();
 				}
 			}
 		});
@@ -321,25 +307,16 @@ public class AssetsPanel extends JPanel
 
 	private JPanel createItemPanel()
 	{
-		JPanel panel = new JPanel(new MigLayout("ins 4, fill", "[grow]", "[grow]")) {
+		JPanel panel = new JPanel(new BorderLayout()) {
 			@Override
 			protected void paintComponent(Graphics g)
 			{
-				boolean hovered = Boolean.TRUE.equals(getClientProperty("hovered"));
-				boolean selected = (this == selectedPanel);
-
-				if (selected || hovered) {
+				if (this == selectedPanel) {
 					Graphics2D g2 = (Graphics2D) g.create();
 					g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-					Color bg = UIManager.getColor("Table.selectionBackground");
-					if (selected) {
-						g2.setColor(bg);
-					}
-					else {
-						// Lighter for hover
-						g2.setColor(new Color(bg.getRed(), bg.getGreen(), bg.getBlue(), 80));
-					}
+					Color bg = UIManager.getColor("Component.borderColor");
+					g2.setColor(bg);
 					g2.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8);
 					g2.dispose();
 				}
@@ -347,44 +324,10 @@ public class AssetsPanel extends JPanel
 				super.paintComponent(g);
 			}
 		};
-		panel.setPreferredSize(new Dimension(88, 88));
+		panel.setBorder(BorderFactory.createEmptyBorder(4, 4, 4, 4));
+		panel.setPreferredSize(new Dimension(ITEM_SIZE, ITEM_SIZE));
 		panel.setOpaque(false);
 		return panel;
-	}
-
-	private JLabel createShadowLabel(String text)
-	{
-		return new JLabel(text) {
-			@Override
-			protected void paintComponent(Graphics g)
-			{
-				Graphics2D g2 = (Graphics2D) g.create();
-				g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-				g2.setFont(getFont());
-
-				var fm = g2.getFontMetrics();
-				int textW = fm.stringWidth(getText());
-				int x = (getWidth() - textW) / 2;
-				int y = fm.getAscent();
-
-				// Soft shadow: draw text at nearby offsets with low alpha
-				int radius = 3;
-				for (int dx = -radius; dx <= radius; dx++) {
-					for (int dy = -radius; dy <= radius; dy++) {
-						float dist = (float) Math.sqrt(dx * dx + dy * dy);
-						if (dist > radius)
-							continue;
-						int alpha = (int)(40 * (1f - dist / radius));
-						g2.setColor(new Color(0, 0, 0, alpha));
-						g2.drawString(getText(), x + dx, y + dy + 1);
-					}
-				}
-
-				g2.setColor(getForeground());
-				g2.drawString(getText(), x, y);
-				g2.dispose();
-			}
-		};
 	}
 
 	private void openAsset(AssetHandle asset)

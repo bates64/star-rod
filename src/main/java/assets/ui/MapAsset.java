@@ -113,7 +113,7 @@ public class MapAsset extends AssetHandle
 				Logger.log("Capturing thumbnail for " + asset.assetPath + "...", Priority.MILESTONE);
 				if (editor == null)
 					editor = new MapEditor(false);
-				editor.generateThumbnail(asset, thumbFile, THUMBNAIL_SIZE);
+				editor.generateThumbnail(asset, thumbFile, THUMBNAIL_WIDTH * 2, THUMBNAIL_HEIGHT * 2);
 			}
 		}
 		catch (Exception e) {

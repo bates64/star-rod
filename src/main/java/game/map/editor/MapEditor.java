@@ -738,15 +738,17 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 	private boolean thumbnailInitialized = false;
 
 	/** Renders a thumbnail at 2x resolution and downsamples to the given size. */
-	public void generateThumbnail(File mapFile, File thumbFile, int size)
+	public void generateThumbnail(File mapFile, File thumbFile, int width, int height)
 	{
 		Map newMap = Map.loadMap(mapFile);
 		if (newMap == null)
 			return;
 
-		int renderSize = size * 2;
+		int renderWidth = width * 2;
+		int renderHeight = height * 2;
 		thumbnailMode = true;
-		thumbnailSize = renderSize;
+		thumbnailWidth = renderWidth;
+		thumbnailHeight = renderHeight;
 		openMap(newMap, true);
 		for (MapObject obj : getCollisionMap().colliderTree)
 			obj.hidden = true;
@@ -816,14 +818,14 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 		float halfH = (screenMaxY - screenMinY) / 2f;
 		thumbnailOrthoHalfHeight = Math.max(50f, Math.min(Math.max(halfW, halfH), 5000f));
 
-		perspectiveView.resize(0, 0, renderSize, renderSize);
+		perspectiveView.resize(0, 0, renderWidth, renderHeight);
 
 		for (int i = 0; i < 2; i++) {
 			step();
 			glCanvas.render();
 		}
 
-		renderThumbnail(thumbFile, size);
+		renderThumbnail(thumbFile, width, height);
 	}
 
 	public void shutdownThumbnail()
@@ -3513,8 +3515,8 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 	{
 		RenderingOptions opts = new RenderingOptions();
 		if (thumbnailMode) {
-			opts.canvasSizeX = thumbnailSize;
-			opts.canvasSizeY = thumbnailSize;
+			opts.canvasSizeX = thumbnailWidth;
+			opts.canvasSizeY = thumbnailHeight;
 		}
 		else {
 			opts.canvasSizeX = glCanvasPixelWidth();
@@ -3648,7 +3650,8 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 			obj.prepareVertexBuffers(opts);
 	}
 
-	private int thumbnailSize;
+	private int thumbnailWidth;
+	private int thumbnailHeight;
 
 	private void initThumbnail()
 	{
@@ -3670,33 +3673,34 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 		thumbnailMode = true;
 	}
 
-	private void renderThumbnail(File thumbFile, int size)
+	private void renderThumbnail(File thumbFile, int width, int height)
 	{
 		runInContext(() -> {
 			glBindFramebuffer(GL_READ_FRAMEBUFFER, perspectiveView.getSceneFrameBuffer());
 			glReadBuffer(GL_COLOR_ATTACHMENT0);
-			int renderSize = thumbnailSize;
+			int renderW = thumbnailWidth;
+			int renderH = thumbnailHeight;
 			int bpp = 4;
-			ByteBuffer buffer = BufferUtils.createByteBuffer(renderSize * renderSize * bpp);
-			glReadPixels(0, 0, renderSize, renderSize, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, buffer);
+			ByteBuffer buffer = BufferUtils.createByteBuffer(renderW * renderH * bpp);
+			glReadPixels(0, 0, renderW, renderH, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, buffer);
 			glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
 
-			var renderImage = new BufferedImage(renderSize, renderSize, BufferedImage.TYPE_INT_ARGB);
-			for (int x = 0; x < renderSize; x++) {
-				for (int y = 0; y < renderSize; y++) {
-					int i = (x + (renderSize * y)) * bpp;
+			var renderImage = new BufferedImage(renderW, renderH, BufferedImage.TYPE_INT_ARGB);
+			for (int x = 0; x < renderW; x++) {
+				for (int y = 0; y < renderH; y++) {
+					int i = (x + (renderW * y)) * bpp;
 					int r = buffer.get(i) & 0xFF;
 					int g = buffer.get(i + 1) & 0xFF;
 					int b = buffer.get(i + 2) & 0xFF;
 					int a = buffer.get(i + 3) & 0xFF;
-					renderImage.setRGB(x, renderSize - (y + 1), (a << 24) | (r << 16) | (g << 8) | b);
+					renderImage.setRGB(x, renderH - (y + 1), (a << 24) | (r << 16) | (g << 8) | b);
 				}
 			}
 
-			var image = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
+			var image = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
 			Graphics2D g = image.createGraphics();
 			g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-			g.drawImage(renderImage, 0, 0, size, size, null);
+			g.drawImage(renderImage, 0, 0, width, height, null);
 			g.dispose();
 
 			try {
