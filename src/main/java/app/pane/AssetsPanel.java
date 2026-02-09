@@ -216,15 +216,14 @@ public class AssetsPanel extends JPanel
 
 	private JPanel createSubdirItem(String name)
 	{
-		JPanel panel = createItem(name, ThemedIcon.FOLDER_OPEN_24, null, () -> {
+		return createItem(name, ThemedIcon.FOLDER_OPEN_24, false, () -> {
 			navigateTo(currentPath + name + "/");
 		});
-		return panel;
 	}
 
 	private JPanel createAssetItem(AssetHandle asset)
 	{
-		JPanel panel = createItem(asset.getAssetName(), ThemedIcon.PACKAGE_24, asset, () -> {
+		JPanel panel = createItem(asset.getAssetName(), ThemedIcon.PACKAGE_24, asset.thumbnailHasCheckerboard(), () -> {
 			openAsset(asset);
 		});
 
@@ -263,11 +262,9 @@ public class AssetsPanel extends JPanel
 		return panel;
 	}
 
-	private JPanel createItem(String name, Icon defaultIcon, AssetHandle asset, Runnable onDoubleClick)
+	private JPanel createItem(String name, Icon defaultIcon, boolean checkerboard, Runnable onDoubleClick)
 	{
 		JPanel panel = createItemPanel();
-
-		boolean checkerboard = asset != null && asset.thumbnailHasCheckerboard();
 		JLabel icon = checkerboard ? new JLabel(defaultIcon) {
 			@Override
 			protected void paintComponent(Graphics g)

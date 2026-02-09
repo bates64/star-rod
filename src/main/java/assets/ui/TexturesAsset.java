@@ -1,6 +1,7 @@
 package assets.ui;
 
 import java.awt.Graphics2D;
+import java.awt.Image;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -10,12 +11,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 
 import javax.imageio.ImageIO;
-import javax.imageio.ImageReader;
-import javax.imageio.stream.ImageInputStream;
 
 import org.apache.commons.io.FilenameUtils;
 
@@ -25,9 +23,17 @@ import util.Logger;
 
 public class TexturesAsset extends AssetHandle
 {
-	public BufferedImage bimg1;
-	public BufferedImage bimg2;
-	public BufferedImage bimg3;
+	private static final int THUMB_W = THUMBNAIL_WIDTH;
+	private static final int THUMB_H = THUMBNAIL_HEIGHT;
+	private static final int GAP = 2;
+	private static final int ROW_HEIGHT = (THUMB_H - GAP) / 2; // two rows
+
+	private final List<BufferedImage> textures = new ArrayList<>();
+
+	public BufferedImage getPreview(int index)
+	{
+		return index < textures.size() ? textures.get(index) : null;
+	}
 
 	public TexturesAsset(AssetHandle asset)
 	{
@@ -41,23 +47,17 @@ public class TexturesAsset extends AssetHandle
 
 			try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir.toPath(), "*.png")) {
 				for (Path file : stream) {
-					if (Files.isRegularFile(file)) {
+					if (Files.isRegularFile(file))
 						images.add(file.toFile());
-					}
 				}
 			}
 
-			// pick three textures randomly for previews
 			Collections.shuffle(images);
 
-			if (images.size() > 0) {
-				bimg1 = getPreview(images.get(0));
-			}
-			if (images.size() > 1) {
-				bimg2 = getPreview(images.get(1));
-			}
-			if (images.size() > 2) {
-				bimg3 = getPreview(images.get(2));
+			for (int i = 0; i < images.size(); i++) {
+				BufferedImage img = readImage(images.get(i));
+				if (img != null)
+					textures.add(img);
 			}
 		}
 		catch (IOException e) {
@@ -65,49 +65,49 @@ public class TexturesAsset extends AssetHandle
 		}
 	}
 
-	private int getImageSize(File imgFile) throws IOException
+	@Override
+	public boolean thumbnailHasCheckerboard()
 	{
-		try (ImageInputStream in = ImageIO.createImageInputStream(imgFile)) {
-			final Iterator<ImageReader> readers = ImageIO.getImageReaders(in);
-			if (readers.hasNext()) {
-				ImageReader reader = readers.next();
-				try {
-					reader.setInput(in);
-					int width = reader.getWidth(0);
-					int height = reader.getHeight(0);
-					return width * height;
-				}
-				finally {
-					reader.dispose();
-				}
-			}
-		}
-		return 0;
+		return false;
 	}
 
-	private static BufferedImage getPreview(File imgFile)
+	@Override
+	protected Image loadThumbnail()
+	{
+		if (textures.isEmpty())
+			return null;
+
+		var composite = new BufferedImage(THUMB_W, THUMB_H, BufferedImage.TYPE_INT_ARGB);
+		Graphics2D g = composite.createGraphics();
+		g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+
+		int x = 0;
+		int y = 0;
+		for (BufferedImage tex : textures) {
+			float scale = (float) ROW_HEIGHT / tex.getHeight();
+			int w = Math.max(1, Math.round(tex.getWidth() * scale));
+			int h = ROW_HEIGHT;
+
+			if (x + w > THUMB_W) {
+				// Wrap to next row
+				x = 0;
+				y += ROW_HEIGHT + GAP;
+				if (y + ROW_HEIGHT > THUMB_H)
+					break;
+			}
+
+			g.drawImage(tex, x, y, w, h, null);
+			x += w + GAP;
+		}
+
+		g.dispose();
+		return composite;
+	}
+
+	private static BufferedImage readImage(File imgFile)
 	{
 		try {
-			BufferedImage bimg = ImageIO.read(imgFile);
-			if (bimg == null)
-				return null;
-
-			int targetWidth = 32;
-			int targetHeight = 32;
-			float ratio = (float) bimg.getHeight() / (float) bimg.getWidth();
-			if (ratio <= 1.0f) {
-				targetHeight = (int) Math.ceil(targetWidth * ratio);
-			}
-			else {
-				targetWidth = Math.round(targetHeight / ratio);
-			}
-
-			BufferedImage resized = new BufferedImage(targetWidth, targetHeight, BufferedImage.TYPE_INT_RGB);
-			Graphics2D g2d = resized.createGraphics();
-			g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-			g2d.drawImage(bimg, 0, 0, targetWidth, targetHeight, null);
-			g2d.dispose();
-			return resized;
+			return ImageIO.read(imgFile);
 		}
 		catch (IOException e) {
 			return null;

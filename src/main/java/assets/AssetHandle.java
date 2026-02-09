@@ -37,11 +37,9 @@ public class AssetHandle extends File
 
 	public String getAssetName()
 	{
-		int slash = assetPath.lastIndexOf('/');
-		if (slash >= 0)
-			return assetPath.substring(slash + 1);
-		else
-			return assetPath;
+		String name = getName();
+		int dot = name.lastIndexOf('.');
+		return dot > 0 ? name.substring(0, dot) : name;
 	}
 
 	public String getAssetDescription()
@@ -113,7 +111,7 @@ public class AssetHandle extends File
 	/** Upgrades a plain AssetHandle to a typed subclass based on file extension. */
 	public static AssetHandle upgrade(AssetHandle handle)
 	{
-		String name = handle.getAssetName();
+		String name = handle.getName();
 		if (name.endsWith(".xml")) return new MapAsset(handle);
 		if (name.endsWith(".png")) return new BackgroundAsset(handle);
 		if (name.endsWith(".json")) return new TexturesAsset(handle);
