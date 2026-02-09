@@ -18,8 +18,8 @@ import assets.ui.TexturesAsset;
 
 public class AssetHandle extends File
 {
-	public static final int THUMBNAIL_WIDTH = 80;
-	public static final int THUMBNAIL_HEIGHT = 50;
+	public static final int THUMBNAIL_WIDTH = 74;
+	public static final int THUMBNAIL_HEIGHT = 60;
 
 	public static final DataFlavor FLAVOUR;
 	static {
@@ -142,7 +142,7 @@ public class AssetHandle extends File
 		int srcH = src.getHeight(null);
 
 		int dstW, dstH;
-		boolean scalingUp = maxW > srcW || maxH > srcH;
+		boolean scalingUp = srcW <= maxW && srcH <= maxH;
 		if (scalingUp) {
 			// Integer scaling with nearest neighbour
 			int scale = Math.max(1, Math.min(maxW / srcW, maxH / srcH));
@@ -163,6 +163,7 @@ public class AssetHandle extends File
 			          : RenderingHints.VALUE_INTERPOLATION_BILINEAR);
 		g.drawImage(src, 0, 0, dstW, dstH, null);
 		g.dispose();
+		assert bi.getWidth() <= maxW && bi.getHeight() <= maxH;
 		return bi;
 	}
 

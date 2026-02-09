@@ -41,11 +41,12 @@ import javax.swing.UIManager;
 
 import app.SwingUtils;
 import assets.AssetHandle;
+import util.Logger;
 
 abstract class Item extends JPanel
 {
-	static final int PADDING = 2;
-	static final int SIZE = AssetHandle.THUMBNAIL_WIDTH + (4 + PADDING) * 2;
+	static final int PADDING = 3;
+	static final int SIZE = AssetHandle.THUMBNAIL_WIDTH + PADDING * 2;
 
 	final Explorer explorer;
 	final String name;
@@ -69,7 +70,7 @@ abstract class Item extends JPanel
 		setLayout(null);
 		setPreferredSize(new Dimension(SIZE, SIZE));
 		setOpaque(false);
-		setBorder(BorderFactory.createEmptyBorder(4 + PADDING, 4 + PADDING, 4 + PADDING, 4 + PADDING));
+		setBorder(BorderFactory.createEmptyBorder(PADDING, PADDING, PADDING, PADDING));
 
 		var adapter = new MouseAdapter() {
 			@Override
@@ -195,7 +196,7 @@ abstract class Item extends JPanel
 		renameField = new JTextField(currentName);
 		renameField.setHorizontalAlignment(JTextField.CENTER);
 		renameField.selectAll();
-		renameField.setFont(renameField.getFont().deriveFont(12f));
+		renameField.setFont(renameField.getFont().deriveFont(11f));
 		renameField.setBorder(null);
 		renameField.setMargin(new Insets(0, 0, 0, 0));
 
@@ -310,24 +311,22 @@ abstract class Item extends JPanel
 
 		// Icon
 		if (icon != null) {
-			int iconW = Math.min(icon.getIconWidth(), AssetHandle.THUMBNAIL_WIDTH);
-			int iconH = Math.min(icon.getIconHeight(), AssetHandle.THUMBNAIL_HEIGHT);
+			int iconW = icon.getIconWidth();
+			int iconH = icon.getIconHeight();
 			int iconX = x + (w - iconW) / 2;
 			int iconY = y + (iconAreaH - iconH) / 2;
 
 			if (checkerboard)
 				paintCheckerboard(g2, iconX, iconY, iconW, iconH);
 
-			Graphics2D clipped = (Graphics2D) g2.create(iconX, iconY, iconW, iconH);
-			icon.paintIcon(this, clipped, 0, 0);
-			clipped.dispose();
+			icon.paintIcon(this, g2, iconX, iconY);
 		}
 
 		// Name label with ellipsis (hidden during inline rename)
 		if (renameField == null) {
 			g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 			g2.setColor(UIManager.getColor("Label.foreground"));
-			g2.setFont(getFont().deriveFont(12f));
+			g2.setFont(getFont().deriveFont(11f));
 			FontMetrics fm = g2.getFontMetrics();
 
 			String displayText = name;
