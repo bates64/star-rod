@@ -253,6 +253,7 @@ public class StarRodMain extends StarRodFrame
 		// Dock (bottom panel)
 		Dock dock = new Dock();
 		dock.setMinimumSize(new Dimension(0, MIN_DOCK_HEIGHT));
+		dock.setPreferredSize(new Dimension(0, MIN_WINDOW_HEIGHT / 3));
 
 		// Create vertical split pane (middlePane | dock)
 		JSplitPane verticalSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, mainHorizontalSplit, dock);
