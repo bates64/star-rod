@@ -70,6 +70,7 @@ public class AssetManager
 		}
 	}
 
+
 	public static AssetHandle getTextureArchive(String texName)
 	{
 		return get(AssetSubdir.MAP_TEX, texName + EXT_NEW_TEX);

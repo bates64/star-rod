@@ -7,6 +7,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -81,6 +82,33 @@ public class MapAsset extends AssetHandle
 	@Override
 	public String getAssetDescription() {
 		return desc;
+	}
+
+	@Override
+	public boolean deleteAsset()
+	{
+		File thumbFile = new File(PROJ_THUMBNAIL + assetPath + ".png");
+		if (thumbFile.exists())
+			thumbFile.delete();
+		return super.deleteAsset();
+	}
+
+	@Override
+	public boolean renameAsset(String newFileName)
+	{
+		File oldThumb = new File(PROJ_THUMBNAIL + assetPath + ".png");
+		if (oldThumb.exists()) {
+			try {
+				String newAssetPath = assetPath.substring(0, assetPath.lastIndexOf('/') + 1) + newFileName;
+				File newThumb = new File(PROJ_THUMBNAIL + newAssetPath + ".png");
+				newThumb.getParentFile().mkdirs();
+				Files.move(oldThumb.toPath(), newThumb.toPath());
+			}
+			catch (IOException e) {
+				return false;
+			}
+		}
+		return super.renameAsset(newFileName);
 	}
 
 	@Override

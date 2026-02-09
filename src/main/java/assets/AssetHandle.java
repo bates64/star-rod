@@ -3,9 +3,14 @@ package assets;
 import java.awt.Graphics2D;
 import java.awt.Image;
 import java.awt.RenderingHints;
+import java.awt.datatransfer.DataFlavor;
 import java.awt.image.BaseMultiResolutionImage;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+
+import org.apache.commons.io.FileUtils;
 
 import assets.ui.BackgroundAsset;
 import assets.ui.MapAsset;
@@ -15,6 +20,17 @@ public class AssetHandle extends File
 {
 	public static final int THUMBNAIL_WIDTH = 80;
 	public static final int THUMBNAIL_HEIGHT = 50;
+
+	public static final DataFlavor FLAVOUR;
+	static {
+		try {
+			FLAVOUR = new DataFlavor(
+				DataFlavor.javaJVMLocalObjectMimeType + ";class=\"" + AssetHandle.class.getName() + "\"");
+		}
+		catch (ClassNotFoundException e) {
+			throw new RuntimeException(e);
+		}
+	}
 
 	public final File assetDir;
 	public final String assetPath; // relative path from assetDir
@@ -45,6 +61,48 @@ public class AssetHandle extends File
 	public String getAssetDescription()
 	{
 		return null;
+	}
+
+	/** Deletes this asset from disk. */
+	public boolean deleteAsset()
+	{
+		return FileUtils.deleteQuietly(this);
+	}
+
+	/** Renames this asset within its current directory. */
+	public boolean renameAsset(String newAssetName)
+	{
+		// Preserve file extension
+		String oldName = getName();
+		int dot = oldName.lastIndexOf('.');
+		if (dot > 0)
+			newAssetName += oldName.substring(dot);
+
+		File newFile = new File(getParentFile(), newAssetName);
+		if (newFile.exists())
+			return false;
+		try {
+			Files.move(toPath(), newFile.toPath());
+			return true;
+		}
+		catch (IOException e) {
+			return false;
+		}
+	}
+
+	/** Moves this asset to a different directory. */
+	public boolean moveAsset(File targetDir)
+	{
+		File targetFile = new File(targetDir, getName());
+		if (targetFile.exists())
+			return false;
+		try {
+			Files.move(toPath(), targetFile.toPath());
+			return true;
+		}
+		catch (IOException e) {
+			return false;
+		}
 	}
 
 	/** Whether to paint a checkerboard behind the thumbnail for transparency. */

@@ -15,6 +15,7 @@ import java.util.List;
 
 import javax.imageio.ImageIO;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 
 import assets.AssetHandle;
@@ -63,6 +64,54 @@ public class TexturesAsset extends AssetHandle
 		catch (IOException e) {
 			Logger.logError("IOException while gathering previews from " + dirName);
 		}
+	}
+
+	private File getCompanionDir()
+	{
+		String dirName = FilenameUtils.getBaseName(getName()) + "/";
+		File dir = new File(assetDir, AssetSubdir.MAP_TEX + dirName);
+		return dir.isDirectory() ? dir : null;
+	}
+
+	@Override
+	public boolean deleteAsset()
+	{
+		File dir = getCompanionDir();
+		if (dir != null)
+			FileUtils.deleteQuietly(dir);
+		return super.deleteAsset();
+	}
+
+	@Override
+	public boolean renameAsset(String newFileName)
+	{
+		File dir = getCompanionDir();
+		if (dir != null) {
+			try {
+				String newDirName = FilenameUtils.getBaseName(newFileName);
+				File newDir = new File(dir.getParentFile(), newDirName);
+				Files.move(dir.toPath(), newDir.toPath());
+			}
+			catch (IOException e) {
+				return false;
+			}
+		}
+		return super.renameAsset(newFileName);
+	}
+
+	@Override
+	public boolean moveAsset(File targetDir)
+	{
+		File dir = getCompanionDir();
+		if (dir != null) {
+			try {
+				FileUtils.moveDirectory(dir, new File(targetDir, dir.getName()));
+			}
+			catch (IOException e) {
+				return false;
+			}
+		}
+		return super.moveAsset(targetDir);
 	}
 
 	@Override

@@ -8,6 +8,7 @@ import javax.swing.JScrollPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTextArea;
 
+import app.pane.explorer.Explorer;
 import util.Logger;
 import util.ui.ThemedIcon;
 
@@ -23,9 +24,9 @@ public class Dock extends JPanel
 		tabbedPane.putClientProperty("JTabbedPane.tabType", "card");
 		tabbedPane.putClientProperty("JTabbedPane.hasFullBorder", true);
 
-		// Add File Explorer tab with AssetsPanel
-		AssetsPanel assetsPanel = new AssetsPanel();
-		tabbedPane.addTab(null, ThemedIcon.FOLDER_OPEN_16, assetsPanel);
+		// Add File Explorer tab
+		var explorer = new Explorer();
+		tabbedPane.addTab(null, ThemedIcon.FOLDER_OPEN_16, explorer);
 
 		// Add Logs tab with text area
 		logTextArea = createLogTextArea();
