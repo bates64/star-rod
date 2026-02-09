@@ -49,6 +49,12 @@ public class AssetHandle extends File
 		return null;
 	}
 
+	/** Whether to paint a checkerboard behind the thumbnail for transparency. */
+	public boolean thumbnailHasCheckerboard()
+	{
+		return true;
+	}
+
 	/** Override in subclasses to provide a high-resolution thumbnail image. */
 	protected Image loadThumbnail()
 	{

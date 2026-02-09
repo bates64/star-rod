@@ -84,6 +84,11 @@ public class MapAsset extends AssetHandle
 	}
 
 	@Override
+	public boolean thumbnailHasCheckerboard() {
+		return false;
+	}
+
+	@Override
 	protected Image loadThumbnail()
 	{
 		File thumbFile = new File(PROJ_THUMBNAIL + assetPath + ".png");

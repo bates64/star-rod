@@ -9,13 +9,15 @@ import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Image;
+import java.awt.Rectangle;
 import java.awt.RenderingHints;
+import java.awt.TexturePaint;
+import java.awt.image.BufferedImage;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.FileSystems;
-import java.nio.file.Path;
 import java.nio.file.StandardWatchEventKinds;
 import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
@@ -214,7 +216,7 @@ public class AssetsPanel extends JPanel
 
 	private JPanel createSubdirItem(String name)
 	{
-		JPanel panel = createItem(name, ThemedIcon.FOLDER_OPEN_24, () -> {
+		JPanel panel = createItem(name, ThemedIcon.FOLDER_OPEN_24, null, () -> {
 			navigateTo(currentPath + name + "/");
 		});
 		return panel;
@@ -222,7 +224,7 @@ public class AssetsPanel extends JPanel
 
 	private JPanel createAssetItem(AssetHandle asset)
 	{
-		JPanel panel = createItem(asset.getAssetName(), ThemedIcon.PACKAGE_24, () -> {
+		JPanel panel = createItem(asset.getAssetName(), ThemedIcon.PACKAGE_24, asset, () -> {
 			openAsset(asset);
 		});
 
@@ -261,11 +263,20 @@ public class AssetsPanel extends JPanel
 		return panel;
 	}
 
-	private JPanel createItem(String name, Icon defaultIcon, Runnable onDoubleClick)
+	private JPanel createItem(String name, Icon defaultIcon, AssetHandle asset, Runnable onDoubleClick)
 	{
 		JPanel panel = createItemPanel();
 
-		JLabel icon = new JLabel(defaultIcon);
+		boolean checkerboard = asset != null && asset.thumbnailHasCheckerboard();
+		JLabel icon = checkerboard ? new JLabel(defaultIcon) {
+			@Override
+			protected void paintComponent(Graphics g)
+			{
+				if (getIcon() != null)
+					paintCheckerboard((Graphics2D) g, this);
+				super.paintComponent(g);
+			}
+		} : new JLabel(defaultIcon);
 		icon.setHorizontalAlignment(JLabel.CENTER);
 		icon.setVerticalAlignment(JLabel.CENTER);
 
@@ -328,6 +339,37 @@ public class AssetsPanel extends JPanel
 		panel.setPreferredSize(new Dimension(ITEM_SIZE, ITEM_SIZE));
 		panel.setOpaque(false);
 		return panel;
+	}
+
+	private static void paintCheckerboard(Graphics2D g2, JLabel label)
+	{
+		Icon icon = label.getIcon();
+		int iconW = icon.getIconWidth();
+		int iconH = icon.getIconHeight();
+		int x = (label.getWidth() - iconW) / 2;
+		int y = (label.getHeight() - iconH) / 2;
+
+		Color panelBg = UIManager.getColor("Panel.background");
+		boolean dark = panelBg != null && luminance(panelBg) < 0.5f;
+		Color c1 = dark ? new Color(0x3C3C3C) : new Color(0xCCCCCC);
+		Color c2 = dark ? new Color(0x2C2C2C) : new Color(0xFFFFFF);
+		int cs = 4;
+		var tile = new BufferedImage(cs * 2, cs * 2, BufferedImage.TYPE_INT_RGB);
+		Graphics2D tg = tile.createGraphics();
+		tg.setColor(c1);
+		tg.fillRect(0, 0, cs, cs);
+		tg.fillRect(cs, cs, cs, cs);
+		tg.setColor(c2);
+		tg.fillRect(cs, 0, cs, cs);
+		tg.fillRect(0, cs, cs, cs);
+		tg.dispose();
+		g2.setPaint(new TexturePaint(tile, new Rectangle(x, y, cs * 2, cs * 2)));
+		g2.fillRect(x, y, iconW, iconH);
+	}
+
+	private static float luminance(Color c)
+	{
+		return (0.299f * c.getRed() + 0.587f * c.getGreen() + 0.114f * c.getBlue()) / 255f;
 	}
 
 	private void openAsset(AssetHandle asset)
