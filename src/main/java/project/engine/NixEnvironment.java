@@ -176,7 +176,7 @@ public class NixEnvironment implements BuildEnvironment
 	private ProcessRunner.ProcessResult runNixCommandRaw(File projectDir, String command, BuildOutputListener listener) throws IOException
 	{
 		String[] cmd = new String[] {
-			"nix", "develop", "-c", "bash", "-c", command
+			"nix", "develop", "--extra-experimental-features", "nix-command flakes", "-c", "bash", "-c", command
 		};
 
 		return runner.run(cmd, projectDir, listener);

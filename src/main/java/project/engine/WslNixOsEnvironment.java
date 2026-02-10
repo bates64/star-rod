@@ -40,6 +40,11 @@ public class WslNixOsEnvironment implements BuildEnvironment
 		validateSystemRequirements();
 		validateWslSupport();
 		registerShutdownHook();
+		try {
+			ensureDistroExists();
+		} catch (IOException e) {
+			throw new BuildException("Failed to ensure WSL distro exists: " + e.getMessage(), e);
+		}
 	}
 
 	// --- Engine storage and git operations ---
@@ -121,14 +126,12 @@ public class WslNixOsEnvironment implements BuildEnvironment
 	@Override
 	public BuildResult configure(File projectDir, BuildOutputListener listener) throws BuildException, IOException
 	{
-		ensureDistroExists(listener);
 		return runWslCommand(projectDir, "./configure", listener);
 	}
 
 	@Override
 	public BuildResult build(File projectDir, BuildOutputListener listener) throws BuildException, IOException
 	{
-		ensureDistroExists(listener);
 		ProcessRunner.ProcessResult result = runWslCommandRaw(projectDir, "NINJA_STATUS='" + BuildOutputDialog.NINJA_STATUS + "' ./configure && ninja", listener);
 
 		if (result.wasCancelled()) {
@@ -148,7 +151,6 @@ public class WslNixOsEnvironment implements BuildEnvironment
 	@Override
 	public BuildResult clean(File projectDir, BuildOutputListener listener) throws BuildException, IOException
 	{
-		ensureDistroExists(listener);
 		return runWslCommand(projectDir, "./configure --clean", listener);
 	}
 
@@ -418,21 +420,18 @@ public class WslNixOsEnvironment implements BuildEnvironment
 		}
 	}
 
-	private void ensureDistroExists(BuildOutputListener listener) throws BuildException, IOException
+	private void ensureDistroExists() throws BuildException, IOException
 	{
 		if (isDistroInstalled()) {
 			return;
 		}
-
-		Logger.log("NixOS-WSL distro not found, installing...");
-		listener.onOutput("Installing NixOS-WSL distro (this may take a few minutes)...", false);
 
 		// Download NixOS-WSL tarball
 		Path tempDir = Files.createTempDirectory("starrod-nixos-wsl");
 		Path tarball = tempDir.resolve("nixos-wsl.tar.gz");
 
 		try {
-			listener.onOutput("Downloading NixOS-WSL...", false);
+			Logger.log("Downloading NixOS-WSL...", util.Priority.MILESTONE);
 			downloadFile(NIXOS_WSL_RELEASE_URL, tarball);
 
 			// Create install directory
@@ -440,7 +439,7 @@ public class WslNixOsEnvironment implements BuildEnvironment
 			installDir.mkdirs();
 
 			// Import the distro
-			listener.onOutput("Importing WSL distro...", false);
+			Logger.log("Importing WSL distro...", util.Priority.MILESTONE);
 			ProcessBuilder pb = new ProcessBuilder(
 				"wsl", "--import", DISTRO_NAME, installDir.getAbsolutePath(), tarball.toString()
 			);
@@ -450,7 +449,7 @@ public class WslNixOsEnvironment implements BuildEnvironment
 			try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
 				String line;
 				while ((line = reader.readLine()) != null) {
-					listener.onOutput(line, false);
+					Logger.log(line);
 				}
 			}
 
@@ -459,7 +458,7 @@ public class WslNixOsEnvironment implements BuildEnvironment
 				throw new BuildException("Failed to import NixOS-WSL distro (exit code " + exitCode + ")");
 			}
 
-			listener.onOutput("NixOS-WSL distro installed successfully!", false);
+			Logger.log("NixOS-WSL distro installed successfully!", util.Priority.MILESTONE);
 		}
 		catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
@@ -563,7 +562,7 @@ public class WslNixOsEnvironment implements BuildEnvironment
 
 		String[] cmd = new String[] {
 			"wsl", "-d", DISTRO_NAME, "--cd", wslPath,
-			"nix", "develop", "-c", "bash", "-c", command
+			"nix", "develop", "--extra-experimental-features", "nix-command flakes", "-c", "bash", "-c", command
 		};
 
 		return runner.run(cmd, null, listener);
