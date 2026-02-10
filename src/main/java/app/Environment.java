@@ -545,6 +545,8 @@ public abstract class Environment
 		assetDirectories.add(Directories.ENGINE_ASSETS_US.toFile());
 
 		usBaseRom = project.getEngine().getBaseRom();
+		if (!usBaseRom.exists())
+			promptForBaserom();
 		if (!ensureDumpExtracted()) {
 			return false;
 		}
@@ -609,35 +611,31 @@ public abstract class Environment
 	/**
 	 * Prompts the user to select a baserom file, validates it, and copies
 	 * it to the appropriate location.
-	 * @return the validated ROM file, or null if cancelled
 	 */
-	public static File promptForBaserom()
+	public static void promptForBaserom()
 	{
 		OpenFileChooser chooser = new OpenFileChooser(
 			null, "Select Paper Mario (US) ROM", "N64 ROM", "z64", "n64", "v64");
 
 		if (chooser.prompt() != ChooseDialogResult.APPROVE)
-			return null;
+			return;
 
 		File selected = chooser.getSelectedFile();
 		if (selected == null)
-			return null;
+			return;
 
 		try {
 			File validated = RomValidator.validateROM(selected);
 			if (validated == null)
-				return null;
+				return;
 
 			// Copy to target location
 			FileUtils.copyFile(validated, usBaseRom);
 			Logger.log("Baserom installed to " + usBaseRom.getAbsolutePath());
-
-			return usBaseRom;
 		}
 		catch (IOException e) {
 			Logger.printStackTrace(e);
 			showErrorMessage("ROM Copy Error", "Failed to copy ROM: %s", e.getMessage());
-			return null;
 		}
 	}
 
