@@ -7,6 +7,7 @@ replay_pid*
 
 # eclipse builds
 /bin/
+/out/
 
 # gradle files
 .gradle
