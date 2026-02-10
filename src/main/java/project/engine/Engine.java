@@ -6,6 +6,7 @@ import java.io.IOException;
 import app.Environment;
 import project.Project;
 import util.Logger;
+import util.Priority;
 
 /**
  * A checkout of papermario-dx that has been built, ready for modding.
@@ -45,9 +46,9 @@ public class Engine
 			else
 				checkoutRef();
 		}
-	}
 
-	// --- Factory ---
+		splitAssets(); // TODO: only call when necessary i.e. git HEAD changed
+	}
 
 	/**
 	 * Resolves and sets up the engine for a project.
@@ -66,10 +67,9 @@ public class Engine
 		// Worktree-based engine
 		File engineBase = buildEnv.getEngineBaseDir();
 
-		String projectId = project.getManifest().getId();
-		if (projectId == null || projectId.isEmpty())
-			projectId = project.getDirectory().getName();
-		File worktreeDir = new File(engineBase, "worktrees/" + projectId);
+		// Use ref as directory name so projects with the same ref share the worktree
+		// Prefix with wt- to prevent collision between foo and foo/bar
+		File worktreeDir = new File(engineBase, "worktrees/wt-" + ref);
 
 		return new Engine(worktreeDir, ref, false, buildEnv);
 	}
@@ -118,23 +118,32 @@ public class Engine
 
 	private void cloneBareRepo() throws IOException
 	{
+		Logger.log("Downloading engine...", Priority.MILESTONE);
 		buildEnv.gitCloneBare(REPO_URL, getBareRepoDir(), BuildOutputListener.toLogger());
 	}
 
 	private void createWorktree() throws IOException
 	{
+		Logger.log("Setting up engine ref '" + ref + "'...", Priority.MILESTONE);
+
+		// Ensure parent directories exist (needed for refs like foo/bar)
+		File parent = directory.getParentFile();
+		if (parent != null && !parent.exists())
+			parent.mkdirs();
+
 		buildEnv.gitWorktreeAdd(getBareRepoDir(), directory, ref, BuildOutputListener.toLogger());
 	}
 
 	private void checkoutRef() throws IOException
 	{
+		Logger.log("Updating engine...", Priority.MILESTONE);
 		buildEnv.gitFetchAll(getBareRepoDir(), BuildOutputListener.toLogger());
 		buildEnv.gitCheckout(directory, ref, BuildOutputListener.toLogger());
 	}
 
-	// TODO: call this somewhere!
 	public BuildResult splitAssets() throws BuildException, IOException
 	{
+		Logger.log("Splitting assets from ROM...", Priority.MILESTONE);
 		return buildEnv.configure(directory, BuildOutputListener.toLogger());
 	}
 

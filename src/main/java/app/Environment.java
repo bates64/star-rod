@@ -219,15 +219,7 @@ public abstract class Environment
 			}
 		}
 		else {
-			try {
-				Properties prop = new Properties();
-				prop.load(new FileInputStream(new File("./app.properties")));
-				versionString = prop.getProperty("version");
-				Logger.logf("Detected version %s (IDE)", versionString);
-			}
-			catch (IOException e) {
-				Logger.logError("Could not read version properties file: " + e.getMessage());
-			}
+			versionString = "dev";
 		}
 
 		// Create user directories

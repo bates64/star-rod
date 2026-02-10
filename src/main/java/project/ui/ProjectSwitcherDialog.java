@@ -430,21 +430,12 @@ public class ProjectSwitcherDialog extends StarRodFrame
 			return;
 		}
 
-		int choice = SwingUtils.getConfirmDialog()
-			.setTitle("Remove project")
-			.setMessage("Remove \"" + selected.getName() + "\" from the project list?",
-				"The project files will not be deleted.")
-			.setOptionsType(JOptionPane.YES_NO_OPTION)
-			.choose();
+		projectManager.removeFromHistory(selected);
+		refreshProjectList();
+		updateListFilter();
 
-		if (choice == JOptionPane.YES_OPTION) {
-			projectManager.removeFromHistory(selected);
-			refreshProjectList();
-			updateListFilter();
-
-			if (filteredListModel.getSize() > 0) {
-				list.setSelectedIndex(0);
-			}
+		if (filteredListModel.getSize() > 0) {
+			list.setSelectedIndex(0);
 		}
 	}
 
@@ -455,48 +446,19 @@ public class ProjectSwitcherDialog extends StarRodFrame
 			return;
 		}
 
-		// Show confirmation dialog with checkbox
-		JCheckBox confirmCheck = new JCheckBox("I understand this cannot be undone");
-		confirmCheck.setSelected(false);
-
-		Object[] message = {
-			"WARNING: This will permanently delete all files in:",
-			selected.getPath(),
-			"",
-			confirmCheck
-		};
-
-		int choice = JOptionPane.showConfirmDialog(
-			this,
-			message,
-			"Delete Project from Disk",
-			JOptionPane.OK_CANCEL_OPTION,
-			JOptionPane.WARNING_MESSAGE
-		);
-
-		if (choice == JOptionPane.OK_OPTION && confirmCheck.isSelected()) {
-			boolean success = projectManager.deleteFromDisk(selected);
-			if (!success) {
-				SwingUtils.getErrorDialog()
-					.setTitle("Delete Failed")
-					.setMessage("Failed to delete project files.",
-						"The project has been removed from the list.",
-						"You may need to delete the files manually.")
-					.show();
-			}
-
-			refreshProjectList();
-			updateListFilter();
-
-			if (filteredListModel.getSize() > 0) {
-				list.setSelectedIndex(0);
-			}
-		}
-		else if (choice == JOptionPane.OK_OPTION && !confirmCheck.isSelected()) {
-			SwingUtils.getWarningDialog()
-				.setTitle("Delete Cancelled")
-				.setMessage("You must check the confirmation box to delete.")
+		boolean success = projectManager.deleteFromDisk(selected);
+		if (!success) {
+			SwingUtils.getErrorDialog()
+				.setTitle("Delete Failed")
+				.setMessage("Failed to delete project files.")
 				.show();
+		}
+
+		refreshProjectList();
+		updateListFilter();
+
+		if (filteredListModel.getSize() > 0) {
+			list.setSelectedIndex(0);
 		}
 	}
 }

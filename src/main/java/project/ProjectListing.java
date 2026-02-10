@@ -18,7 +18,7 @@ public class ProjectListing implements Comparable<ProjectListing>
 	public ProjectListing(File path, long lastOpened) throws IOException, KdlParseException
 	{
 		if (!path.isDirectory())
-			throw new IllegalArgumentException("Project path must be a directory: " + path);
+			throw new IOException("Project path is not a directory: " + path.getAbsolutePath());
 		this.directory = path.getAbsoluteFile();
 		this.lastOpened = lastOpened;
 		this.manifest = new Manifest(this.directory);
