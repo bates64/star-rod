@@ -1,7 +1,7 @@
 package app.pane.explorer;
 
 import java.awt.Cursor;
-import java.awt.FlowLayout;
+import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.Transferable;
@@ -24,27 +24,34 @@ import java.nio.file.WatchService;
 import java.util.ArrayList;
 import java.util.List;
 
+import javax.swing.Icon;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
+import javax.swing.border.EmptyBorder;
 
 import app.Environment;
 import app.SwingUtils;
+import app.pane.DockTab;
 import assets.AssetHandle;
 import assets.AssetManager;
 import assets.AssetManager.DirectoryListing;
 import net.miginfocom.swing.MigLayout;
 import util.Logger;
+import util.ui.FadingScrollPane;
+import util.ui.ThemedIcon;
 import util.ui.UniformGridLayout;
 
-public class Explorer extends JPanel
+public class Tab extends DockTab
 {
 	private String currentPath = "";
 	private Item selectedItem;
 
-	private JPanel breadcrumbBar;
+	private JPanel topBar;
+	private JPanel breadcrumbsPanel;
+	private SearchField searchField;
 	private JPanel resultsPanel;
 	private JScrollPane scrollPane;
 
@@ -52,14 +59,26 @@ public class Explorer extends JPanel
 	private Thread watchThread;
 	private final List<WatchKey> watchKeys = new ArrayList<>();
 
-	public Explorer()
+	public Tab()
 	{
-		setLayout(new MigLayout("ins 4, fill", "[grow]", "[pref!][grow]"));
+		setLayout(new MigLayout("ins 0, fill", "[grow]", "[pref!][grow]"));
 
-		breadcrumbBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
-		add(breadcrumbBar, "growx, wrap");
+		// Set preferred size to fit exactly 2 rows of items
+		// topBar (36) + border top (7) + 2 rows (160) + 1 vgap (1) + border bottom (12) = 216
+		setPreferredSize(new Dimension(400, 216));
 
-		resultsPanel = new JPanel(new UniformGridLayout(Item.SIZE, Item.SIZE, 0, 0));
+		topBar = new JPanel(new MigLayout("h 36!, ins 5, fill, gap 8", "[grow][]", "[fill]"));
+
+		breadcrumbsPanel = new JPanel(new MigLayout("ins 5 14 0 14, gap 0", "", "[center]"));
+		topBar.add(breadcrumbsPanel);
+
+		searchField = new SearchField();
+		topBar.add(searchField, "w 200!");
+
+		add(topBar, "growx, wrap");
+
+		resultsPanel = new JPanel(new UniformGridLayout(Item.SIZE, Item.SIZE, 1, 1));
+		resultsPanel.setBorder(new EmptyBorder(7, 12, 12, 12));
 		resultsPanel.addMouseListener(new MouseAdapter() {
 			@Override
 			public void mouseClicked(MouseEvent e)
@@ -67,8 +86,8 @@ public class Explorer extends JPanel
 				clearSelection();
 			}
 		});
-		scrollPane = new JScrollPane(resultsPanel);
-		scrollPane.setBorder(null);
+
+		scrollPane = new FadingScrollPane(resultsPanel);
 		add(scrollPane, "grow, push");
 
 		try {
@@ -127,10 +146,10 @@ public class Explorer extends JPanel
 
 	private void rebuildBreadcrumb()
 	{
-		breadcrumbBar.removeAll();
+		breadcrumbsPanel.removeAll();
 
-		String projectName = Environment.getProject().getManifest().getName();
-		breadcrumbBar.add(createBreadcrumbLabel(projectName, ""));
+		String projectId = Environment.getProject().getManifest().getId();
+		breadcrumbsPanel.add(createBreadcrumbLabel(projectId, ""), "aligny baseline");
 
 		if (!currentPath.isEmpty()) {
 			String[] parts = currentPath.split("/");
@@ -140,21 +159,21 @@ public class Explorer extends JPanel
 					continue;
 				pathSoFar.append(part).append("/");
 
-				breadcrumbBar.add(createSeparatorLabel());
-				breadcrumbBar.add(createBreadcrumbLabel(part, pathSoFar.toString()));
+				breadcrumbsPanel.add(createSeparatorLabel(), "aligny baseline");
+				breadcrumbsPanel.add(createBreadcrumbLabel(part, pathSoFar.toString()), "aligny baseline");
 			}
 		}
 
 		if (selectedItem != null) {
-			breadcrumbBar.add(createSeparatorLabel());
+			breadcrumbsPanel.add(createSeparatorLabel(), "aligny baseline");
 
 			var fileLabel = new JLabel(selectedItem.name);
 			fileLabel.setFont(fileLabel.getFont().deriveFont(Font.BOLD));
-			breadcrumbBar.add(fileLabel);
+			breadcrumbsPanel.add(fileLabel, "aligny baseline");
 		}
 
-		breadcrumbBar.revalidate();
-		breadcrumbBar.repaint();
+		breadcrumbsPanel.revalidate();
+		breadcrumbsPanel.repaint();
 	}
 
 	private JLabel createBreadcrumbLabel(String text, String targetPath)
@@ -177,7 +196,7 @@ public class Explorer extends JPanel
 			{
 				if (dtde.isDataFlavorSupported(AssetHandle.FLAVOUR)) {
 					dtde.acceptDrag(DnDConstants.ACTION_MOVE);
-					label.setFont(normalFont.deriveFont(Font.BOLD));
+					label.putClientProperty("FlatLaf.style", "font: semibold");
 				}
 				else {
 					dtde.rejectDrag();
@@ -309,6 +328,19 @@ public class Explorer extends JPanel
 		watchThread.start();
 	}
 
+	@Override
+	public Icon getTabIcon()
+	{
+		return ThemedIcon.FOLDER_OPEN_24.derive(15, 15);
+	}
+
+	@Override
+	public String getTabName()
+	{
+		return "Explorer";
+	}
+
+	@Override
 	public void dispose()
 	{
 		if (watchThread != null)

@@ -83,4 +83,8 @@ public abstract class ThemedIcon
 
 	public static final FlatSVGIcon PACKAGE_24 = getIcon("package");
 	public static final FlatSVGIcon PACKAGE_16 = PACKAGE_24.derive(16, 16);
+
+	public static final FlatSVGIcon GIT_BRANCH = getIcon("git_branch");
+
+	public static final FlatSVGIcon SEARCH = getIcon("search");
 }

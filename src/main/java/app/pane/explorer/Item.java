@@ -48,7 +48,7 @@ abstract class Item extends JPanel
 	static final int PADDING = 3;
 	static final int SIZE = AssetHandle.THUMBNAIL_WIDTH + PADDING * 2;
 
-	final Explorer explorer;
+	final Tab explorer;
 	final String name;
 
 	private Icon icon;
@@ -60,7 +60,7 @@ abstract class Item extends JPanel
 	private static final JPopupMenu contextMenu = buildContextMenu();
 	private static Item popupItem;
 
-	Item(Explorer explorer, String name, Icon defaultIcon, boolean checkerboard)
+	Item(Tab explorer, String name, Icon defaultIcon, boolean checkerboard)
 	{
 		this.explorer = explorer;
 		this.name = name;
@@ -297,7 +297,8 @@ abstract class Item extends JPanel
 		// Selected background
 		if (selected) {
 			g2.setColor(UIManager.getColor("Component.borderColor"));
-			g2.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8);
+			int arc = UIManager.getInt("Button.arc");
+			g2.fillRoundRect(0, 0, getWidth(), getHeight(), arc, arc);
 		}
 
 		Insets ins = getInsets();

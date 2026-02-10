@@ -1,14 +1,11 @@
 package app;
 
-import static app.Directories.PROJ_THUMBNAIL;
-
+import java.awt.Color;
 import java.awt.Desktop;
 import java.awt.Dimension;
 import java.awt.GraphicsEnvironment;
 import java.awt.Image;
 import java.awt.Toolkit;
-import java.awt.datatransfer.Clipboard;
-import java.awt.datatransfer.StringSelection;
 import java.awt.event.WindowEvent;
 import java.io.File;
 import java.io.IOException;
@@ -18,39 +15,28 @@ import java.util.concurrent.CountDownLatch;
 
 import javax.imageio.ImageIO;
 import javax.swing.AbstractButton;
-import javax.swing.BorderFactory;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JLabel;
-import javax.swing.JMenuItem;
+import javax.swing.JMenu;
+import javax.swing.JMenuBar;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
-import javax.swing.JPopupMenu;
-import javax.swing.JProgressBar;
-import javax.swing.JScrollBar;
-import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
-import javax.swing.JTextArea;
-import javax.swing.ScrollPaneConstants;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
 import javax.swing.UIManager;
 import javax.swing.WindowConstants;
 
-import org.apache.commons.io.FilenameUtils;
-
-import project.engine.BuildEnvironment;
-import project.engine.BuildOutputListener;
-import project.engine.BuildResult;
-import app.config.Options;
+import app.bar.Bar;
 import app.input.InvalidInputException;
 import app.pane.Dock;
+import app.pane.Pane;
 import assets.AssetHandle;
 import assets.AssetManager;
 import assets.ExpectedAsset;
 import common.BaseEditor;
-import project.engine.Engine;
 import game.globals.editor.GlobalsEditor;
 import game.map.Map;
 import game.map.compiler.BuildException;
@@ -58,23 +44,20 @@ import game.map.compiler.CollisionCompiler;
 import game.map.compiler.GeometryCompiler;
 import game.map.editor.MapEditor;
 import game.map.scripts.ScriptGenerator;
-import game.map.scripts.extract.Extractor;
 import game.message.editor.MessageEditor;
 import game.sprite.editor.SpriteEditor;
 import game.texture.editor.ImageEditor;
 import game.worldmap.WorldMapEditor;
 import net.miginfocom.swing.MigLayout;
-import project.Project;
 import util.Logger;
-import util.Priority;
 
 public class StarRodMain extends StarRodFrame
 {
 	// Layout constants
 	private static final int MIN_PANE_WIDTH = 250;
-	private static final int MIN_WINDOW_WIDTH = MIN_PANE_WIDTH * 3;
+	private static final int MIN_WINDOW_WIDTH = MIN_PANE_WIDTH * 3 + 300;
 	private static final int MIN_WINDOW_HEIGHT = 600;
-	private static final int MIN_DOCK_HEIGHT = 100;
+	private static final int MIN_DOCK_HEIGHT = 140;
 
 	public static void main(String[] args) throws InterruptedException
 	{
@@ -101,6 +84,17 @@ public class StarRodMain extends StarRodFrame
 		setTitle(Environment.decorateTitle("Star Rod"));
 		setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 		setMinimumSize(new Dimension(MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT));
+
+		Color bg = UIManager.getColor("Panel.background");
+		getContentPane().setBackground(bg.darker());
+
+		// Menu bar
+		JMenuBar menuBar = new JMenuBar();
+		JMenu fileMenu = new JMenu("File");
+		JMenu editMenu = new JMenu("Edit");
+		menuBar.add(fileMenu);
+		menuBar.add(editMenu);
+		setJMenuBar(menuBar);
 
 		// TODO: click this to change project
 		JLabel projectIdLabel = new JLabel(Environment.getProject().getManifest().getId());
@@ -212,7 +206,8 @@ public class StarRodMain extends StarRodFrame
 		});
 
 		// Left pane - buttons panel
-		JPanel leftPane = new JPanel(new MigLayout("fill, ins 8, wrap 1"));
+		Pane leftPane = new Pane();
+		leftPane.setLayout(new MigLayout("fill, ins 8, wrap 1"));
 
 		JPanel buttonsPanel = new JPanel(new MigLayout("fillx, wrap 1, hidemode 3"));
 		buttonsPanel.add(mapEditorButton, "growx");
@@ -230,49 +225,48 @@ public class StarRodMain extends StarRodFrame
 		leftPane.setMinimumSize(new Dimension(MIN_PANE_WIDTH, 0));
 
 		// Middle pane - placeholder for now
-		JPanel middlePane = new JPanel(new MigLayout("fill, ins 8"));
+		Pane middlePane = new Pane();
+		middlePane.setLayout(new MigLayout("fill, ins 8"));
 		middlePane.add(new JLabel("Middle Pane"), "center");
 		middlePane.setMinimumSize(new Dimension(MIN_PANE_WIDTH, 0));
 
 		// Right pane - placeholder for now
-		JPanel rightPane = new JPanel(new MigLayout("fill, ins 8"));
+		Pane rightPane = new Pane();
+		rightPane.setLayout(new MigLayout("fill, ins 8"));
 		rightPane.add(new JLabel("Right Pane"), "center");
 		rightPane.setMinimumSize(new Dimension(MIN_PANE_WIDTH, 0));
 
-		// Create horizontal split panes (left | middle | right)
-		JSplitPane leftMiddleSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, leftPane, middlePane);
+		// Dock (bottom panel in middle column)
+		Dock dock = new Dock();
+		dock.setMinimumSize(new Dimension(0, MIN_DOCK_HEIGHT));
+
+		// Create vertical split pane (middlePane | dock) for center column
+		JSplitPane middleDockSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, middlePane, dock);
+		middleDockSplit.setOneTouchExpandable(false);
+		middleDockSplit.setDividerSize(4);
+		middleDockSplit.setResizeWeight(1.0); // Give most space to middle pane
+		middleDockSplit.setOpaque(false);
+
+		// Create horizontal split panes (left | (middle + dock) | right)
+		JSplitPane leftMiddleSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, leftPane, middleDockSplit);
 		leftMiddleSplit.setOneTouchExpandable(false);
-		leftMiddleSplit.setDividerSize(1);
+		leftMiddleSplit.setDividerSize(4);
 		leftMiddleSplit.setResizeWeight(0.0); // Left pane stays fixed, middle gets extra space
+		leftMiddleSplit.setOpaque(false);
 
 		JSplitPane mainHorizontalSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, leftMiddleSplit, rightPane);
 		mainHorizontalSplit.setOneTouchExpandable(false);
-		mainHorizontalSplit.setDividerSize(1);
+		mainHorizontalSplit.setDividerSize(4);
 		mainHorizontalSplit.setResizeWeight(1.0); // Middle gets priority, right stays fixed
-
-		// Dock (bottom panel)
-		Dock dock = new Dock();
-		dock.setMinimumSize(new Dimension(0, MIN_DOCK_HEIGHT));
-		dock.setPreferredSize(new Dimension(0, MIN_WINDOW_HEIGHT / 3));
-
-		// Create vertical split pane (middlePane | dock)
-		JSplitPane verticalSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, mainHorizontalSplit, dock);
-		verticalSplit.setOneTouchExpandable(false);
-		verticalSplit.setDividerSize(4);
-		verticalSplit.setResizeWeight(1.0); // Give most space to top pane
+		mainHorizontalSplit.setOpaque(false);
 
 		// Status bar
-		JLabel statusBarLabel = new JLabel("Status bar");
-		statusBarLabel.setBorder(BorderFactory.createCompoundBorder(
-			BorderFactory.createMatteBorder(1, 0, 0, 0, UIManager.getColor("Separator.foreground")),
-			BorderFactory.createEmptyBorder(2, 8, 2, 8)
-		));
-		SwingUtils.setFontSize(statusBarLabel, 11);
+		Bar statusBar = new Bar();
 
 		// Layout
-		setLayout(new MigLayout("fill, ins 0, wrap"));
-		add(verticalSplit, "grow, push");
-		add(statusBarLabel, "growx, h 20!");
+		setLayout(new MigLayout("fill, ins 4, gap 4, wrap"));
+		add(mainHorizontalSplit, "grow, push");
+		add(statusBar, "growx, h 24!");
 
 		pack();
 		setLocationRelativeTo(null);

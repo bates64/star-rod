@@ -257,6 +257,10 @@ public abstract class Environment
 				UIManager.put("Component.arrowType", "chevron");
 				UIManager.put("Component.focusWidth", 1);
 
+				int arc = 10;
+				UIManager.put("Button.arc", arc);
+				UIManager.put("TabbedPane.cardTabArc", arc);
+
 				fixScrollSpeed();
 
 				if (fromJar && gitBuildTag != null && mainConfig.getBoolean(Options.CheckForUpdates))

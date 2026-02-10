@@ -19,7 +19,7 @@ class DirectoryItem extends Item
 {
 	private final String targetPath;
 
-	DirectoryItem(Explorer explorer, String name, String targetPath)
+	DirectoryItem(Tab explorer, String name, String targetPath)
 	{
 		super(explorer, name, ThemedIcon.FOLDER_FILLED.derive(36, 36), false);
 		this.targetPath = targetPath;

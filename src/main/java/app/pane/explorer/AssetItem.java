@@ -13,7 +13,7 @@ class AssetItem extends Item
 {
 	final AssetHandle asset;
 
-	AssetItem(Explorer explorer, AssetHandle asset)
+	AssetItem(Tab explorer, AssetHandle asset)
 	{
 		super(explorer, asset.getAssetName(), ThemedIcon.PACKAGE_24, false);
 		this.asset = asset;
@@ -67,6 +67,6 @@ class AssetItem extends Item
 	@Override
 	Transferable createDragTransferable()
 	{
-		return new Explorer.AssetTransferable(asset);
+		return new Tab.AssetTransferable(asset);
 	}
 }
