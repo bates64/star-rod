@@ -16,6 +16,8 @@ repositories {
 
 plugins {
     id("java")
+    id("org.jetbrains.kotlin.jvm") version "2.1.0"
+    id("org.jetbrains.kotlin.plugin.serialization") version "2.1.0"
     id("com.github.johnrengelman.shadow") version "8.1.1"
     id("net.nemerosa.versioning") version "3.1.0"
     id("com.cmgapps.licenses") version "4.8.0"
@@ -24,6 +26,13 @@ plugins {
 java {
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(17))
+    }
+}
+
+kotlin {
+    jvmToolchain(17)
+    compilerOptions {
+        freeCompilerArgs.add("-Xjvm-default=all")
     }
 }
 
@@ -100,6 +109,11 @@ dependencies {
     implementation(files("lib/org.eclipse.equinox.common-3.6.0.jar"))
 
     implementation("org.ahocorasick:ahocorasick:0.6.3")
+
+    // Kotlin
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.9.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
 }
 
 
@@ -126,11 +140,14 @@ tasks {
     }
 
     val compileApp = register<JavaCompile>("compileApp") {
-        source = fileTree("src/main/java")
+        source = fileTree("src/main/java") {
+            include("**/*.java")
+        }
         destinationDirectory.set(appBuildDir.get().asFile)
-        classpath = sourceSets.main.get().compileClasspath // use the default classpath
+        classpath = sourceSets.main.get().compileClasspath + files(layout.buildDirectory.dir("classes/kotlin/main"))
         options.release.set(17)
         options.compilerArgs.add("-Xlint:deprecation")
+        dependsOn("compileKotlin")
     }
 
     val jarApp = register<Jar>("jarApp") {
@@ -139,13 +156,13 @@ tasks {
         manifest {
             attributes["Main-Class"] = appMain
         }
-        from(appBuildDir)
+        from(appBuildDir, layout.buildDirectory.dir("classes/kotlin/main"))
     }
 
     shadowJar {
         dependsOn(jarBoot, jarApp)
 
-        from(bootBuildDir, appBuildDir)
+        from(bootBuildDir, appBuildDir, layout.buildDirectory.dir("classes/kotlin/main"))
 
         mergeServiceFiles("META-INF/spring.*")
         exclude("META-INF/*.SF")
