@@ -39,22 +39,22 @@ public class AssetManager
 	public static Asset get(AssetSubdir subdir, String path)
 	{
 		for (File assetDir : Environment.assetDirectories) {
-			Asset ah = new Asset(assetDir, subdir + path);
+			Asset ah = AssetRegistry.getInstance().create(assetDir.toPath(), java.nio.file.Path.of(subdir + path));
 
 			if (ah.exists())
 				return ah;
 		}
-		return new Asset(AssetManager.getTopLevelAssetDir(), subdir + path);
+		return AssetRegistry.getInstance().create(AssetManager.getTopLevelAssetDir().toPath(), java.nio.file.Path.of(subdir + path));
 	}
 
 	public static Asset getTopLevel(Asset source)
 	{
-		return new Asset(getTopLevelAssetDir(), source.getRelativePath().toString());
+		return AssetRegistry.getInstance().create(getTopLevelAssetDir().toPath(), source.getRelativePath());
 	}
 
 	public static Asset getBase(AssetSubdir subdir, String path)
 	{
-		return new Asset(getBaseAssetDir(), subdir + path);
+		return AssetRegistry.getInstance().create(getBaseAssetDir().toPath(), java.nio.file.Path.of(subdir + path));
 	}
 
 	/**
@@ -229,7 +229,7 @@ public class AssetManager
 						continue;
 
 					String relPath = dir + subdir + filename;
-					Asset ah = new Asset(stackDir, relPath);
+					Asset ah = AssetRegistry.getInstance().create(stackDir.toPath(), java.nio.file.Path.of(relPath));
 
 					// only add first occurance down the asset stack traversal
 					assetMap.putIfAbsent(filename, ah);
@@ -334,7 +334,7 @@ public class AssetManager
 					continue;
 				}
 
-				Asset ah = new Asset(assetDir, AssetSubdir.ICON + relativeString);
+				Asset ah = AssetRegistry.getInstance().create(assetDir.toPath(), java.nio.file.Path.of(AssetSubdir.ICON + relativeString));
 				if (!assetMap.containsKey(relativeString)) {
 					assetMap.put(relativeString, ah);
 				}

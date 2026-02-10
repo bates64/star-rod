@@ -11,7 +11,7 @@ import java.nio.file.Path
 import kotlin.io.path.*
 
 /** An asset on disk, but not yet loaded because it may be expensive to load. */
-open class Asset(
+open class Asset internal constructor(
 	val root: Path,
 	var relativePath: Path,
 ) {
@@ -21,9 +21,9 @@ open class Asset(
 		}
 	}
 
-	constructor(root: Path, relativePath: String) : this(root, Path(relativePath))
-	constructor(root: File, relativePath: String) : this(root.toPath(), relativePath)
-	constructor(other: Asset) : this(other.root, other.relativePath)
+	internal constructor(root: Path, relativePath: String) : this(root, Path(relativePath))
+	internal constructor(root: File, relativePath: String) : this(root.toPath(), relativePath)
+	internal constructor(other: Asset) : this(other.root, other.relativePath)
 
 	/** Full path on disk. May be a directory. */
 	var path: Path
