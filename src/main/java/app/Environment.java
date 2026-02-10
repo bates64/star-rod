@@ -46,6 +46,8 @@ import project.Project;
 import project.ProjectListing;
 import project.ProjectManager;
 import project.Manifest;
+import project.engine.BuildException;
+import project.engine.Engine;
 import project.ui.ProjectSwitcherDialog;
 import assets.AssetExtractor;
 import assets.ExpectedAsset;
@@ -528,7 +530,22 @@ public abstract class Environment
 		}
 
 		Directories.setProjectDirectory(project.getPath());
-		Directories.setDumpDirectory(project.getEngine().getDumpDir().getAbsolutePath());
+		final Engine engine = project.getEngine();
+		Directories.setDumpDirectory(engine.getDumpDir().getAbsolutePath());
+
+		usBaseRom = engine.getBaseRom();
+		if (!usBaseRom.exists()) {
+			promptForBaserom();
+			if (!usBaseRom.exists())
+				return false;
+		}
+
+		try {
+			engine.splitAssets();
+		} catch (BuildException e) {
+			Logger.logError("Failed to split assets: " + e.getMessage());
+			return false;
+		}
 
 		// Asset stack (TODO: move to Project?)
 		assetDirectories = new ArrayList<>();
@@ -536,9 +553,6 @@ public abstract class Environment
 		// ...dependencies...
 		assetDirectories.add(Directories.ENGINE_ASSETS_US.toFile());
 
-		usBaseRom = project.getEngine().getBaseRom();
-		if (!usBaseRom.exists())
-			promptForBaserom();
 		if (!ensureDumpExtracted()) {
 			return false;
 		}

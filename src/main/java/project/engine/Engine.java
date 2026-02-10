@@ -46,8 +46,6 @@ public class Engine
 			else
 				checkoutRef();
 		}
-
-		splitAssets(); // TODO: only call when necessary i.e. git HEAD changed
 	}
 
 	/**
@@ -141,10 +139,12 @@ public class Engine
 		buildEnv.gitCheckout(directory, ref, BuildOutputListener.toLogger());
 	}
 
-	public BuildResult splitAssets() throws BuildException, IOException
+	public void splitAssets() throws BuildException, IOException
 	{
 		Logger.log("Splitting assets from ROM...", Priority.MILESTONE);
-		return buildEnv.configure(directory, BuildOutputListener.toLogger());
+		BuildResult result = buildEnv.configure(directory, BuildOutputListener.toLogger());
+		if (!result.isSuccess())
+			throw new BuildException("Failed to split assets: " + result.getErrorMessage());
 	}
 
 	private static boolean isGitRepo(File dir)
