@@ -73,7 +73,7 @@ import app.SwingUtils;
 import app.config.Config;
 import app.config.Options;
 import app.config.Options.Scope;
-import assets.AssetHandle;
+import assets.Asset;
 import assets.AssetManager;
 import assets.AssetSubdir;
 import common.BaseEditor;
@@ -474,7 +474,7 @@ public class MessageEditor extends BaseEditor
 		int i = 1;
 		for (SpecialCharacter sc : StringConstants.SpecialCharacter.values()) {
 			String imgName = String.format("%02X", sc.code) + ".png";
-			AssetHandle ah = AssetManager.get(AssetSubdir.STANDARD_CHARS, imgName);
+			Asset ah = AssetManager.get(AssetSubdir.STANDARD_CHARS, imgName);
 
 			JButton button = new JButton();
 			try {

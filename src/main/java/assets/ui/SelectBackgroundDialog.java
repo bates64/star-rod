@@ -25,7 +25,7 @@ import org.apache.commons.io.FilenameUtils;
 
 import app.Environment;
 import app.SwingUtils;
-import assets.AssetHandle;
+import assets.Asset;
 import assets.AssetManager;
 import net.miginfocom.swing.MigLayout;
 import util.Logger;
@@ -62,14 +62,14 @@ public class SelectBackgroundDialog extends JDialog
 	private DialogResult result = DialogResult.NONE;
 	private BackgroundAsset selectedObject;
 
-	private SelectBackgroundDialog(Collection<AssetHandle> assets, String initialSelection)
+	private SelectBackgroundDialog(Collection<Asset> assets, String initialSelection)
 	{
 		super(null, java.awt.Dialog.ModalityType.TOOLKIT_MODAL);
 		setDefaultCloseOperation(DISPOSE_ON_CLOSE);
 
 		DefaultListModel<BackgroundAsset> listModel = new DefaultListModel<>();
 		listModel.addElement(null);
-		for (AssetHandle ah : assets) {
+		for (Asset ah : assets) {
 			// ignore .alt background
 			if (ah.getRelativePath().toString().endsWith("_bg.png")) {
 				listModel.addElement(new BackgroundAsset(ah));

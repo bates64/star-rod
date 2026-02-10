@@ -13,7 +13,7 @@ import com.google.gson.Gson;
 import com.google.gson.stream.JsonReader;
 
 import app.StarRodException;
-import assets.AssetHandle;
+import assets.Asset;
 import assets.AssetManager;
 import assets.AssetSubdir;
 import util.Logger;
@@ -24,7 +24,7 @@ public class SpriteShadingEditor
 {
 	public static void saveShadingProfiles(SpriteShadingData data) throws IOException
 	{
-		AssetHandle ah = AssetManager.get(AssetSubdir.SPRITE, FN_SPRITE_SHADING);
+		Asset ah = AssetManager.get(AssetSubdir.SPRITE, FN_SPRITE_SHADING);
 		saveShadingProfiles(ah.getFile(), data);
 	}
 
@@ -57,7 +57,7 @@ public class SpriteShadingEditor
 
 	public static SpriteShadingData loadData()
 	{
-		AssetHandle ah = AssetManager.get(AssetSubdir.SPRITE, FN_SPRITE_SHADING);
+		Asset ah = AssetManager.get(AssetSubdir.SPRITE, FN_SPRITE_SHADING);
 		if (!ah.exists())
 			throw new StarRodException("Could not find sprite shading definitions!");
 

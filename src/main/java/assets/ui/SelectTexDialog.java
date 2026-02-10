@@ -28,7 +28,7 @@ import org.apache.commons.io.FilenameUtils;
 
 import app.Environment;
 import app.SwingUtils;
-import assets.AssetHandle;
+import assets.Asset;
 import assets.AssetManager;
 import net.miginfocom.swing.MigLayout;
 import util.Logger;
@@ -70,7 +70,7 @@ public class SelectTexDialog extends JDialog
 	private DialogResult result = DialogResult.NONE;
 	private TexturesAsset selectedObject;
 
-	private SelectTexDialog(Collection<AssetHandle> assets, String initialSelection)
+	private SelectTexDialog(Collection<Asset> assets, String initialSelection)
 	{
 		super(null, java.awt.Dialog.ModalityType.TOOLKIT_MODAL);
 		setDefaultCloseOperation(DISPOSE_ON_CLOSE);

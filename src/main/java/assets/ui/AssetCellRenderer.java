@@ -11,10 +11,10 @@ import javax.swing.ListCellRenderer;
 import org.apache.commons.io.FilenameUtils;
 
 import app.SwingUtils;
-import assets.AssetHandle;
+import assets.Asset;
 import net.miginfocom.swing.MigLayout;
 
-public class AssetCellRenderer extends JPanel implements ListCellRenderer<AssetHandle>
+public class AssetCellRenderer extends JPanel implements ListCellRenderer<Asset>
 {
 	private final JLabel nameLabel;
 
@@ -31,8 +31,8 @@ public class AssetCellRenderer extends JPanel implements ListCellRenderer<AssetH
 
 	@Override
 	public Component getListCellRendererComponent(
-		JList<? extends AssetHandle> list,
-		AssetHandle asset,
+		JList<? extends Asset> list,
+		Asset asset,
 		int index,
 		boolean isSelected,
 		boolean cellHasFocus)

@@ -51,7 +51,7 @@ import app.SwingUtils;
 import app.config.Config;
 import app.config.Options;
 import app.config.Options.Scope;
-import assets.AssetHandle;
+import assets.Asset;
 import assets.AssetManager;
 import common.BaseEditor;
 import common.BaseEditorSettings;
@@ -1396,7 +1396,7 @@ public class SpriteEditor extends BaseEditor
 		item.addActionListener((evt) -> {
 			if (sprite != null) {
 				try {
-					AssetHandle ah = sprite.getRoot(true);
+					Asset ah = sprite.getRoot(true);
 					ah.getFile().mkdirs();
 					Desktop.getDesktop().open(ah.getFile());
 				}
@@ -1411,7 +1411,7 @@ public class SpriteEditor extends BaseEditor
 		item.addActionListener((evt) -> {
 			if (sprite != null) {
 				try {
-					AssetHandle ah = sprite.getRoot(false);
+					Asset ah = sprite.getRoot(false);
 					Desktop.getDesktop().open(ah.getFile());
 				}
 				catch (IOException e) {
@@ -1975,7 +1975,7 @@ public class SpriteEditor extends BaseEditor
 
 	private void saveSprite(Sprite spr)
 	{
-		AssetHandle ah = spr.getAsset();
+		Asset ah = spr.getAsset();
 		ah = AssetManager.getTopLevel(ah);
 
 		sprite.reindex();

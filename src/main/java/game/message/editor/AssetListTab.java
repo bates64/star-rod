@@ -14,7 +14,7 @@ import javax.swing.ListCellRenderer;
 import org.apache.commons.io.FilenameUtils;
 
 import app.SwingUtils;
-import assets.AssetHandle;
+import assets.Asset;
 import assets.AssetManager;
 import game.message.Message;
 import net.miginfocom.swing.MigLayout;
@@ -90,7 +90,7 @@ public class AssetListTab extends JPanel
 		assets.clear();
 
 		try {
-			for (AssetHandle ah : AssetManager.getMessages()) {
+			for (Asset ah : AssetManager.getMessages()) {
 				Logger.log("Reading messages from: " + ah.getName());
 				assets.add(new MessageAsset(ah));
 			}

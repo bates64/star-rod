@@ -21,7 +21,7 @@ import app.Directories;
 import app.Resource;
 import app.Resource.ResourceType;
 import app.StarRodMain;
-import assets.AssetHandle;
+import assets.Asset;
 import assets.AssetManager;
 import game.map.Map;
 import game.map.editor.ui.SwingGUI;
@@ -137,7 +137,7 @@ public abstract class TextureManager
 		TextureArchive ta;
 
 		try {
-			AssetHandle ah = AssetManager.getTextureArchive(texArchiveName);
+			Asset ah = AssetManager.getTextureArchive(texArchiveName);
 			if (!ah.exists())
 				return false;
 			if (FilenameUtils.getExtension(ah.getName()).equals(Directories.EXT_OLD_TEX)) {

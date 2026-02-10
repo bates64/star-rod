@@ -15,7 +15,7 @@ import org.apache.commons.io.FilenameUtils;
 import org.w3c.dom.Element;
 
 import app.input.InputFileException;
-import assets.AssetHandle;
+import assets.Asset;
 import assets.AssetManager;
 import assets.AssetSubdir;
 import common.Vector3f;
@@ -169,7 +169,7 @@ public class Sprite implements XmlSerializable, Editable
 		return name.isEmpty() ? "Unnamed" : name;
 	}
 
-	public AssetHandle getAsset()
+	public Asset getAsset()
 	{
 		if (metadata.isPlayer)
 			return AssetManager.getPlayerSprite(name);
@@ -177,9 +177,9 @@ public class Sprite implements XmlSerializable, Editable
 			return AssetManager.getNpcSprite(name);
 	}
 
-	public AssetHandle getRoot(boolean modDir)
+	public Asset getRoot(boolean modDir)
 	{
-		AssetHandle ah;
+		Asset ah;
 
 		if (metadata.isPlayer)
 			ah = AssetManager.getBase(AssetSubdir.PLR_SPRITE, "");
@@ -192,9 +192,9 @@ public class Sprite implements XmlSerializable, Editable
 			return ah;
 	}
 
-	public AssetHandle getRastersDir(boolean modDir)
+	public Asset getRastersDir(boolean modDir)
 	{
-		AssetHandle ah;
+		Asset ah;
 
 		if (metadata.isPlayer)
 			ah = AssetManager.get(AssetSubdir.PLR_SPRITE_IMG, "");
@@ -207,9 +207,9 @@ public class Sprite implements XmlSerializable, Editable
 			return ah;
 	}
 
-	public AssetHandle getPalettesDir(boolean modDir)
+	public Asset getPalettesDir(boolean modDir)
 	{
-		AssetHandle ah;
+		Asset ah;
 
 		if (metadata.isPlayer)
 			ah = AssetManager.get(AssetSubdir.PLR_SPRITE_PAL, "");

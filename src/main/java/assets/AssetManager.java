@@ -36,32 +36,32 @@ public class AssetManager
 		return Environment.assetDirectories.get(numDirs - 1);
 	}
 
-	public static AssetHandle get(AssetSubdir subdir, String path)
+	public static Asset get(AssetSubdir subdir, String path)
 	{
 		for (File assetDir : Environment.assetDirectories) {
-			AssetHandle ah = new AssetHandle(assetDir, subdir + path);
+			Asset ah = new Asset(assetDir, subdir + path);
 
 			if (ah.exists())
 				return ah;
 		}
-		return new AssetHandle(AssetManager.getTopLevelAssetDir(), subdir + path);
+		return new Asset(AssetManager.getTopLevelAssetDir(), subdir + path);
 	}
 
-	public static AssetHandle getTopLevel(AssetHandle source)
+	public static Asset getTopLevel(Asset source)
 	{
-		return new AssetHandle(getTopLevelAssetDir(), source.getRelativePath().toString());
+		return new Asset(getTopLevelAssetDir(), source.getRelativePath().toString());
 	}
 
-	public static AssetHandle getBase(AssetSubdir subdir, String path)
+	public static Asset getBase(AssetSubdir subdir, String path)
 	{
-		return new AssetHandle(getBaseAssetDir(), subdir + path);
+		return new Asset(getBaseAssetDir(), subdir + path);
 	}
 
 	/**
 	 * Delete an asset at all levels of the asset stack
 	 * @param asset
 	 */
-	public static void deleteAll(AssetHandle asset)
+	public static void deleteAll(Asset asset)
 	{
 		for (File assetDir : Environment.assetDirectories) {
 			File f = new File(assetDir, asset.getRelativePath().toString());
@@ -71,7 +71,7 @@ public class AssetManager
 	}
 
 
-	public static AssetHandle getTextureArchive(String texName)
+	public static Asset getTextureArchive(String texName)
 	{
 		return get(AssetSubdir.MAP_TEX, texName + EXT_NEW_TEX);
 	}
@@ -81,7 +81,7 @@ public class AssetManager
 		return AssetSubdir.MAP_TEX.getModDir();
 	}
 
-	public static AssetHandle getMap(String mapName)
+	public static Asset getMap(String mapName)
 	{
 		return get(AssetSubdir.MAP_GEOM, mapName + EXT_MAP);
 	}
@@ -96,7 +96,7 @@ public class AssetManager
 		return AssetSubdir.MAP_GEOM.getModDir();
 	}
 
-	public static AssetHandle getBackground(String bgName)
+	public static Asset getBackground(String bgName)
 	{
 		return get(AssetSubdir.MAP_BG, bgName + EXT_PNG);
 	}
@@ -106,37 +106,37 @@ public class AssetManager
 		return AssetSubdir.MAP_BG.getModDir();
 	}
 
-	public static AssetHandle getNpcSprite(String spriteName)
+	public static Asset getNpcSprite(String spriteName)
 	{
 		return get(AssetSubdir.NPC_SPRITE, spriteName + "/" + FN_SPRITESHEET);
 	}
 
-	public static Map<String, AssetHandle> getNpcSpriteRasters(String spriteName) throws IOException
+	public static Map<String, Asset> getNpcSpriteRasters(String spriteName) throws IOException
 	{
 		return getAssetMap(AssetSubdir.NPC_SPRITE, spriteName + "/rasters/", EXT_PNG);
 	}
 
-	public static Map<String, AssetHandle> getNpcSpritePalettes(String spriteName) throws IOException
+	public static Map<String, Asset> getNpcSpritePalettes(String spriteName) throws IOException
 	{
 		return getAssetMap(AssetSubdir.NPC_SPRITE, spriteName + "/palettes/", EXT_PNG);
 	}
 
-	public static AssetHandle getPlayerSprite(String spriteName)
+	public static Asset getPlayerSprite(String spriteName)
 	{
 		return get(AssetSubdir.PLR_SPRITE, spriteName + EXT_SPRITE);
 	}
 
-	public static Map<String, AssetHandle> getPlayerSpriteRasters() throws IOException
+	public static Map<String, Asset> getPlayerSpriteRasters() throws IOException
 	{
 		return getAssetMap(AssetSubdir.PLR_SPRITE_IMG, EXT_PNG);
 	}
 
-	public static Map<String, AssetHandle> getPlayerSpritePalettes() throws IOException
+	public static Map<String, Asset> getPlayerSpritePalettes() throws IOException
 	{
 		return getAssetMap(AssetSubdir.PLR_SPRITE_PAL, EXT_PNG);
 	}
 
-	public static Collection<AssetHandle> getMapSources() throws IOException
+	public static Collection<Asset> getMapSources() throws IOException
 	{
 		return getAssets(AssetSubdir.MAP_GEOM, EXT_MAP, (p) -> {
 			// skip crash and backup files
@@ -145,44 +145,44 @@ public class AssetManager
 		});
 	}
 
-	public static Collection<AssetHandle> getBackgrounds() throws IOException
+	public static Collection<Asset> getBackgrounds() throws IOException
 	{
 		return getAssets(AssetSubdir.MAP_BG, EXT_PNG);
 	}
 
-	public static Collection<AssetHandle> getLegacyTextureArchives() throws IOException
+	public static Collection<Asset> getLegacyTextureArchives() throws IOException
 	{
 		return getAssets(AssetSubdir.MAP_TEX, EXT_OLD_TEX);
 	}
 
-	public static Collection<AssetHandle> getTextureArchives() throws IOException
+	public static Collection<Asset> getTextureArchives() throws IOException
 	{
 		return getAssets(AssetSubdir.MAP_TEX, EXT_NEW_TEX);
 	}
 
-	public static Collection<AssetHandle> getMessages() throws IOException
+	public static Collection<Asset> getMessages() throws IOException
 	{
 		return getAssets(AssetSubdir.MSG, EXT_MSG);
 	}
 
-	private static Collection<AssetHandle> getAssets(AssetSubdir dir, String ext)
+	private static Collection<Asset> getAssets(AssetSubdir dir, String ext)
 	{
 		return getAssets(dir, "", ext, null);
 	}
 
-	private static Collection<AssetHandle> getAssets(AssetSubdir dir, String subdir, String ext)
+	private static Collection<Asset> getAssets(AssetSubdir dir, String subdir, String ext)
 	{
 		return getAssets(dir, subdir, ext, null);
 	}
 
-	private static Collection<AssetHandle> getAssets(AssetSubdir dir, String ext, Predicate<Path> shouldAccept)
+	private static Collection<Asset> getAssets(AssetSubdir dir, String ext, Predicate<Path> shouldAccept)
 	{
 		return getAssets(dir, "", ext, shouldAccept);
 	}
 
-	private static Collection<AssetHandle> getAssets(AssetSubdir dir, String subdir, String ext, Predicate<Path> shouldAccept)
+	private static Collection<Asset> getAssets(AssetSubdir dir, String subdir, String ext, Predicate<Path> shouldAccept)
 	{
-		Map<String, AssetHandle> assetMap = getAssetMap(dir, subdir, ext, shouldAccept);
+		Map<String, Asset> assetMap = getAssetMap(dir, subdir, ext, shouldAccept);
 
 		// return sorted by filename
 		return assetMap.entrySet().stream()
@@ -191,24 +191,24 @@ public class AssetManager
 			.collect(Collectors.toList());
 	}
 
-	private static Map<String, AssetHandle> getAssetMap(AssetSubdir dir, String ext)
+	private static Map<String, Asset> getAssetMap(AssetSubdir dir, String ext)
 	{
 		return getAssetMap(dir, "", ext, null);
 	}
 
-	private static Map<String, AssetHandle> getAssetMap(AssetSubdir dir, String subdir, String ext)
+	private static Map<String, Asset> getAssetMap(AssetSubdir dir, String subdir, String ext)
 	{
 		return getAssetMap(dir, subdir, ext, null);
 	}
 
-	private static Map<String, AssetHandle> getAssetMap(AssetSubdir dir, String ext, Predicate<Path> shouldAccept)
+	private static Map<String, Asset> getAssetMap(AssetSubdir dir, String ext, Predicate<Path> shouldAccept)
 	{
 		return getAssetMap(dir, "", ext, shouldAccept);
 	}
 
-	private static Map<String, AssetHandle> getAssetMap(AssetSubdir dir, String subdir, String ext, Predicate<Path> shouldAccept)
+	private static Map<String, Asset> getAssetMap(AssetSubdir dir, String subdir, String ext, Predicate<Path> shouldAccept)
 	{
-		Map<String, AssetHandle> assetMap = new HashMap<>();
+		Map<String, Asset> assetMap = new HashMap<>();
 
 		for (File stackDir : Environment.assetDirectories) {
 			Path assetDir = dir.get(stackDir).toPath();
@@ -229,7 +229,7 @@ public class AssetManager
 						continue;
 
 					String relPath = dir + subdir + filename;
-					AssetHandle ah = new AssetHandle(stackDir, relPath);
+					Asset ah = new Asset(stackDir, relPath);
 
 					// only add first occurance down the asset stack traversal
 					assetMap.putIfAbsent(filename, ah);
@@ -245,17 +245,17 @@ public class AssetManager
 
 	// --- Generic directory listing ---
 
-	public record DirectoryListing(List<AssetHandle> files, List<String> subdirectories) {}
+	public record DirectoryListing(List<Asset> files, List<String> subdirectories) {}
 
 	/**
 	 * Lists all files and subdirectories at a relative path across the asset stack.
-	 * Files are returned as AssetHandles (first occurrence in the stack wins).
+	 * Files are returned as Assets (first occurrence in the stack wins).
 	 * Subdirectories are returned as names (union across all stack levels).
 	 * @param relativePath Relative path from asset root, e.g. "" for root, "mapfs/", "mapfs/geom/"
 	 */
 	public static DirectoryListing listDirectory(String relativePath)
 	{
-		Map<String, AssetHandle> fileMap = new HashMap<>();
+		Map<String, Asset> fileMap = new HashMap<>();
 		TreeSet<String> subdirSet = new TreeSet<>();
 
 		TreeSet<String> ignoredPaths = new TreeSet<>();
@@ -277,12 +277,12 @@ public class AssetManager
 					if (ignoredPaths.contains(relPath))
 						continue;
 
-					AssetHandle ah = new AssetHandle(stackDir, relPath);
-					AssetHandle upgraded = AssetHandle.upgrade(ah);
-					if (upgraded != null)
-						fileMap.putIfAbsent(name, upgraded);
-					else if (Files.isDirectory(entry))
+					if (Files.isDirectory(entry)) {
 						subdirSet.add(name);
+					} else {
+						Asset asset = AssetRegistry.getInstance().create(stackDir.toPath(), java.nio.file.Path.of(relPath));
+						fileMap.putIfAbsent(name, asset);
+					}
 				}
 			}
 			catch (IOException e) {
@@ -290,7 +290,7 @@ public class AssetManager
 			}
 		}
 
-		List<AssetHandle> files = fileMap.entrySet().stream()
+		List<Asset> files = fileMap.entrySet().stream()
 			.sorted(Map.Entry.comparingByKey())
 			.map(Map.Entry::getValue)
 			.collect(Collectors.toList());
@@ -313,10 +313,10 @@ public class AssetManager
 		return dirs;
 	}
 
-	public static Collection<AssetHandle> getIcons() throws IOException
+	public static Collection<Asset> getIcons() throws IOException
 	{
 		// use TreeMap to keep assets sorted
-		TreeMap<String, AssetHandle> assetMap = new TreeMap<>();
+		TreeMap<String, Asset> assetMap = new TreeMap<>();
 
 		for (File assetDir : Environment.assetDirectories) {
 			File iconDir = AssetSubdir.ICON.get(assetDir);
@@ -334,7 +334,7 @@ public class AssetManager
 					continue;
 				}
 
-				AssetHandle ah = new AssetHandle(assetDir, AssetSubdir.ICON + relativeString);
+				Asset ah = new Asset(assetDir, AssetSubdir.ICON + relativeString);
 				if (!assetMap.containsKey(relativeString)) {
 					assetMap.put(relativeString, ah);
 				}

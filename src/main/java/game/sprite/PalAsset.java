@@ -8,7 +8,7 @@ import java.util.List;
 
 import org.apache.commons.io.FilenameUtils;
 
-import assets.AssetHandle;
+import assets.Asset;
 import assets.AssetManager;
 import game.sprite.editor.Editable;
 import game.texture.Palette;
@@ -16,7 +16,7 @@ import game.texture.Tile;
 
 public class PalAsset implements GLResource, Editable
 {
-	private AssetHandle source;
+	private Asset source;
 	private final Tile sourceImg;
 
 	public final Palette pal;
@@ -30,7 +30,7 @@ public class PalAsset implements GLResource, Editable
 	// used for accounting during cleanup actions
 	public transient boolean inUse;
 
-	public PalAsset(AssetHandle ah) throws IOException
+	public PalAsset(Asset ah) throws IOException
 	{
 		source = ah;
 		sourceImg = Tile.load(source.getFile(), CI_4);
@@ -49,7 +49,7 @@ public class PalAsset implements GLResource, Editable
 		sourceImg.savePNG(source.getFile().getAbsolutePath());
 	}
 
-	public AssetHandle getSource()
+	public Asset getSource()
 	{
 		return source;
 	}

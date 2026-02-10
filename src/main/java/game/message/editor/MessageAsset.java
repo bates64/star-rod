@@ -10,7 +10,7 @@ import org.apache.commons.io.FileUtils;
 import app.input.IOUtils;
 import app.input.InputFileException;
 import app.input.Line;
-import assets.AssetHandle;
+import assets.Asset;
 import assets.AssetManager;
 import game.message.Message;
 import game.message.StringEncoder;
@@ -18,13 +18,13 @@ import util.Logger;
 
 public class MessageAsset
 {
-	public AssetHandle asset;
+	public Asset asset;
 	public List<Message> messages = null;
 
 	public boolean hasModified;
 	public boolean hasError;
 
-	public MessageAsset(AssetHandle asset)
+	public MessageAsset(Asset asset)
 	{
 		this.asset = asset;
 		reload();
@@ -99,7 +99,7 @@ public class MessageAsset
 			linesOut.add("");
 		}
 
-		AssetHandle saveAsset = AssetManager.getTopLevel(asset);
+		Asset saveAsset = AssetManager.getTopLevel(asset);
 		try {
 			FileUtils.touch(saveAsset.getFile());
 

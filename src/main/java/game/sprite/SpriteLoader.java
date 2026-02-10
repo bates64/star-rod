@@ -20,7 +20,7 @@ import java.util.stream.Collectors;
 import org.w3c.dom.Element;
 
 import app.Environment;
-import assets.AssetHandle;
+import assets.Asset;
 import assets.AssetManager;
 import assets.AssetSubdir;
 import game.sprite.Sprite.SpriteSummary;
@@ -241,14 +241,14 @@ public class SpriteLoader
 	}
 
 	// load all raster assets in parallel
-	public static LinkedHashMap<String, ImgAsset> loadSpriteImages(Map<String, AssetHandle> assets)
+	public static LinkedHashMap<String, ImgAsset> loadSpriteImages(Map<String, Asset> assets)
 	{
 		ConcurrentHashMap<String, ImgAsset> imgAssets = new ConcurrentHashMap<>();
 		List<CompletableFuture<Void>> futures = new ArrayList<>();
 
-		for (Entry<String, AssetHandle> entry : assets.entrySet()) {
+		for (Entry<String, Asset> entry : assets.entrySet()) {
 			String name = entry.getKey();
-			AssetHandle ah = entry.getValue();
+			Asset ah = entry.getValue();
 
 			CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
 				try {
@@ -281,14 +281,14 @@ public class SpriteLoader
 	}
 
 	// load all palette assets in parallel
-	public static LinkedHashMap<String, PalAsset> loadSpritePalettes(Map<String, AssetHandle> assets)
+	public static LinkedHashMap<String, PalAsset> loadSpritePalettes(Map<String, Asset> assets)
 	{
 		ConcurrentHashMap<String, PalAsset> palAssets = new ConcurrentHashMap<>();
 		List<CompletableFuture<Void>> futures = new ArrayList<>();
 
-		for (Entry<String, AssetHandle> entry : assets.entrySet()) {
+		for (Entry<String, Asset> entry : assets.entrySet()) {
 			String name = entry.getKey();
-			AssetHandle ah = entry.getValue();
+			Asset ah = entry.getValue();
 
 			CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
 				try {
@@ -322,7 +322,7 @@ public class SpriteLoader
 		playerSpriteData = new TreeMap<>();
 
 		try {
-			AssetHandle xmlHandle = AssetManager.get(AssetSubdir.SPRITE, "npc.xml");
+			Asset xmlHandle = AssetManager.get(AssetSubdir.SPRITE, "npc.xml");
 			if (!xmlHandle.exists()) {
 				throw new IOException(xmlHandle + " does not exist!");
 			}
@@ -337,7 +337,7 @@ public class SpriteLoader
 				xmr.requiresAttribute(npcElem, ATTR_NAME);
 
 				String name = xmr.getAttribute(npcElem, ATTR_NAME);
-				AssetHandle ah = AssetManager.getNpcSprite(name);
+				Asset ah = AssetManager.getNpcSprite(name);
 				if (!ah.exists()) {
 					Logger.logWarning("Cannot find npc sprite '" + name + "'!");
 					continue;
@@ -353,7 +353,7 @@ public class SpriteLoader
 		}
 
 		try {
-			AssetHandle xmlHandle = AssetManager.get(AssetSubdir.SPRITE, "player.xml");
+			Asset xmlHandle = AssetManager.get(AssetSubdir.SPRITE, "player.xml");
 			if (!xmlHandle.exists()) {
 				throw new IOException(xmlHandle + " does not exist!");
 			}
@@ -368,7 +368,7 @@ public class SpriteLoader
 				xmr.requiresAttribute(playerElem, ATTR_NAME);
 
 				String name = xmr.getAttribute(playerElem, ATTR_NAME);
-				AssetHandle ah = AssetManager.getPlayerSprite(name);
+				Asset ah = AssetManager.getPlayerSprite(name);
 				if (!ah.exists()) {
 					Logger.logWarning("Cannot find player sprite '" + name + "'!");
 					continue;

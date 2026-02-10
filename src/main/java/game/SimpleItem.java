@@ -10,7 +10,7 @@ import java.util.concurrent.CompletableFuture;
 
 import app.Directories;
 import app.Environment;
-import assets.AssetHandle;
+import assets.Asset;
 import assets.AssetManager;
 import assets.AssetSubdir;
 import game.texture.Tile;
@@ -34,7 +34,7 @@ public class SimpleItem
 
 		this.enumName = "ITEM_" + name.replaceAll("((?<=[a-z0-9])[A-Z]|(?!^)(?<!_)[A-Z](?=[a-z]))", "_$1").toUpperCase();
 
-		AssetHandle ah = AssetManager.get(AssetSubdir.ICON, iconName + ".png");
+		Asset ah = AssetManager.get(AssetSubdir.ICON, iconName + ".png");
 		Tile tile = null;
 
 		try {

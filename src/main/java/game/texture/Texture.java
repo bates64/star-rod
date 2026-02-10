@@ -10,7 +10,7 @@ import java.util.List;
 import org.apache.commons.io.FilenameUtils;
 
 import app.input.InputFileException;
-import assets.AssetHandle;
+import assets.Asset;
 import assets.AssetManager;
 import assets.AssetSubdir;
 import game.texture.TextureArchive.JsonTexture;
@@ -309,12 +309,12 @@ public class Texture
 				throw new InputFileException(source, "(%s) Texture cannot have both mipmaps and aux.", json.name);
 		}
 
-		AssetHandle mainAsset = AssetManager.get(AssetSubdir.MAP_TEX, texName + "/" + tx.name + ".png");
+		Asset mainAsset = AssetManager.get(AssetSubdir.MAP_TEX, texName + "/" + tx.name + ".png");
 
 		tx.main = Tile.load(mainAsset.getFile(), imgFormat);
 
 		if (tx.hasAux) {
-			AssetHandle auxAsset = AssetManager.get(AssetSubdir.MAP_TEX, texName + "/" + tx.name + "_AUX.png");
+			Asset auxAsset = AssetManager.get(AssetSubdir.MAP_TEX, texName + "/" + tx.name + "_AUX.png");
 			tx.aux = Tile.load(auxAsset.getFile(), auxFormat);
 		}
 
@@ -329,7 +329,7 @@ public class Texture
 					int mmWidth = tx.main.width / divisor;
 
 					String mmName = tx.name + "_MM" + (tx.mipmapList.size() + 1);
-					AssetHandle mmAsset = AssetManager.get(AssetSubdir.MAP_TEX, texName + "/" + mmName + ".png");
+					Asset mmAsset = AssetManager.get(AssetSubdir.MAP_TEX, texName + "/" + mmName + ".png");
 					Tile mipmap = Tile.load(mmAsset.getFile(), imgFormat);
 
 					if (mipmap.height != mmHeight)

@@ -35,7 +35,7 @@ import javax.swing.border.EmptyBorder;
 import app.Environment;
 import app.SwingUtils;
 import app.pane.DockTab;
-import assets.AssetHandle;
+import assets.Asset;
 import assets.AssetManager;
 import assets.AssetManager.DirectoryListing;
 import net.miginfocom.swing.MigLayout;
@@ -137,7 +137,7 @@ public class Tab extends DockTab
 		rebuildBreadcrumb();
 	}
 
-	void openAsset(AssetHandle asset)
+	void openAsset(Asset asset)
 	{
 		// TODO
 	}
@@ -194,7 +194,7 @@ public class Tab extends DockTab
 			@Override
 			public void dragEnter(DropTargetDragEvent dtde)
 			{
-				if (dtde.isDataFlavorSupported(AssetHandle.FLAVOUR)) {
+				if (dtde.isDataFlavorSupported(Asset.FLAVOUR)) {
 					dtde.acceptDrag(DnDConstants.ACTION_MOVE);
 					label.putClientProperty("FlatLaf.style", "font: semibold");
 				}
@@ -215,7 +215,7 @@ public class Tab extends DockTab
 				label.setFont(normalFont);
 				try {
 					dtde.acceptDrop(DnDConstants.ACTION_MOVE);
-					var asset = (AssetHandle) dtde.getTransferable().getTransferData(AssetHandle.FLAVOUR);
+					var asset = (Asset) dtde.getTransferable().getTransferData(Asset.FLAVOUR);
 
 					if (asset.getRelativePath().toString().startsWith(targetPath) && !asset.getRelativePath().toString().substring(targetPath.length()).contains("/")) {
 						dtde.dropComplete(false);
@@ -262,7 +262,7 @@ public class Tab extends DockTab
 		for (String subdirName : listing.subdirectories())
 			resultsPanel.add(new DirectoryItem(this, subdirName, currentPath + subdirName + "/"));
 
-		for (AssetHandle asset : listing.files())
+		for (Asset asset : listing.files())
 			resultsPanel.add(new AssetItem(this, asset));
 
 		resultsPanel.revalidate();
@@ -359,9 +359,9 @@ public class Tab extends DockTab
 
 	static class AssetTransferable implements Transferable
 	{
-		private final AssetHandle asset;
+		private final Asset asset;
 
-		AssetTransferable(AssetHandle asset)
+		AssetTransferable(Asset asset)
 		{
 			this.asset = asset;
 		}
@@ -369,13 +369,13 @@ public class Tab extends DockTab
 		@Override
 		public DataFlavor[] getTransferDataFlavors()
 		{
-			return new DataFlavor[] { AssetHandle.FLAVOUR };
+			return new DataFlavor[] { Asset.FLAVOUR };
 		}
 
 		@Override
 		public boolean isDataFlavorSupported(DataFlavor flavor)
 		{
-			return AssetHandle.FLAVOUR.equals(flavor);
+			return Asset.FLAVOUR.equals(flavor);
 		}
 
 		@Override

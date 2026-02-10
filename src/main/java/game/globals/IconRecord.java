@@ -20,7 +20,7 @@ import org.apache.commons.io.FilenameUtils;
 import org.w3c.dom.Element;
 
 import app.IconResource;
-import assets.AssetHandle;
+import assets.Asset;
 import assets.AssetManager;
 import assets.AssetSubdir;
 import game.globals.editor.GlobalsRecord;
@@ -35,7 +35,7 @@ public class IconRecord extends GlobalsRecord
 	public Icon largeIcon;
 	public Icon smallIcon;
 
-	public IconRecord(AssetHandle source) throws IOException
+	public IconRecord(Asset source) throws IOException
 	{
 		String base = FilenameUtils.removeExtension(source.getRelativePath().toString());
 		name = base.substring("/icon/".length());
@@ -112,7 +112,7 @@ public class IconRecord extends GlobalsRecord
 		for (Element iconElem : iconElems) {
 			String path = xmr.getAttribute(iconElem, ATTR_NAME);
 
-			AssetHandle ah = AssetManager.get(AssetSubdir.ICON, path + EXT_PNG);
+			Asset ah = AssetManager.get(AssetSubdir.ICON, path + EXT_PNG);
 			icons.add(new IconRecord(ah));
 		}
 

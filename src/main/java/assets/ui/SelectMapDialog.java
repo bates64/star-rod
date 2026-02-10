@@ -24,7 +24,7 @@ import org.apache.commons.io.FilenameUtils;
 import app.Directories;
 import app.Environment;
 import app.SwingUtils;
-import assets.AssetHandle;
+import assets.Asset;
 import assets.AssetManager;
 import game.map.Map;
 import net.miginfocom.swing.MigLayout;
@@ -204,13 +204,13 @@ public class SelectMapDialog extends JDialog
 
 	private SelectMapResult result = SelectMapResult.CANCEL;
 
-	private SelectMapDialog(Collection<AssetHandle> assets)
+	private SelectMapDialog(Collection<Asset> assets)
 	{
 		super(null, java.awt.Dialog.ModalityType.TOOLKIT_MODAL);
 		setDefaultCloseOperation(DISPOSE_ON_CLOSE);
 
 		DefaultListModel<MapAsset> listModel = new DefaultListModel<>();
-		for (AssetHandle ah : assets) {
+		for (Asset ah : assets) {
 			listModel.addElement(new MapAsset(ah));
 		}
 

@@ -29,7 +29,7 @@ import app.LoadingBar;
 import app.StarRodFrame;
 import app.SwingUtils;
 import app.config.Options;
-import assets.AssetHandle;
+import assets.Asset;
 import assets.AssetManager;
 import assets.ExpectedAsset;
 import game.ProjectDatabase;
@@ -370,7 +370,7 @@ public class GlobalsEditor
 		messageNameMap.clear();
 
 		try {
-			for (AssetHandle ah : AssetManager.getMessages()) {
+			for (Asset ah : AssetManager.getMessages()) {
 				Logger.log("Reading messages from: " + ah.getName());
 				MessageAsset group = new MessageAsset(ah);
 				for (Message msg : group.messages) {

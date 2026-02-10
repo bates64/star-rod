@@ -10,7 +10,7 @@ import java.awt.dnd.DropTargetDropEvent;
 import java.awt.dnd.DropTargetEvent;
 
 import app.SwingUtils;
-import assets.AssetHandle;
+import assets.Asset;
 import assets.AssetManager;
 import util.Logger;
 import util.ui.ThemedIcon;
@@ -28,7 +28,7 @@ class DirectoryItem extends Item
 			@Override
 			public void dragEnter(DropTargetDragEvent dtde)
 			{
-				if (dtde.isDataFlavorSupported(AssetHandle.FLAVOUR)) {
+				if (dtde.isDataFlavorSupported(Asset.FLAVOUR)) {
 					dtde.acceptDrag(DnDConstants.ACTION_MOVE);
 					dropTarget = true;
 					repaint();
@@ -52,7 +52,7 @@ class DirectoryItem extends Item
 				repaint();
 				try {
 					dtde.acceptDrop(DnDConstants.ACTION_MOVE);
-					var asset = (AssetHandle) dtde.getTransferable().getTransferData(AssetHandle.FLAVOUR);
+					var asset = (Asset) dtde.getTransferable().getTransferData(Asset.FLAVOUR);
 
 					File targetDir = new File(AssetManager.getTopLevelAssetDir(), targetPath);
 					targetDir.mkdirs();

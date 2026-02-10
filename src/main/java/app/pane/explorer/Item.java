@@ -40,12 +40,12 @@ import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 
 import app.SwingUtils;
-import assets.AssetHandle;
+import assets.Asset;
 
 abstract class Item extends JPanel
 {
 	static final int PADDING = 3;
-	static final int SIZE = AssetHandle.THUMBNAIL_WIDTH + PADDING * 2;
+	static final int SIZE = Asset.THUMBNAIL_WIDTH + PADDING * 2;
 
 	final Tab explorer;
 	final String name;
@@ -128,14 +128,14 @@ abstract class Item extends JPanel
 	}
 
 	/** Override to return the asset for context menu operations. */
-	AssetHandle getAsset()
+	Asset getAsset()
 	{
 		return null;
 	}
 
 	private void showContextMenu(MouseEvent e)
 	{
-		AssetHandle asset = getAsset();
+		Asset asset = getAsset();
 		if (asset == null)
 			return;
 
@@ -178,7 +178,7 @@ abstract class Item extends JPanel
 
 	private void onRename()
 	{
-		AssetHandle asset = getAsset();
+		Asset asset = getAsset();
 		if (asset == null || renameField != null)
 			return;
 
@@ -265,7 +265,7 @@ abstract class Item extends JPanel
 
 	private void onDelete()
 	{
-		AssetHandle asset = getAsset();
+		Asset asset = getAsset();
 		if (asset == null)
 			return;
 

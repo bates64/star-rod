@@ -7,7 +7,7 @@ import java.io.IOException;
 
 import org.apache.commons.io.FilenameUtils;
 
-import assets.AssetHandle;
+import assets.Asset;
 import game.sprite.editor.ImgPreview;
 import game.texture.Palette;
 import game.texture.Tile;
@@ -15,7 +15,7 @@ import game.texture.Tile;
 public class ImgAsset implements GLResource
 {
 	// source is not final because it updates upon saving
-	private AssetHandle source;
+	private Asset source;
 
 	public final Tile img;
 	public final ImgPreview preview;
@@ -24,14 +24,14 @@ public class ImgAsset implements GLResource
 	public transient int atlasRow, atlasX, atlasY;
 	public transient boolean inUse;
 
-	public ImgAsset(AssetHandle ah) throws IOException
+	public ImgAsset(Asset ah) throws IOException
 	{
 		source = ah;
 		img = Tile.load(ah.getFile(), CI_4);
 		preview = new ImgPreview();
 	}
 
-	public AssetHandle getSource()
+	public Asset getSource()
 	{
 		return source;
 	}

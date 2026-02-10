@@ -1,8 +1,5 @@
 package assets
 
-import assets.ui.BackgroundAsset
-import assets.ui.MapAsset
-import assets.ui.TexturesAsset
 import org.apache.commons.io.FileUtils
 import java.awt.Image
 import java.awt.RenderingHints
@@ -14,7 +11,7 @@ import java.nio.file.Path
 import kotlin.io.path.*
 
 /** An asset on disk, but not yet loaded because it may be expensive to load. */
-open class AssetHandle(
+open class Asset(
 	val root: Path,
 	var relativePath: Path,
 ) {
@@ -26,7 +23,7 @@ open class AssetHandle(
 
 	constructor(root: Path, relativePath: String) : this(root, Path(relativePath))
 	constructor(root: File, relativePath: String) : this(root.toPath(), relativePath)
-	constructor(other: AssetHandle) : this(other.root, other.relativePath)
+	constructor(other: Asset) : this(other.root, other.relativePath)
 
 	/** Full path on disk. May be a directory. */
 	var path: Path
@@ -37,6 +34,8 @@ open class AssetHandle(
 		}
 
 	val name: String get() = relativePath.nameWithoutExtension
+	val extension: String get() = relativePath.extension
+	val isDirectory: Boolean get() = path.isDirectory()
 
 	private var cachedThumbnail: Image? = null
 	private var thumbnailLoaded = false
@@ -53,15 +52,9 @@ open class AssetHandle(
 	open fun delete(): Boolean = FileUtils.deleteQuietly(path.toFile())
 
 	/** Renames this asset within its current directory. */
-	open fun rename(newAssetName: String): Boolean {
+	open fun rename(name: String): Boolean {
 		// Preserve file extension
-		var finalName = newAssetName
-		val oldName = path.name
-		val dot = oldName.lastIndexOf('.')
-		if (dot > 0)
-			finalName += oldName.substring(dot)
-
-		val newPath = path.parent?.resolve(finalName) ?: return false
+		val newPath = path.parent?.resolve(name + extension) ?: return false
 		if (newPath.exists())
 			return false
 
@@ -71,6 +64,7 @@ open class AssetHandle(
 		}.getOrDefault(false)
 	}
 
+	// TODO: take a Path
 	/** Moves this asset to a different directory. */
 	open fun move(targetDir: File): Boolean {
 		val targetPath = targetDir.toPath().resolve(path.name)
@@ -100,7 +94,7 @@ open class AssetHandle(
 		return cachedThumbnail
 	}
 
-	override fun toString(): String = "AssetHandle($root / $relativePath})"
+	override fun toString(): String = "Asset($relativePath)"
 
 	companion object {
 		const val THUMBNAIL_WIDTH = 74
@@ -108,7 +102,7 @@ open class AssetHandle(
 
 		@JvmField
 		val FLAVOUR: DataFlavor = DataFlavor(
-			DataFlavor.javaJVMLocalObjectMimeType + ";class=\"${AssetHandle::class.java.name}\""
+			DataFlavor.javaJVMLocalObjectMimeType + ";class=\"${Asset::class.java.name}\""
 		)
 
 		private fun createMultiResThumbnail(src: Image): Image {
@@ -144,20 +138,5 @@ open class AssetHandle(
 			assert(bi.width <= maxW && bi.height <= maxH)
 			return bi
 		}
-
-		/** Upgrades a plain AssetHandle to a typed subclass based on file extension. */
-		@JvmStatic
-		fun upgrade(handle: AssetHandle): AssetHandle? {
-			val name = handle.path.name
-			return when {
-				name.endsWith(".xml") -> MapAsset(handle)
-				name.endsWith(".png") -> BackgroundAsset(handle)
-				name.endsWith(".json") -> TexturesAsset(handle)
-				else -> null
-			}
-		}
 	}
 }
-
-/** Exception thrown when an AssetHandle is created for a non-existent path. */
-class AssetMissingException(message: String) : IllegalArgumentException(message)

@@ -234,6 +234,9 @@ public abstract class Environment
 		getUserConfigDir().mkdirs();
 		getUserStateDir().mkdirs();
 
+		// Initialize asset registry
+		assets.AssetRegistry.init();
+
 		try {
 			unpackDatabase();
 			readMainConfig();

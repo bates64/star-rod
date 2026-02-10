@@ -50,7 +50,7 @@ import app.SwingUtils;
 import app.config.Config;
 import app.config.Options;
 import app.config.Options.Scope;
-import assets.AssetHandle;
+import assets.Asset;
 import assets.AssetManager;
 import assets.ui.SelectMapDialog;
 import assets.ui.SelectTexDialog;
@@ -859,7 +859,7 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 				continue;
 			}
 
-			AssetHandle ah = AssetManager.getMap(mapName);
+			Asset ah = AssetManager.getMap(mapName);
 			if (ah.exists()) {
 				recentMaps.add(mapName);
 			}
@@ -1000,7 +1000,7 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 		if (editorConfig != null) {
 			String lastMapName = editorConfig.getString(Options.RecentMap0);
 			if (lastMapName != null && !lastMapName.isBlank()) {
-				AssetHandle ah = AssetManager.getMap(lastMapName);
+				Asset ah = AssetManager.getMap(lastMapName);
 				if (ah.exists()) {
 					options = new String[] { "Browse Maps", "Reopen " + lastMapName };
 					lastMap = ah.getFile();
@@ -3993,7 +3993,7 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 				Logger.logError("Override name is missing or empty.");
 				return;
 			}
-			AssetHandle ah = AssetManager.getMap(overrideName);
+			Asset ah = AssetManager.getMap(overrideName);
 			if (!ah.exists()) {
 				Logger.logError("Couldn't find map: " + overrideName + Directories.EXT_MAP);
 				return;
@@ -4014,7 +4014,7 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 				Logger.logError("Override name is missing or empty.");
 				return;
 			}
-			AssetHandle ah = AssetManager.getMap(overrideName);
+			Asset ah = AssetManager.getMap(overrideName);
 			if (!ah.exists()) {
 				Logger.logError("Couldn't find map: " + overrideName + Directories.EXT_MAP);
 				return;

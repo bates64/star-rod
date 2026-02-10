@@ -33,7 +33,7 @@ import app.bar.Bar;
 import app.input.InvalidInputException;
 import app.pane.Dock;
 import app.pane.Pane;
-import assets.AssetHandle;
+import assets.Asset;
 import assets.AssetManager;
 import assets.ExpectedAsset;
 import common.BaseEditor;
@@ -462,7 +462,7 @@ public class StarRodMain extends StarRodFrame
 				case "-COMPILEMAP":
 					if (args.length > i + 1) {
 						String mapName = args[i + 1];
-						AssetHandle mapAsset = AssetManager.getMap(mapName);
+						Asset mapAsset = AssetManager.getMap(mapName);
 
 						if (mapAsset == null) {
 							Logger.logfError("Cannot find map '%s'!", mapName);
@@ -501,7 +501,7 @@ public class StarRodMain extends StarRodFrame
 				case "-COMPILEMAPS":
 					try {
 						File buildDir = AssetManager.getMapBuildDir();
-						for (AssetHandle ah : AssetManager.getMapSources()) {
+						for (Asset ah : AssetManager.getMapSources()) {
 							// get existing compiled binaries
 							String mapName = Map.deriveName(ah.getFile());
 							File binShape = new File(buildDir, mapName + "_shape.bin");

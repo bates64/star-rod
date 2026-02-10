@@ -69,7 +69,7 @@ public class GlobalsData
 			File xmlFile = AssetManager.get(AssetSubdir.ICON, "Icons.xml").getFile();
 			icons.addAll(IconRecord.readXML(xmlFile));
 			/*
-			for(AssetHandle ah : AssetManager.getIcons()) {
+			for(Asset ah : AssetManager.getIcons()) {
 				icons.addElement(new IconRecord(ah));
 			}
 			*/

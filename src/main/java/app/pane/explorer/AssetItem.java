@@ -6,14 +6,14 @@ import java.awt.datatransfer.Transferable;
 import javax.swing.ImageIcon;
 import javax.swing.SwingWorker;
 
-import assets.AssetHandle;
+import assets.Asset;
 import util.ui.ThemedIcon;
 
 class AssetItem extends Item
 {
-	final AssetHandle asset;
+	final Asset asset;
 
-	AssetItem(Tab explorer, AssetHandle asset)
+	AssetItem(Tab explorer, Asset asset)
 	{
 		super(explorer, asset.getName(), ThemedIcon.PACKAGE_24, false);
 		this.asset = asset;
@@ -53,7 +53,7 @@ class AssetItem extends Item
 	}
 
 	@Override
-	AssetHandle getAsset()
+	Asset getAsset()
 	{
 		return asset;
 	}
