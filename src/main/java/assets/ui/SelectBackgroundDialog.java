@@ -71,7 +71,7 @@ public class SelectBackgroundDialog extends JDialog
 		listModel.addElement(null);
 		for (AssetHandle ah : assets) {
 			// ignore .alt background
-			if (ah.assetPath.endsWith("_bg.png")) {
+			if (ah.getRelativePath().toString().endsWith("_bg.png")) {
 				listModel.addElement(new BackgroundAsset(ah));
 			}
 		}
@@ -167,7 +167,7 @@ public class SelectBackgroundDialog extends JDialog
 					}
 				}
 				else if (bg != null) {
-					if (initialSelection.equals(FilenameUtils.getBaseName(bg.assetPath))) {
+					if (initialSelection.equals(FilenameUtils.getBaseName(bg.getRelativePath().toString()))) {
 						list.setSelectedValue(bg, true);
 						break;
 					}
@@ -183,7 +183,7 @@ public class SelectBackgroundDialog extends JDialog
 	{
 		filteredListModel.setFilter(element -> {
 			BackgroundAsset bg = (BackgroundAsset) element;
-			String bgName = bg.assetPath.toUpperCase();
+			String bgName = bg.getRelativePath().toString().toUpperCase();
 			String filterText = filterTextField.getText().toUpperCase();
 
 			return bgName.contains(filterText);
@@ -197,6 +197,6 @@ public class SelectBackgroundDialog extends JDialog
 
 	private File getSelectedFile()
 	{
-		return selectedObject;
+		return selectedObject.getFile();
 	}
 }

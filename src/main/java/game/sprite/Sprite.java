@@ -177,7 +177,7 @@ public class Sprite implements XmlSerializable, Editable
 			return AssetManager.getNpcSprite(name);
 	}
 
-	public AssetHandle getAssetDir(boolean modDir)
+	public AssetHandle getRoot(boolean modDir)
 	{
 		AssetHandle ah;
 

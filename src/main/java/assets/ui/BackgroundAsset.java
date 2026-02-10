@@ -17,7 +17,7 @@ public class BackgroundAsset extends AssetHandle
 		super(asset);
 
 		try {
-			bimg = ImageIO.read(asset);
+			bimg = ImageIO.read(asset.getFile());
 		}
 		catch (IOException e) {
 			bimg = null;

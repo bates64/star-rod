@@ -66,7 +66,7 @@ public class MessageBoxes
 
 		public File getFile()
 		{
-			return AssetManager.get(AssetSubdir.UI_MSG, filename + ".png");
+			return AssetManager.get(AssetSubdir.UI_MSG, filename + ".png").getFile();
 		}
 
 		public Color[] getColors()
@@ -140,7 +140,7 @@ public class MessageBoxes
 
 		public File getFile()
 		{
-			return AssetManager.get(AssetSubdir.UI_MSG, filename + ".png");
+			return AssetManager.get(AssetSubdir.UI_MSG, filename + ".png").getFile();
 		}
 
 		public void drawBasicQuad(float x, float y)
@@ -253,7 +253,7 @@ public class MessageBoxes
 
 		public File getFile()
 		{
-			return AssetManager.get(subdir, filename + ".png");
+			return AssetManager.get(subdir, filename + ".png").getFile();
 		}
 
 		public void drawBasicQuad(float x, float y)

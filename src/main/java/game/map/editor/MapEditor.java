@@ -1003,7 +1003,7 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 				AssetHandle ah = AssetManager.getMap(lastMapName);
 				if (ah.exists()) {
 					options = new String[] { "Browse Maps", "Reopen " + lastMapName };
-					lastMap = ah;
+					lastMap = ah.getFile();
 				}
 			}
 		}
@@ -3173,7 +3173,7 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 
 			case CHOSE_MAP:
 				changeMapState = ChangeMapState.LOADING_MAP;
-				destMapFile = AssetManager.getMap(destMapName);
+				destMapFile = AssetManager.getMap(destMapName).getFile();
 				if (!destMapFile.exists()) {
 					changeMapState = ChangeMapState.LOADING_FAILED;
 					break;
@@ -3823,7 +3823,7 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 		try {
 			if (map.hasBackground) {
 				Logger.log("Map background is " + map.bgName);
-				map.bgImage = ImageIO.read(AssetManager.getBackground(map.bgName));
+				map.bgImage = ImageIO.read(AssetManager.getBackground(map.bgName).getFile());
 				map.glBackgroundTexID = TextureManager.bindBufferedImage(map.bgImage);
 			}
 			else
@@ -3998,7 +3998,7 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 				Logger.logError("Couldn't find map: " + overrideName + Directories.EXT_MAP);
 				return;
 			}
-			shapeOverride = Map.loadMap(ah);
+			shapeOverride = Map.loadMap(ah.getFile());
 			TextureManager.assignModelTextures(shapeOverride);
 			Logger.log("Loaded override geometry: " + shapeOverride.getName());
 		}
@@ -4019,7 +4019,7 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 				Logger.logError("Couldn't find map: " + overrideName + Directories.EXT_MAP);
 				return;
 			}
-			hitOverride = Map.loadMap(ah);
+			hitOverride = Map.loadMap(ah.getFile());
 			Logger.log("Loaded override collision: " + hitOverride.getName());
 		}
 	}

@@ -152,7 +152,7 @@ public class PalettesTab extends JPanel
 
 					File copy;
 					do {
-						copy = new File(sprite.getPalettesDir(true), curName + "." + ext);
+						copy = new File(sprite.getPalettesDir(true).getFile(), curName + "." + ext);
 
 						// form the next name to try
 						iter++;

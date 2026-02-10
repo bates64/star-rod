@@ -15,7 +15,7 @@ class AssetItem extends Item
 
 	AssetItem(Tab explorer, AssetHandle asset)
 	{
-		super(explorer, asset.getAssetName(), ThemedIcon.PACKAGE_24, false);
+		super(explorer, asset.getName(), ThemedIcon.PACKAGE_24, false);
 		this.asset = asset;
 
 		new SwingWorker<Image, Void>() {

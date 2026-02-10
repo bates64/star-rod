@@ -217,14 +217,14 @@ public class Tab extends DockTab
 					dtde.acceptDrop(DnDConstants.ACTION_MOVE);
 					var asset = (AssetHandle) dtde.getTransferable().getTransferData(AssetHandle.FLAVOUR);
 
-					if (asset.assetPath.startsWith(targetPath) && !asset.assetPath.substring(targetPath.length()).contains("/")) {
+					if (asset.getRelativePath().toString().startsWith(targetPath) && !asset.getRelativePath().toString().substring(targetPath.length()).contains("/")) {
 						dtde.dropComplete(false);
 						return;
 					}
 
 					File targetDir = new File(AssetManager.getTopLevelAssetDir(), targetPath);
 					targetDir.mkdirs();
-					boolean ok = asset.moveAsset(targetDir);
+					boolean ok = asset.move(targetDir);
 					dtde.dropComplete(ok);
 
 					if (!ok) {

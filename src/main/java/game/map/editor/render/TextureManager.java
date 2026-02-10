@@ -141,10 +141,10 @@ public abstract class TextureManager
 			if (!ah.exists())
 				return false;
 			if (FilenameUtils.getExtension(ah.getName()).equals(Directories.EXT_OLD_TEX)) {
-				ta = TextureArchive.loadLegacy(ah);
+				ta = TextureArchive.loadLegacy(ah.getFile());
 			}
 			else {
-				ta = TextureArchive.load(ah);
+				ta = TextureArchive.load(ah.getFile());
 			}
 		}
 		catch (IOException e) {

@@ -122,7 +122,7 @@ public enum CharSet implements XmlSerializable
 			for (int i = 0; i < chars.numPals; i++) {
 				String palName = String.format("%02X", i) + ".png";
 				try {
-					File palFile = AssetManager.get(AssetSubdir.STANDARD_CHARS_PAL, palName);
+					File palFile = AssetManager.get(AssetSubdir.STANDARD_CHARS_PAL, palName).getFile();
 					Tile img = Tile.load(palFile, CI_4);
 					chars.palettes[i] = img.palette;
 				}
@@ -134,7 +134,7 @@ public enum CharSet implements XmlSerializable
 			for (int i = 0; i < chars.numChars; i++) {
 				String charName = String.format("%02X", i) + ".png";
 				try {
-					File imgFile = AssetManager.get(AssetSubdir.STANDARD_CHARS, charName);
+					File imgFile = AssetManager.get(AssetSubdir.STANDARD_CHARS, charName).getFile();
 					chars.images[i] = Tile.load(imgFile, CI_4);
 				}
 				catch (IOException e) {

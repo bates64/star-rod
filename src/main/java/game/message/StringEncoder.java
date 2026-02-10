@@ -112,7 +112,7 @@ public class StringEncoder
 	{
 		List<Message> messages = new ArrayList<>();
 
-		List<Line> lines = IOUtils.readPlainInputFile(group.asset);
+		List<Line> lines = IOUtils.readPlainInputFile(group.asset.getFile());
 		List<PatchUnit> units = PatchFileParser.parse(lines);
 
 		for (PatchUnit unit : units) {

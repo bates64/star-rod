@@ -49,7 +49,7 @@ public class AssetManager
 
 	public static AssetHandle getTopLevel(AssetHandle source)
 	{
-		return new AssetHandle(getTopLevelAssetDir(), source.assetPath);
+		return new AssetHandle(getTopLevelAssetDir(), source.getRelativePath().toString());
 	}
 
 	public static AssetHandle getBase(AssetSubdir subdir, String path)
@@ -64,7 +64,7 @@ public class AssetManager
 	public static void deleteAll(AssetHandle asset)
 	{
 		for (File assetDir : Environment.assetDirectories) {
-			File f = new File(assetDir, asset.assetPath);
+			File f = new File(assetDir, asset.getRelativePath().toString());
 			if (f.exists())
 				FileUtils.deleteQuietly(f);
 		}

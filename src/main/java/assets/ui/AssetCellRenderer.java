@@ -47,9 +47,7 @@ public class AssetCellRenderer extends JPanel implements ListCellRenderer<AssetH
 		}
 
 		if (asset != null) {
-			String assetDirName = asset.assetDir.getName();
-			String mapFileName = FilenameUtils.getBaseName(asset.assetPath);
-			nameLabel.setText(assetDirName + " / " + mapFileName);
+			nameLabel.setText(asset.getName());
 			nameLabel.setForeground(null);
 		}
 		else {

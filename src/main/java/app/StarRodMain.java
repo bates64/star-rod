@@ -469,7 +469,7 @@ public class StarRodMain extends StarRodFrame
 							break;
 						}
 
-						Map map = Map.loadMap(mapAsset);
+						Map map = Map.loadMap(mapAsset.getFile());
 						try {
 							if (args[i].equalsIgnoreCase("-CompileMap")) {
 								new GeometryCompiler(map);
@@ -503,7 +503,7 @@ public class StarRodMain extends StarRodFrame
 						File buildDir = AssetManager.getMapBuildDir();
 						for (AssetHandle ah : AssetManager.getMapSources()) {
 							// get existing compiled binaries
-							String mapName = Map.deriveName(ah);
+							String mapName = Map.deriveName(ah.getFile());
 							File binShape = new File(buildDir, mapName + "_shape.bin");
 							File binHit = new File(buildDir, mapName + "_hit.bin");
 
@@ -516,7 +516,7 @@ public class StarRodMain extends StarRodFrame
 							}
 
 							try {
-								Map map = Map.loadMap(ah);
+								Map map = Map.loadMap(ah.getFile());
 								if (buildShape) {
 									new GeometryCompiler(map);
 								}

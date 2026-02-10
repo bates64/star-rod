@@ -62,7 +62,7 @@ public class SelectMapDialog extends JDialog
 
 			switch (chooser.result) {
 				case DUPLICATE:
-					newMapFile = promptCopyMap(selectedFile);
+					newMapFile = promptCopyMap(selectedFile.getFile());
 					if (newMapFile == null) {
 						chooser.result = SelectMapResult.CANCEL;
 					}
@@ -74,7 +74,7 @@ public class SelectMapDialog extends JDialog
 					}
 					return newMapFile;
 				case OPEN:
-					return selectedFile;
+					return selectedFile.getFile();
 				case CANCEL:
 					break;
 			}
@@ -305,7 +305,7 @@ public class SelectMapDialog extends JDialog
 	{
 		filteredListModel.setFilter(element -> {
 			MapAsset map = (MapAsset) element;
-			String mapName = map.assetPath.toUpperCase();
+			String mapName = map.getRelativePath().toString().toUpperCase();
 			String mapDesc = map.desc.toUpperCase();
 			String filterText = filterTextField.getText().toUpperCase();
 

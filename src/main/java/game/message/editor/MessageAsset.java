@@ -36,7 +36,7 @@ public class MessageAsset
 			messages = StringEncoder.parseMessages(this);
 		}
 		catch (IOException e) {
-			throw new InputFileException(asset, e.getMessage());
+			throw new InputFileException(asset.getFile(), e.getMessage());
 		}
 
 		int msgIndex = 0;
@@ -56,7 +56,7 @@ public class MessageAsset
 		}
 
 		try {
-			linesIn = IOUtils.readPlainInputFile(asset);
+			linesIn = IOUtils.readPlainInputFile(asset.getFile());
 		}
 		catch (IOException e) {
 			Logger.logError("Failed to save " + asset.getName());
@@ -101,9 +101,9 @@ public class MessageAsset
 
 		AssetHandle saveAsset = AssetManager.getTopLevel(asset);
 		try {
-			FileUtils.touch(saveAsset);
+			FileUtils.touch(saveAsset.getFile());
 
-			try (PrintWriter pw = IOUtils.getBufferedPrintWriter(saveAsset)) {
+			try (PrintWriter pw = IOUtils.getBufferedPrintWriter(saveAsset.getFile())) {
 				for (String line : linesOut) {
 					pw.println(line);
 				}

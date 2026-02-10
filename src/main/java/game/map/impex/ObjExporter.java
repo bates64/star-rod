@@ -34,7 +34,7 @@ public class ObjExporter
 
 	public void writeModels(Iterable<Model> models, String texName)
 	{
-		File textureFile = AssetManager.get(AssetSubdir.MAP_TEX, texName + "/" + texName + ".mtl");
+		File textureFile = AssetManager.get(AssetSubdir.MAP_TEX, texName + "/" + texName + ".mtl").getFile();
 		if (textureFile.exists()) {
 			pw.println("mtllib " + texName);
 			pw.println("");

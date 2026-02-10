@@ -1396,9 +1396,9 @@ public class SpriteEditor extends BaseEditor
 		item.addActionListener((evt) -> {
 			if (sprite != null) {
 				try {
-					AssetHandle ah = sprite.getAssetDir(true);
-					ah.mkdirs();
-					Desktop.getDesktop().open(ah);
+					AssetHandle ah = sprite.getRoot(true);
+					ah.getFile().mkdirs();
+					Desktop.getDesktop().open(ah.getFile());
 				}
 				catch (IOException e) {
 					Logger.logError(e.getMessage());
@@ -1411,8 +1411,8 @@ public class SpriteEditor extends BaseEditor
 		item.addActionListener((evt) -> {
 			if (sprite != null) {
 				try {
-					AssetHandle ah = sprite.getAssetDir(false);
-					Desktop.getDesktop().open(ah);
+					AssetHandle ah = sprite.getRoot(false);
+					Desktop.getDesktop().open(ah.getFile());
 				}
 				catch (IOException e) {
 					Logger.printStackTrace(e);
@@ -1980,7 +1980,7 @@ public class SpriteEditor extends BaseEditor
 
 		sprite.reindex();
 
-		try (XmlWriter xmw = new XmlWriter(ah)) {
+		try (XmlWriter xmw = new XmlWriter(ah.getFile())) {
 			sprite.savePalettes();
 			sprite.toXML(xmw);
 			xmw.save();

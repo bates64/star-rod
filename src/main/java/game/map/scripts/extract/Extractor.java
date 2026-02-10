@@ -89,7 +89,7 @@ public class Extractor
 	{
 		Logger.log("Extracting data from " + mapName, Priority.IMPORTANT);
 
-		File mapFile = AssetManager.getMap(mapName);
+		File mapFile = AssetManager.getMap(mapName).getFile();
 		if (!mapFile.exists()) {
 			throw new StarRodException("Couldn't find map file for " + mapName);
 		}

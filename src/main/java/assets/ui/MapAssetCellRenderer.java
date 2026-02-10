@@ -49,9 +49,7 @@ public class MapAssetCellRenderer extends JPanel implements ListCellRenderer<Map
 		}
 
 		if (map != null) {
-			String assetDirName = map.assetDir.getName();
-			String mapFileName = FilenameUtils.getBaseName(map.assetPath);
-			nameLabel.setText(assetDirName + " / " + mapFileName);
+			nameLabel.setText(map.getName());
 
 			String s = map.desc.toString();
 			int maxChars = 32;

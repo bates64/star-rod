@@ -37,12 +37,12 @@ public class IconRecord extends GlobalsRecord
 
 	public IconRecord(AssetHandle source) throws IOException
 	{
-		String base = FilenameUtils.removeExtension(source.assetPath);
+		String base = FilenameUtils.removeExtension(source.getRelativePath().toString());
 		name = base.substring("/icon/".length());
 		exists = source.exists();
 
 		if (exists) {
-			BufferedImage bimg = ImageIO.read(source);
+			BufferedImage bimg = ImageIO.read(source.getFile());
 			fullsize = bimg;
 
 			if (bimg.getWidth() > 32 || bimg.getHeight() > 32)

@@ -27,7 +27,7 @@ public class ImgAsset implements GLResource
 	public ImgAsset(AssetHandle ah) throws IOException
 	{
 		source = ah;
-		img = Tile.load(ah, CI_4);
+		img = Tile.load(ah.getFile(), CI_4);
 		preview = new ImgPreview();
 	}
 

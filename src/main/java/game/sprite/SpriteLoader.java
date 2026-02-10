@@ -324,10 +324,10 @@ public class SpriteLoader
 		try {
 			AssetHandle xmlHandle = AssetManager.get(AssetSubdir.SPRITE, "npc.xml");
 			if (!xmlHandle.exists()) {
-				throw new IOException(xmlHandle.assetPath + " does not exist!");
+				throw new IOException(xmlHandle + " does not exist!");
 			}
 
-			XmlReader xmr = new XmlReader(xmlHandle);
+			XmlReader xmr = new XmlReader(xmlHandle.getFile());
 			Element rootElem = xmr.getRootElement();
 
 			int curID = 1;
@@ -343,7 +343,7 @@ public class SpriteLoader
 					continue;
 				}
 
-				npcSpriteData.put(curID, new SpriteMetadata(curID, name, ah, false, false));
+				npcSpriteData.put(curID, new SpriteMetadata(curID, name, ah.getFile(), false, false));
 				curID++;
 			}
 		}
@@ -355,10 +355,10 @@ public class SpriteLoader
 		try {
 			AssetHandle xmlHandle = AssetManager.get(AssetSubdir.SPRITE, "player.xml");
 			if (!xmlHandle.exists()) {
-				throw new IOException(xmlHandle.assetPath + " does not exist!");
+				throw new IOException(xmlHandle + " does not exist!");
 			}
 
-			XmlReader xmr = new XmlReader(xmlHandle);
+			XmlReader xmr = new XmlReader(xmlHandle.getFile());
 			Element rootElem = xmr.getRootElement();
 
 			int curID = 1;
@@ -374,7 +374,7 @@ public class SpriteLoader
 					continue;
 				}
 
-				XmlReader spriteXmr = new XmlReader(ah);
+				XmlReader spriteXmr = new XmlReader(ah.getFile());
 				Element spriteRoot = spriteXmr.getRootElement();
 
 				boolean hasBack = false;
@@ -382,7 +382,7 @@ public class SpriteLoader
 					hasBack = spriteXmr.readBoolean(spriteRoot, ATTR_SPRITE_HAS_BACK);
 				}
 
-				playerSpriteData.put(curID, new SpriteMetadata(curID, name, ah, true, hasBack));
+				playerSpriteData.put(curID, new SpriteMetadata(curID, name, ah.getFile(), true, hasBack));
 				curID++;
 				if (hasBack) {
 					curID++; // consume extra ID for back sprite

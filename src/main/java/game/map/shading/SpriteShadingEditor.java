@@ -25,7 +25,7 @@ public class SpriteShadingEditor
 	public static void saveShadingProfiles(SpriteShadingData data) throws IOException
 	{
 		AssetHandle ah = AssetManager.get(AssetSubdir.SPRITE, FN_SPRITE_SHADING);
-		saveShadingProfiles(ah, data);
+		saveShadingProfiles(ah.getFile(), data);
 	}
 
 	private static void saveShadingProfiles(File xmlFile, SpriteShadingData data) throws IOException
@@ -64,7 +64,7 @@ public class SpriteShadingEditor
 		SpriteShadingData profileData;
 
 		try {
-			profileData = SpriteShadingEditor.readJSON(ah);
+			profileData = SpriteShadingEditor.readJSON(ah.getFile());
 			profileData.validateNames();
 			profileData.assignCustomKeys();
 			Logger.logf("Loaded %d shading profiles.", profileData.listModel.getSize());

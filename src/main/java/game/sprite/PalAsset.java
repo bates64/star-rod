@@ -33,7 +33,7 @@ public class PalAsset implements GLResource, Editable
 	public PalAsset(AssetHandle ah) throws IOException
 	{
 		source = ah;
-		sourceImg = Tile.load(source, CI_4);
+		sourceImg = Tile.load(source.getFile(), CI_4);
 		pal = sourceImg.palette;
 	}
 
@@ -46,7 +46,7 @@ public class PalAsset implements GLResource, Editable
 	public void save() throws IOException
 	{
 		source = AssetManager.getTopLevel(source);
-		sourceImg.savePNG(source.getAbsolutePath());
+		sourceImg.savePNG(source.getFile().getAbsolutePath());
 	}
 
 	public AssetHandle getSource()

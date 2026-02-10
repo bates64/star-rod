@@ -56,7 +56,7 @@ class DirectoryItem extends Item
 
 					File targetDir = new File(AssetManager.getTopLevelAssetDir(), targetPath);
 					targetDir.mkdirs();
-					boolean ok = asset.moveAsset(targetDir);
+					boolean ok = asset.move(targetDir);
 					dtde.dropComplete(ok);
 
 					if (!ok) {

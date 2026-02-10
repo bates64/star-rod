@@ -49,9 +49,7 @@ public class BackgroundAssetCellRenderer extends JPanel implements ListCellRende
 		}
 
 		if (bg != null) {
-			String assetDirName = bg.assetDir.getName();
-			String mapFileName = FilenameUtils.getBaseName(bg.assetPath);
-			nameLabel.setText(assetDirName + " / " + mapFileName);
+			nameLabel.setText(bg.getName());
 			previewPanel.setImage(bg.bimg);
 		}
 		else {

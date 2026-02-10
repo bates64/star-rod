@@ -16,8 +16,8 @@ repositories {
 
 plugins {
     id("java")
-    id("org.jetbrains.kotlin.jvm") version "2.1.0"
-    id("org.jetbrains.kotlin.plugin.serialization") version "2.1.0"
+    id("org.jetbrains.kotlin.jvm") version "2.2.20"
+    id("org.jetbrains.kotlin.plugin.serialization") version "2.2.20"
     id("com.github.johnrengelman.shadow") version "8.1.1"
     id("net.nemerosa.versioning") version "3.1.0"
     id("com.cmgapps.licenses") version "4.8.0"
@@ -111,6 +111,7 @@ dependencies {
     implementation("org.ahocorasick:ahocorasick:0.6.3")
 
     // Kotlin
+    implementation("org.jetbrains.kotlin:kotlin-reflect:2.2.20")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.9.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")

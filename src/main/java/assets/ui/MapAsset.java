@@ -16,7 +16,6 @@ import javax.imageio.ImageIO;
 import app.Environment;
 import assets.AssetHandle;
 import assets.AssetManager;
-import game.map.Map;
 import game.map.editor.MapEditor;
 import util.Logger;
 import util.Priority;
@@ -48,7 +47,7 @@ public class MapAsset extends AssetHandle
 		super(asset);
 
 		// need to read Map tag quickly, do not parse whole XML file
-		try (BufferedReader in = new BufferedReader(new FileReader(asset))) {
+		try (BufferedReader in = new BufferedReader(new FileReader(asset.getFile()))) {
 			String line;
 
 			while (true) {
@@ -75,31 +74,26 @@ public class MapAsset extends AssetHandle
 	}
 
 	@Override
-	public String getAssetName() {
-		return Map.deriveName(this);
-	}
-
-	@Override
 	public String getAssetDescription() {
 		return desc;
 	}
 
 	@Override
-	public boolean deleteAsset()
+	public boolean delete()
 	{
-		File thumbFile = new File(PROJ_THUMBNAIL + assetPath + ".png");
+		File thumbFile = new File(PROJ_THUMBNAIL + getRelativePath().toString() + ".png");
 		if (thumbFile.exists())
 			thumbFile.delete();
-		return super.deleteAsset();
+		return super.delete();
 	}
 
 	@Override
-	public boolean renameAsset(String newFileName)
+	public boolean rename(String newFileName)
 	{
-		File oldThumb = new File(PROJ_THUMBNAIL + assetPath + ".png");
+		File oldThumb = new File(PROJ_THUMBNAIL + getRelativePath().toString() + ".png");
 		if (oldThumb.exists()) {
 			try {
-				String newAssetPath = assetPath.substring(0, assetPath.lastIndexOf('/') + 1) + newFileName;
+				String newAssetPath = getRelativePath().toString().substring(0, getRelativePath().toString().lastIndexOf('/') + 1) + newFileName;
 				File newThumb = new File(PROJ_THUMBNAIL + newAssetPath + ".png");
 				newThumb.getParentFile().mkdirs();
 				Files.move(oldThumb.toPath(), newThumb.toPath());
@@ -108,7 +102,7 @@ public class MapAsset extends AssetHandle
 				return false;
 			}
 		}
-		return super.renameAsset(newFileName);
+		return super.rename(newFileName);
 	}
 
 	@Override
@@ -119,7 +113,7 @@ public class MapAsset extends AssetHandle
 	@Override
 	protected Image loadThumbnail()
 	{
-		File thumbFile = new File(PROJ_THUMBNAIL + assetPath + ".png");
+		File thumbFile = new File(PROJ_THUMBNAIL + getRelativePath().toString() + ".png");
 		if (thumbFile.exists()) {
 			try {
 				return ImageIO.read(thumbFile);
@@ -140,13 +134,13 @@ public class MapAsset extends AssetHandle
 
 		try {
 			for (AssetHandle asset : AssetManager.getMapSources()) {
-				File thumbFile = new File(PROJ_THUMBNAIL + asset.assetPath + ".png");
+				File thumbFile = new File(PROJ_THUMBNAIL + asset.getRelativePath().toString() + ".png");
 				if (thumbFile.exists())
 					continue;
-				Logger.log("Capturing thumbnail for " + asset.assetPath + "...", Priority.MILESTONE);
+				Logger.log("Capturing thumbnail for " + asset.getRelativePath().toString() + "...", Priority.MILESTONE);
 				if (editor == null)
 					editor = new MapEditor(false);
-				editor.generateThumbnail(asset, thumbFile, THUMBNAIL_WIDTH * 2, THUMBNAIL_HEIGHT * 2);
+				editor.generateThumbnail(asset.getFile(), thumbFile, AssetHandle.THUMBNAIL_WIDTH * 2, AssetHandle.THUMBNAIL_HEIGHT * 2);
 			}
 		}
 		catch (Exception e) {

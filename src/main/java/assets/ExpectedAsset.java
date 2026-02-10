@@ -40,10 +40,10 @@ public enum ExpectedAsset
 	public File getFile()
 	{
 		if (useBase) {
-			return AssetManager.getBase(subdir, path);
+			return AssetManager.getBase(subdir, path).getFile();
 		}
 		else {
-			return AssetManager.get(subdir, path);
+			return AssetManager.get(subdir, path).getFile();
 		}
 	}
 

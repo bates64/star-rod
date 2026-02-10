@@ -1306,7 +1306,7 @@ public final class SwingGUI extends StarRodFrame implements ActionListener, Logg
 			AssetHandle ah = AssetManager.getMap(mapName);
 			if (ah.exists()) {
 				editor.doNextFrame(() -> {
-					editor.action_OpenMap(ah);
+					editor.action_OpenMap(ah.getFile());
 				});
 			}
 		}

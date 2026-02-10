@@ -56,9 +56,8 @@ public class TexArchiveAssetCellRenderer extends JPanel implements ListCellRende
 		}
 
 		if (bg != null) {
-			String assetDirName = bg.assetDir.getName();
-			String mapFileName = FilenameUtils.getBaseName(bg.assetPath);
-			nameLabel.setText(assetDirName + " / " + mapFileName);
+			String mapFileName = FilenameUtils.getBaseName(bg.getRelativePath().toString());
+			nameLabel.setText(mapFileName);
 			nameLabel.setForeground(null);
 			previewPanel1.setImage(bg.getPreview(0));
 			previewPanel2.setImage(bg.getPreview(1));

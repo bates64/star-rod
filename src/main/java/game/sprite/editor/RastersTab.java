@@ -89,7 +89,7 @@ public class RastersTab extends JPanel
 
 					File copy;
 					do {
-						copy = new File(sprite.getRastersDir(true), curName + "." + ext);
+						copy = new File(sprite.getRastersDir(true).getFile(), curName + "." + ext);
 
 						// form the next name to try
 						iter++;

@@ -41,7 +41,7 @@ public class TexturesAsset extends AssetHandle
 		super(asset);
 
 		String dirName = FilenameUtils.getBaseName(asset.getName()) + "/";
-		File dir = new File(asset.assetDir, AssetSubdir.MAP_TEX + dirName);
+		File dir = new File(asset.getRoot().toFile(), AssetSubdir.MAP_TEX + dirName);
 
 		try {
 			List<File> images = new ArrayList<>();
@@ -69,21 +69,21 @@ public class TexturesAsset extends AssetHandle
 	private File getCompanionDir()
 	{
 		String dirName = FilenameUtils.getBaseName(getName()) + "/";
-		File dir = new File(assetDir, AssetSubdir.MAP_TEX + dirName);
+		File dir = new File(getRoot().toFile(), AssetSubdir.MAP_TEX + dirName);
 		return dir.isDirectory() ? dir : null;
 	}
 
 	@Override
-	public boolean deleteAsset()
+	public boolean delete()
 	{
 		File dir = getCompanionDir();
 		if (dir != null)
 			FileUtils.deleteQuietly(dir);
-		return super.deleteAsset();
+		return super.delete();
 	}
 
 	@Override
-	public boolean renameAsset(String newFileName)
+	public boolean rename(String newFileName)
 	{
 		File dir = getCompanionDir();
 		if (dir != null) {
@@ -96,11 +96,11 @@ public class TexturesAsset extends AssetHandle
 				return false;
 			}
 		}
-		return super.renameAsset(newFileName);
+		return super.rename(newFileName);
 	}
 
 	@Override
-	public boolean moveAsset(File targetDir)
+	public boolean move(File targetDir)
 	{
 		File dir = getCompanionDir();
 		if (dir != null) {
@@ -111,7 +111,7 @@ public class TexturesAsset extends AssetHandle
 				return false;
 			}
 		}
-		return super.moveAsset(targetDir);
+		return super.move(targetDir);
 	}
 
 	@Override

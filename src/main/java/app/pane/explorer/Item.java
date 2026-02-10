@@ -41,7 +41,6 @@ import javax.swing.UIManager;
 
 import app.SwingUtils;
 import assets.AssetHandle;
-import util.Logger;
 
 abstract class Item extends JPanel
 {
@@ -183,7 +182,7 @@ abstract class Item extends JPanel
 		if (asset == null || renameField != null)
 			return;
 
-		String currentName = asset.getAssetName();
+		String currentName = asset.getName();
 
 		Insets ins = getInsets();
 		int x = ins.left;
@@ -232,7 +231,7 @@ abstract class Item extends JPanel
 				|| newName.contains("/") || newName.contains("\\"))
 				return;
 
-			if (!asset.renameAsset(newName)) {
+			if (!asset.rename(newName)) {
 				SwingUtils.getErrorDialog()
 					.setTitle("Rename Failed")
 					.setMessage("Could not rename " + currentName + " to " + newName + ".")
@@ -270,7 +269,7 @@ abstract class Item extends JPanel
 		if (asset == null)
 			return;
 
-		String assetName = asset.getAssetName();
+		String assetName = asset.getName();
 		int result = SwingUtils.getConfirmDialog()
 			.setTitle("Delete")
 			.setMessage("Delete " + assetName + "?")
@@ -280,7 +279,7 @@ abstract class Item extends JPanel
 		if (result != JOptionPane.YES_OPTION)
 			return;
 
-		if (!asset.deleteAsset()) {
+		if (!asset.delete()) {
 			SwingUtils.getErrorDialog()
 				.setTitle("Delete Failed")
 				.setMessage("Could not delete " + assetName + ".")

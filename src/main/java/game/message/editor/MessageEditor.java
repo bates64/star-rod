@@ -478,7 +478,7 @@ public class MessageEditor extends BaseEditor
 
 			JButton button = new JButton();
 			try {
-				button.setIcon(getButtonIcon(ah, false));
+				button.setIcon(getButtonIcon(ah.getFile(), false));
 				if (sc.name.startsWith("~")) {
 					addButtonTextInsert(button, sc.name.substring(1));
 				}
@@ -510,7 +510,7 @@ public class MessageEditor extends BaseEditor
 		for (int palIndex = 0; palIndex < paletteIcons.length; palIndex++) {
 			String imgName = String.format("%02X", palIndex) + ".png";
 			try {
-				File imgFile = AssetManager.get(AssetSubdir.STANDARD_CHARS_PAL, imgName);
+				File imgFile = AssetManager.get(AssetSubdir.STANDARD_CHARS_PAL, imgName).getFile();
 				paletteIcons[palIndex] = getButtonIcon(imgFile, false);
 			}
 			catch (IOException e) {

@@ -179,7 +179,7 @@ public class SelectTexDialog extends JDialog
 					}
 				}
 				else if (tex != null) {
-					if (initialSelection.equals(FilenameUtils.getBaseName(tex.assetPath))) {
+					if (initialSelection.equals(FilenameUtils.getBaseName(tex.getRelativePath().toString()))) {
 						list.setSelectedValue(tex, true);
 						break;
 					}
@@ -195,7 +195,7 @@ public class SelectTexDialog extends JDialog
 	{
 		filteredListModel.setFilter(element -> {
 			TexturesAsset bg = (TexturesAsset) element;
-			String bgName = bg.assetPath.toUpperCase();
+			String bgName = bg.getRelativePath().toString().toUpperCase();
 			String filterText = filterTextField.getText().toUpperCase();
 
 			return bgName.contains(filterText);
@@ -209,6 +209,6 @@ public class SelectTexDialog extends JDialog
 
 	private File getSelectedFile()
 	{
-		return selectedObject;
+		return selectedObject.getFile();
 	}
 }

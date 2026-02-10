@@ -311,11 +311,11 @@ public class Texture
 
 		AssetHandle mainAsset = AssetManager.get(AssetSubdir.MAP_TEX, texName + "/" + tx.name + ".png");
 
-		tx.main = Tile.load(mainAsset, imgFormat);
+		tx.main = Tile.load(mainAsset.getFile(), imgFormat);
 
 		if (tx.hasAux) {
 			AssetHandle auxAsset = AssetManager.get(AssetSubdir.MAP_TEX, texName + "/" + tx.name + "_AUX.png");
-			tx.aux = Tile.load(auxAsset, auxFormat);
+			tx.aux = Tile.load(auxAsset.getFile(), auxFormat);
 		}
 
 		if (tx.hasMipmaps) {
@@ -330,7 +330,7 @@ public class Texture
 
 					String mmName = tx.name + "_MM" + (tx.mipmapList.size() + 1);
 					AssetHandle mmAsset = AssetManager.get(AssetSubdir.MAP_TEX, texName + "/" + mmName + ".png");
-					Tile mipmap = Tile.load(mmAsset, imgFormat);
+					Tile mipmap = Tile.load(mmAsset.getFile(), imgFormat);
 
 					if (mipmap.height != mmHeight)
 						throw new InputFileException(source, "%s has incorrect height: %s instead of %s", mmName, mipmap.height, mmHeight);

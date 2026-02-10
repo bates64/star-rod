@@ -71,7 +71,7 @@ public class StageExtractor
 		if (suffix == null)
 			suffix = "";
 
-		File mapFile = AssetManager.getMap(baseName);
+		File mapFile = AssetManager.getMap(baseName).getFile();
 		if (!mapFile.exists()) {
 			Logger.logWarning("Couldn't find map file for stage: " + baseName);
 			return;

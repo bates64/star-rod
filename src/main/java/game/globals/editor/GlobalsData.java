@@ -66,7 +66,7 @@ public class GlobalsData
 	{
 		icons.clear();
 		try {
-			File xmlFile = AssetManager.get(AssetSubdir.ICON, "Icons.xml");
+			File xmlFile = AssetManager.get(AssetSubdir.ICON, "Icons.xml").getFile();
 			icons.addAll(IconRecord.readXML(xmlFile));
 			/*
 			for(AssetHandle ah : AssetManager.getIcons()) {

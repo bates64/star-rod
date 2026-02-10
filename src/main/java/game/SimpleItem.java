@@ -38,7 +38,7 @@ public class SimpleItem
 		Tile tile = null;
 
 		try {
-			tile = Tile.load(ah, TileFormat.CI_4);
+			tile = Tile.load(ah.getFile(), TileFormat.CI_4);
 		}
 		catch (IOException e) {
 			Logger.logfWarning("Exception while loading icon: %s%n%s", name, e.getMessage());
