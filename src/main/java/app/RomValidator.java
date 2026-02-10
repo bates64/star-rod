@@ -76,13 +76,6 @@ public class RomValidator
 			boolean x64 = (crc1 == CRC1_X64 && crc2 == CRC2_X64);
 
 			if (v64 || n64 || x64) {
-				// just need to byteswap
-				SwingUtils.getMessageDialog()
-					.setTitle("ROM Validation Warning")
-					.setMessage("Selected ROM has incorrect byte order.", "A corrected copy will be made.")
-					.setMessageType(JOptionPane.WARNING_MESSAGE)
-					.show();
-
 				pleaseWait.setVisible(true);
 
 				String path = f.getAbsolutePath();

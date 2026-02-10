@@ -115,6 +115,40 @@ public class WslNixOsEnvironment implements BuildEnvironment
 		}
 	}
 
+	// --- Baserom management ---
+
+	@Override
+	public void installBaserom(File sourceRom) throws BuildException, IOException
+	{
+		if (!sourceRom.exists()) {
+			throw new IOException("Source ROM does not exist: " + sourceRom);
+		}
+
+		// Check if ROM is already in Nix store
+		String expectedHash = "9ec6d2a5c2fca81ab86312328779fd042b5f3b920bf65df9f6b87b376883cb5b";
+		String[] checkCmd = new String[] {
+			"wsl", "-d", DISTRO_NAME, "bash", "-c",
+			"test -e $(nix-store --print-fixed-path sha256 " + expectedHash + " papermario.us.z64)"
+		};
+
+		ProcessRunner.ProcessResult checkResult = runner.run(checkCmd, null, BuildOutputListener.toLogger());
+		if (checkResult.isSuccess()) {
+			return; // Already in store
+		}
+
+		// Copy ROM from Windows to WSL /tmp and add to Nix store
+		String wslSourcePath = convertToWslPath(sourceRom);
+		String[] cmd = new String[] {
+			"wsl", "-d", DISTRO_NAME, "bash", "-c",
+			"cp " + wslSourcePath + " /tmp/papermario.us.z64 && nix-store --add-fixed sha256 /tmp/papermario.us.z64"
+		};
+
+		ProcessRunner.ProcessResult result = runner.run(cmd, null, BuildOutputListener.toLogger());
+		if (!result.isSuccess()) {
+			throw new BuildException("Failed to add ROM to Nix store (exit code " + result.getExitCode() + ")");
+		}
+	}
+
 	// --- Build operations ---
 
 	@Override

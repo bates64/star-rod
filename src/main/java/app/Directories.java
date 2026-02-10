@@ -20,25 +20,27 @@ public enum Directories
 
 	LOGS				(Root.STATE, 			"/logs/"),
 	TEMP				(Root.STATE, 			"/temp/"),
+	BASEROM             (Root.STATE, 			"/baserom/"),
 
 	//=======================================================================================
 	// Directories contain dumped content needed for Star Rod to function
 	// These should all eventually become unnecessary and be removed
 
-	DUMP_WORLD			(Root.DUMP,				"/world/"),
+	DUMP				(Root.STATE,				"/dump/"),
+	DUMP_WORLD			(Root.STATE, DUMP,			"/world/"),
 
-	DUMP_ENTITY 		(Root.DUMP, DUMP_WORLD,		"/entity/"),
-	DUMP_ENTITY_RAW		(Root.DUMP, DUMP_ENTITY,		"/raw/"),
-	DUMP_ENTITY_SRC		(Root.DUMP, DUMP_ENTITY,		"/src/"),
+	DUMP_ENTITY 		(Root.STATE, DUMP_WORLD,		"/entity/"),
+	DUMP_ENTITY_RAW		(Root.STATE, DUMP_ENTITY,		"/raw/"),
+	DUMP_ENTITY_SRC		(Root.STATE, DUMP_ENTITY,		"/src/"),
 
-	DUMP_MSG 			(Root.DUMP,				"/message/"),
-	DUMP_MSG_FONT		(Root.DUMP, DUMP_MSG,		"/font/"),
-	DUMP_FONT_STD		(Root.DUMP, DUMP_MSG_FONT,		"/normal/"),
-	DUMP_FONT_STD_PAL	(Root.DUMP, DUMP_FONT_STD,			"/palette/"),
-	DUMP_FONT_CR1		(Root.DUMP, DUMP_MSG_FONT,		"/credits-title/"),
-	DUMP_FONT_CR1_PAL	(Root.DUMP, DUMP_FONT_CR1,			"/palette/"),
-	DUMP_FONT_CR2		(Root.DUMP, DUMP_MSG_FONT,		"/credits-name/"),
-	DUMP_FONT_CR2_PAL	(Root.DUMP, DUMP_FONT_CR2,			"/palette/"),
+	DUMP_MSG 			(Root.STATE, DUMP,			"/message/"),
+	DUMP_MSG_FONT		(Root.STATE, DUMP_MSG,		"/font/"),
+	DUMP_FONT_STD		(Root.STATE, DUMP_MSG_FONT,		"/normal/"),
+	DUMP_FONT_STD_PAL	(Root.STATE, DUMP_FONT_STD,			"/palette/"),
+	DUMP_FONT_CR1		(Root.STATE, DUMP_MSG_FONT,		"/credits-title/"),
+	DUMP_FONT_CR1_PAL	(Root.STATE, DUMP_FONT_CR1,			"/palette/"),
+	DUMP_FONT_CR2		(Root.STATE, DUMP_MSG_FONT,		"/credits-name/"),
+	DUMP_FONT_CR2_PAL	(Root.STATE, DUMP_FONT_CR2,			"/palette/"),
 
 	//=======================================================================================
 	// Directories relative to the current project
@@ -134,7 +136,7 @@ public enum Directories
 
 	private enum Root
 	{
-		NONE, DUMP, PROJECT, CONFIG, STATE, ENGINE
+		NONE, PROJECT, CONFIG, STATE, ENGINE
 	}
 
 	private static String getRootPath(Root root)
@@ -142,8 +144,6 @@ public enum Directories
 		switch (root) {
 			case NONE:
 				return Environment.getWorkingDirectory().getAbsolutePath();
-			case DUMP:
-				return dumpPath;
 			case PROJECT:
 				return projPath;
 			case CONFIG:
@@ -157,23 +157,7 @@ public enum Directories
 		return null;
 	}
 
-	private static String dumpPath = null;
 	private static String projPath = null;
-
-	public static void setDumpDirectory(String path)
-	{
-		if (path.contains("\\"))
-			path = path.replaceAll("\\\\", "/");
-		if (path.endsWith("/"))
-			path = path.substring(0, path.length() - 1);
-
-		dumpPath = path;
-	}
-
-	public static String getDumpPath()
-	{
-		return dumpPath;
-	}
 
 	public static void setProjectDirectory(String path)
 	{
@@ -188,11 +172,8 @@ public enum Directories
 
 	public static void createDumpDirectories() throws IOException
 	{
-		if (dumpPath == null)
-			throw new IOException("Dump directory is not set.");
-
 		for (Directories dir : Directories.values()) {
-			if (dir.root == Root.DUMP && !dir.optional)
+			if (dir.root == Root.STATE && dir.path.startsWith("/dump/") && !dir.optional)
 				FileUtils.forceMkdir(dir.toFile());
 		}
 	}

@@ -551,7 +551,7 @@ public class StarRodMain extends StarRodFrame
 
 	private static final void trySetIcon(AbstractButton button, ExpectedAsset asset)
 	{
-		if (Directories.getDumpPath() == null || !(new File(Directories.getDumpPath())).exists()) {
+		if (!Directories.DUMP.toFile().exists()) {
 			Logger.log("Dump directory could not be found.");
 			SwingUtils.addBorderPadding(button);
 			return;

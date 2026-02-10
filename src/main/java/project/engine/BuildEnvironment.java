@@ -54,6 +54,16 @@ public interface BuildEnvironment
 	 */
 	void gitCheckout(File dir, String ref, BuildOutputListener listener) throws IOException;
 
+	// --- Baserom management ---
+
+	/**
+	 * Installs the base ROM into /tmp as papermario.us.z64 and adds it to the Nix store.
+	 * @param sourceRom The source ROM file to install
+	 * @throws BuildException If the installation fails
+	 * @throws IOException If an I/O error occurs
+	 */
+	void installBaserom(File sourceRom) throws BuildException, IOException;
+
 	// --- Build operations ---
 
 	/**

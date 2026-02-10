@@ -18,8 +18,6 @@ public class Engine
 {
 	private static final String BARE_REPO_NAME = "papermario-dx.git";
 	private static final String REPO_URL = "https://github.com/bates64/papermario-dx.git";
-	private static final String BASEROM_PATH = "ver/us/baserom.z64";
-	private static final String DUMP_PATH = "ver/us/build/star-rod-dump";
 
 	/** If a project provides a custom engine, it should be a git repo at this directory. */
 	public static final String PROJECT_ENGINE_PATH = "papermario-dx";
@@ -87,16 +85,6 @@ public class Engine
 	public File getDirectory()
 	{
 		return directory;
-	}
-
-	public File getBaseRom()
-	{
-		return new File(directory, BASEROM_PATH);
-	}
-
-	public File getDumpDir()
-	{
-		return new File(directory, DUMP_PATH);
 	}
 
 	public String getRef()

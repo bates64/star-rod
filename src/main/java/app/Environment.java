@@ -102,7 +102,7 @@ public abstract class Environment
 
 	private static String gameVersion = "";
 
-	private static File usBaseRom;
+	private static final File usBaseRom = Directories.BASEROM.file("papermario.us.z64");
 	private static ByteBuffer romBytes;
 
 	public static List<File> assetDirectories;
@@ -268,7 +268,6 @@ public abstract class Environment
 				ProjectListing listing = chooseProject();
 				if (listing == null)
 					exit();
-				LoadingBar.show("Loading " + listing.getName(), Priority.MILESTONE, false);
 				boolean validProject = loadProject(listing);
 				if (!validProject)
 					exit(1);
@@ -531,14 +530,12 @@ public abstract class Environment
 
 		Directories.setProjectDirectory(project.getPath());
 		final Engine engine = project.getEngine();
-		Directories.setDumpDirectory(engine.getDumpDir().getAbsolutePath());
 
-		usBaseRom = engine.getBaseRom();
-		if (!usBaseRom.exists()) {
-			promptForBaserom();
-			if (!usBaseRom.exists())
+		if (!usBaseRom.exists())
+			if (!promptForBaserom(engine))
 				return false;
-		}
+
+		LoadingBar.show("Loading project", Priority.MILESTONE, true);
 
 		try {
 			engine.splitAssets();
@@ -615,47 +612,46 @@ public abstract class Environment
 	}
 
 	/**
-	 * Prompts the user to select a baserom file, validates it, and copies
-	 * it to the appropriate location.
+	 * Prompts the user to select a ROM, validates it, and installs it in the BuildEnvironment.
 	 */
-	public static void promptForBaserom()
+	public static boolean promptForBaserom(Engine engine)
 	{
 		OpenFileChooser chooser = new OpenFileChooser(
 			null, "Select Paper Mario (US) ROM", "N64 ROM", "z64", "n64", "v64");
 
 		if (chooser.prompt() != ChooseDialogResult.APPROVE)
-			return;
+			return false;
 
 		File selected = chooser.getSelectedFile();
 		if (selected == null)
-			return;
+			return false;
 
 		try {
 			File validated = RomValidator.validateROM(selected);
 			if (validated == null)
-				return;
+				return false;
 
-			// Copy to target location
 			FileUtils.copyFile(validated, usBaseRom);
-			Logger.log("Baserom installed to " + usBaseRom.getAbsolutePath());
+			engine.getBuildEnvironment().installBaserom(validated);
+			return true;
 		}
-		catch (IOException e) {
+		catch (IOException | BuildException e) {
 			Logger.printStackTrace(e);
-			showErrorMessage("ROM Copy Error", "Failed to copy ROM: %s", e.getMessage());
+			showErrorMessage("ROM Installation Error", "Failed to install ROM: %s", e.getMessage());
+			return false;
 		}
 	}
 
 	/**
 	 * Ensures the dump directory is extracted. If it doesn't exist,
 	 * extracts from the baserom (prompting for the ROM if needed).
-	 * Sets usBaseRom and dumpPath as side effects when the user provides a ROM.
 	 * @return true if dump is available, false if user cancelled or extraction failed
 	 */
 	public static boolean ensureDumpExtracted() throws IOException
 	{
-		String dumpPath = Directories.getDumpPath();
+		File dumpDir = Directories.DUMP.toFile();
 
-		if (dumpPath == null || !(new File(dumpPath).exists())) {
+		if (!dumpDir.exists()) {
 			// Need baserom to create dump
 			if (usBaseRom == null || !usBaseRom.exists()) {
 				Logger.logError("Cannot extract dump: baserom not found");

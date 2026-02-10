@@ -62,6 +62,47 @@ public class NixEnvironment implements BuildEnvironment
 		}
 	}
 
+	// --- Baserom management ---
+
+	@Override
+	public void installBaserom(File sourceRom) throws BuildException, IOException
+	{
+		if (!sourceRom.exists()) {
+			throw new IOException("Source ROM does not exist: " + sourceRom);
+		}
+
+		// Check if ROM is already in Nix store
+		String expectedHash = "9ec6d2a5c2fca81ab86312328779fd042b5f3b920bf65df9f6b87b376883cb5b";
+		String[] checkCmd = new String[] {
+			"bash", "-c",
+			"test -e $(nix-store --print-fixed-path sha256 " + expectedHash + " papermario.us.z64)"
+		};
+
+		ProcessRunner.ProcessResult checkResult = runner.run(checkCmd, null, BuildOutputListener.toLogger());
+		if (checkResult.isSuccess()) {
+			return; // Already in store
+		}
+
+		File targetRom = new File("/tmp/papermario.us.z64");
+
+		// Copy ROM to /tmp
+		java.nio.file.Files.copy(
+			sourceRom.toPath(),
+			targetRom.toPath(),
+			java.nio.file.StandardCopyOption.REPLACE_EXISTING
+		);
+
+		// Add to Nix store
+		String[] cmd = new String[] {
+			"nix-store", "--add-fixed", "sha256", targetRom.getAbsolutePath()
+		};
+
+		ProcessRunner.ProcessResult result = runner.run(cmd, null, BuildOutputListener.toLogger());
+		if (!result.isSuccess()) {
+			throw new BuildException("Failed to add ROM to Nix store (exit code " + result.getExitCode() + ")");
+		}
+	}
+
 	// --- Build operations ---
 
 	@Override
