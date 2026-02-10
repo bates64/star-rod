@@ -49,6 +49,7 @@ import game.sprite.editor.SpriteEditor;
 import game.texture.editor.ImageEditor;
 import game.worldmap.WorldMapEditor;
 import net.miginfocom.swing.MigLayout;
+import tools.SwingInspectorKt;
 import util.Logger;
 
 public class StarRodMain extends StarRodFrame
@@ -61,6 +62,14 @@ public class StarRodMain extends StarRodFrame
 
 	public static void main(String[] args) throws InterruptedException
 	{
+		// Handle --remote flag without initializing environment
+		if (args.length > 0 && args[0].equalsIgnoreCase("--remote")) {
+			String[] remoteArgs = new String[args.length - 1];
+			System.arraycopy(args, 1, remoteArgs, 0, remoteArgs.length);
+			SwingInspectorKt.main(remoteArgs);
+			return;
+		}
+
 		boolean isCommandLine = args.length > 0 || GraphicsEnvironment.isHeadless();
 
 		if (isCommandLine) {
@@ -90,8 +99,11 @@ public class StarRodMain extends StarRodFrame
 
 		// Menu bar
 		JMenuBar menuBar = new JMenuBar();
+		menuBar.getAccessibleContext().setAccessibleName("menuBar");
 		JMenu fileMenu = new JMenu("File");
+		fileMenu.getAccessibleContext().setAccessibleName("fileMenu");
 		JMenu editMenu = new JMenu("Edit");
+		editMenu.getAccessibleContext().setAccessibleName("editMenu");
 		menuBar.add(fileMenu);
 		menuBar.add(editMenu);
 		setJMenuBar(menuBar);
@@ -99,10 +111,12 @@ public class StarRodMain extends StarRodFrame
 		// TODO: click this to change project
 		JLabel projectIdLabel = new JLabel(Environment.getProject().getManifest().getId());
 		SwingUtils.setFontSize(projectIdLabel, 11);
+		projectIdLabel.getAccessibleContext().setAccessibleName("projectIdLabel");
 
 		JButton mapEditorButton = new JButton("Map Editor");
 		trySetIcon(mapEditorButton, ExpectedAsset.ICON_MAP_EDITOR);
 		SwingUtils.setFontSize(mapEditorButton, 12);
+		mapEditorButton.getAccessibleContext().setAccessibleName("mapEditorButton");
 		mapEditorButton.addActionListener((e) -> {
 			action_openMapEditor();
 		});
@@ -111,6 +125,7 @@ public class StarRodMain extends StarRodFrame
 		JButton spriteEditorButton = new JButton("Sprite Editor");
 		trySetIcon(spriteEditorButton, ExpectedAsset.ICON_SPRITE_EDITOR);
 		SwingUtils.setFontSize(spriteEditorButton, 12);
+		spriteEditorButton.getAccessibleContext().setAccessibleName("spriteEditorButton");
 		spriteEditorButton.addActionListener((e) -> {
 			action_openSpriteEditor();
 		});
@@ -119,6 +134,7 @@ public class StarRodMain extends StarRodFrame
 		JButton msgEditorButton = new JButton("Message Editor");
 		trySetIcon(msgEditorButton, ExpectedAsset.ICON_MSG_EDITOR);
 		SwingUtils.setFontSize(msgEditorButton, 12);
+		msgEditorButton.getAccessibleContext().setAccessibleName("messageEditorButton");
 		msgEditorButton.addActionListener((e) -> {
 			action_openMessageEditor();
 		});
@@ -127,6 +143,7 @@ public class StarRodMain extends StarRodFrame
 		JButton globalsEditorButton = new JButton("Globals Editor");
 		trySetIcon(globalsEditorButton, ExpectedAsset.ICON_GLOBALS_EDITOR);
 		SwingUtils.setFontSize(globalsEditorButton, 12);
+		globalsEditorButton.getAccessibleContext().setAccessibleName("globalsEditorButton");
 		globalsEditorButton.addActionListener((e) -> {
 			action_openGlobalsEditor();
 		});
@@ -135,6 +152,7 @@ public class StarRodMain extends StarRodFrame
 		JButton worldEditorButton = new JButton("World Map Editor");
 		trySetIcon(worldEditorButton, ExpectedAsset.ICON_WORLD_EDITOR);
 		SwingUtils.setFontSize(worldEditorButton, 12);
+		worldEditorButton.getAccessibleContext().setAccessibleName("worldMapEditorButton");
 		worldEditorButton.addActionListener((e) -> {
 			action_openWorldMapEditor();
 		});
@@ -143,6 +161,7 @@ public class StarRodMain extends StarRodFrame
 		JButton imageEditorButton = new JButton("Image Editor");
 		trySetIcon(imageEditorButton, ExpectedAsset.ICON_IMAGE_EDITOR);
 		SwingUtils.setFontSize(imageEditorButton, 12);
+		imageEditorButton.getAccessibleContext().setAccessibleName("imageEditorButton");
 		imageEditorButton.addActionListener((e) -> {
 			action_openImageEditor();
 		});
@@ -151,6 +170,7 @@ public class StarRodMain extends StarRodFrame
 		JButton themesMenuButton = new JButton("Choose Theme");
 		trySetIcon(themesMenuButton, ExpectedAsset.ICON_THEMES);
 		SwingUtils.setFontSize(themesMenuButton, 12);
+		themesMenuButton.getAccessibleContext().setAccessibleName("themesMenuButton");
 		themesMenuButton.addActionListener((e) -> {
 			action_openThemesMenu();
 		});
@@ -160,6 +180,7 @@ public class StarRodMain extends StarRodFrame
 		JButton buildProjectButton = new JButton("Build Project");
 		trySetIcon(buildProjectButton, ExpectedAsset.ICON_GOLD);
 		SwingUtils.setFontSize(buildProjectButton, 12);
+		buildProjectButton.getAccessibleContext().setAccessibleName("buildProjectButton");
 		buildProjectButton.addActionListener((e) -> {
 			action_buildProject();
 		});
@@ -169,6 +190,7 @@ public class StarRodMain extends StarRodFrame
 		JButton openConfigDirButton = new JButton("Open Config Dir");
 		trySetIcon(openConfigDirButton, ExpectedAsset.ICON_SILVER);
 		SwingUtils.setFontSize(openConfigDirButton, 12);
+		openConfigDirButton.getAccessibleContext().setAccessibleName("openConfigDirButton");
 		openConfigDirButton.addActionListener((e) -> {
 			action_openDir(Environment.getUserConfigDir());
 		});
@@ -177,6 +199,7 @@ public class StarRodMain extends StarRodFrame
 		JButton openProjectDirButton = new JButton("Open Project Dir");
 		trySetIcon(openProjectDirButton, ExpectedAsset.ICON_GOLD);
 		SwingUtils.setFontSize(openProjectDirButton, 12);
+		openProjectDirButton.getAccessibleContext().setAccessibleName("openProjectDirButton");
 		openProjectDirButton.addActionListener((e) -> {
 			action_openDir(Environment.getProjectDirectory());
 		});
@@ -208,8 +231,10 @@ public class StarRodMain extends StarRodFrame
 		// Left pane - buttons panel
 		Pane leftPane = new Pane();
 		leftPane.setLayout(new MigLayout("fill, ins 8, wrap 1"));
+		leftPane.getAccessibleContext().setAccessibleName("leftPane");
 
 		JPanel buttonsPanel = new JPanel(new MigLayout("fillx, wrap 1, hidemode 3"));
+		buttonsPanel.getAccessibleContext().setAccessibleName("buttonsPanel");
 		buttonsPanel.add(mapEditorButton, "growx");
 		buttonsPanel.add(spriteEditorButton, "growx");
 		buttonsPanel.add(globalsEditorButton, "growx");
@@ -227,17 +252,20 @@ public class StarRodMain extends StarRodFrame
 		// Middle pane - placeholder for now
 		Pane middlePane = new Pane();
 		middlePane.setLayout(new MigLayout("fill, ins 8"));
+		middlePane.getAccessibleContext().setAccessibleName("middlePane");
 		middlePane.add(new JLabel("Middle Pane"), "center");
 		middlePane.setMinimumSize(new Dimension(MIN_PANE_WIDTH, 0));
 
 		// Right pane - placeholder for now
 		Pane rightPane = new Pane();
 		rightPane.setLayout(new MigLayout("fill, ins 8"));
+		rightPane.getAccessibleContext().setAccessibleName("rightPane");
 		rightPane.add(new JLabel("Right Pane"), "center");
 		rightPane.setMinimumSize(new Dimension(MIN_PANE_WIDTH, 0));
 
 		// Dock (bottom panel in middle column)
 		Dock dock = new Dock();
+		dock.getAccessibleContext().setAccessibleName("dock");
 		dock.setMinimumSize(new Dimension(0, MIN_DOCK_HEIGHT));
 
 		// Create vertical split pane (middlePane | dock) for center column

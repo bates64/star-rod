@@ -52,23 +52,14 @@ public class StarRodBootstrap
 			.toURI()
 			.getPath();
 
-		ProcessBuilder processBuilder;
-		if (args.length > 0) {
-			processBuilder = new ProcessBuilder(
-				javaExec,
-				"-cp",
-				jarPath,
-				"app.StarRodMain",
-				String.join(" ", args).trim());
-		}
-		else {
-			processBuilder = new ProcessBuilder(
-				javaExec,
-				"-cp",
-				jarPath,
-				"app.StarRodMain");
-		}
+		String[] command = new String[4 + args.length];
+		command[0] = javaExec;
+		command[1] = "-cp";
+		command[2] = jarPath;
+		command[3] = "app.StarRodMain";
+		System.arraycopy(args, 0, command, 4, args.length);
 
+		ProcessBuilder processBuilder = new ProcessBuilder(command);
 		processBuilder.inheritIO();
 		Process process = processBuilder.start();
 		process.waitFor();
