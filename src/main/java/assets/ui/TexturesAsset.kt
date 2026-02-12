@@ -1,6 +1,7 @@
 package assets.ui
 
 import assets.Asset
+import assets.AssetsDir
 import assets.AssetSubdir
 import org.apache.commons.io.FileUtils
 import org.apache.commons.io.FilenameUtils
@@ -14,27 +15,25 @@ import java.nio.file.Files
 import java.nio.file.Path
 import javax.imageio.ImageIO
 
-class TexturesAsset(root: Path, relativePath: Path) : Asset(root, relativePath) {
-	private val textures = mutableListOf<BufferedImage>()
-
-	/** Convenience constructor for Java interop. */
-	constructor(asset: Asset) : this(asset.root, asset.relativePath)
-
-	init {
-		val dirName = "${FilenameUtils.getBaseName(name)}/"
-		val dir = File(root.toFile(), "${AssetSubdir.MAP_TEX}$dirName")
-
+/**
+ * Textures are directories shaped like this:
+ *     name.tex/
+ *         textures.json
+ *         some_texture.png
+ *         another_texture.png
+ */
+class TexturesAsset(assetsDir: AssetsDir, relativePath: Path) : Asset(assetsDir, relativePath) {
+	fun loadTextures(): List<BufferedImage> {
+		val textures = mutableListOf<BufferedImage>()
 		try {
 			val images = mutableListOf<File>()
 
-			Files.newDirectoryStream(dir.toPath(), "*.png").use { stream ->
+			Files.newDirectoryStream(path, "*.png").use { stream ->
 				for (file in stream) {
 					if (Files.isRegularFile(file))
 						images.add(file.toFile())
 				}
 			}
-
-			images.shuffle()
 
 			for (image in images) {
 				val img = readImage(image)
@@ -42,55 +41,18 @@ class TexturesAsset(root: Path, relativePath: Path) : Asset(root, relativePath) 
 					textures.add(img)
 			}
 		} catch (e: IOException) {
-			Logger.logError("IOException while gathering previews from $dirName")
+			Logger.logError("IOException loading textures from $relativePath: ${e.message}")
 		}
+		return textures
 	}
 
-	fun getPreview(index: Int): BufferedImage? =
-		if (index < textures.size) textures[index] else null
-
-	private fun getCompanionDir(): File? {
-		val dirName = "${FilenameUtils.getBaseName(name)}/"
-		val dir = File(root.toFile(), "${AssetSubdir.MAP_TEX}$dirName")
-		return if (dir.isDirectory) dir else null
-	}
-
-	override fun delete(): Boolean {
-		val dir = getCompanionDir()
-		if (dir != null)
-			FileUtils.deleteQuietly(dir)
-		return super.delete()
-	}
-
-	override fun rename(name: String): Boolean {
-		val dir = getCompanionDir()
-		if (dir != null) {
-			try {
-				val newDirName = FilenameUtils.getBaseName(name)
-				val newDir = File(dir.parentFile, newDirName)
-				Files.move(dir.toPath(), newDir.toPath())
-			} catch (e: IOException) {
-				return false
-			}
-		}
-		return super.rename(name)
-	}
-
-	override fun move(targetDir: File): Boolean {
-		val dir = getCompanionDir()
-		if (dir != null) {
-			try {
-				FileUtils.moveDirectory(dir, File(targetDir, dir.name))
-			} catch (e: IOException) {
-				return false
-			}
-		}
-		return super.move(targetDir)
-	}
+	@Deprecated("use explorer")
+	fun getPreview(index: Int): BufferedImage? = null
 
 	override fun thumbnailHasCheckerboard(): Boolean = false
 
 	override fun loadThumbnail(): Image? {
+		val textures = loadTextures()
 		if (textures.isEmpty())
 			return null
 

@@ -6,9 +6,6 @@ import java.awt.event.MouseEvent;
 import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 
 import javax.swing.BorderFactory;
 import javax.swing.DefaultListModel;
@@ -28,7 +25,6 @@ import org.apache.commons.io.FilenameUtils;
 
 import app.Environment;
 import app.SwingUtils;
-import assets.Asset;
 import assets.AssetManager;
 import net.miginfocom.swing.MigLayout;
 import util.Logger;
@@ -70,23 +66,13 @@ public class SelectTexDialog extends JDialog
 	private DialogResult result = DialogResult.NONE;
 	private TexturesAsset selectedObject;
 
-	private SelectTexDialog(Collection<Asset> assets, String initialSelection)
+	private SelectTexDialog(Collection<TexturesAsset> assets, String initialSelection)
 	{
 		super(null, java.awt.Dialog.ModalityType.TOOLKIT_MODAL);
 		setDefaultCloseOperation(DISPOSE_ON_CLOSE);
 
-		// load texture archive previews in parallel
-		List<CompletableFuture<TexturesAsset>> futures = assets.stream()
-			.map(ah -> CompletableFuture.supplyAsync(() -> new TexturesAsset(ah), Environment.getExecutor()))
-			.collect(Collectors.toList());
-
-		// wait for all tasks to complete and collect results
-		List<TexturesAsset> textureAssets = futures.stream()
-			.map(CompletableFuture::join)
-			.collect(Collectors.toList());
-
 		DefaultListModel<TexturesAsset> listModel = new DefaultListModel<>();
-		textureAssets.forEach(listModel::addElement);
+		assets.forEach(listModel::addElement);
 
 		JList<TexturesAsset> list = new JList<>();
 		list.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));

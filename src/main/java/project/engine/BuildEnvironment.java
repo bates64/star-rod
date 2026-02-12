@@ -72,42 +72,43 @@ public interface BuildEnvironment
 	String getName();
 
 	/**
-	 * Runs configure (./configure).
-	 * @param projectDir The project directory to build in
+	 * Returns the engine directory this build environment operates on.
+	 */
+	File getEngineDir();
+
+	/**
+	 * Runs configure (./configure) in the engine directory.
 	 * @param listener Callback for real-time build output
 	 * @return The result of the configure operation
 	 * @throws BuildException If the build environment is not properly set up
 	 * @throws IOException If an I/O error occurs
 	 */
-	BuildResult configure(File projectDir, BuildOutputListener listener) throws BuildException, IOException;
+	BuildResult configure(BuildOutputListener listener) throws BuildException, IOException;
 
 	/**
-	 * Builds the project (ninja).
-	 * @param projectDir The project directory to build in
+	 * Builds the engine (ninja) in the engine directory.
 	 * @param listener Callback for real-time build output
 	 * @return The result of the build operation
 	 * @throws BuildException If the build environment is not properly set up
 	 * @throws IOException If an I/O error occurs
 	 */
-	BuildResult build(File projectDir, BuildOutputListener listener) throws BuildException, IOException;
+	BuildResult build(BuildOutputListener listener) throws BuildException, IOException;
 
 	/**
-	 * Cleans the build directory (./configure --clean).
-	 * @param projectDir The project directory to clean
+	 * Cleans the build directory (./configure --clean) in the engine directory.
 	 * @param listener Callback for real-time build output
 	 * @return The result of the clean operation
 	 * @throws BuildException If the build environment is not properly set up
 	 * @throws IOException If an I/O error occurs
 	 */
-	BuildResult clean(File projectDir, BuildOutputListener listener) throws BuildException, IOException;
+	BuildResult clean(BuildOutputListener listener) throws BuildException, IOException;
 
 	/**
-	 * Builds the project asynchronously.
-	 * @param projectDir The project directory to build in
+	 * Builds the engine asynchronously.
 	 * @param listener Callback for real-time build output
 	 * @return A CompletableFuture that completes with the build result
 	 */
-	CompletableFuture<BuildResult> buildAsync(File projectDir, BuildOutputListener listener);
+	CompletableFuture<BuildResult> buildAsync(BuildOutputListener listener);
 
 	/**
 	 * Cancels any running build operation.

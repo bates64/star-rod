@@ -62,7 +62,7 @@ public class SelectMapDialog extends JDialog
 
 			switch (chooser.result) {
 				case DUPLICATE:
-					newMapFile = promptCopyMap(selectedFile.getFile());
+					newMapFile = promptCopyMap(selectedFile.getXmlFile());
 					if (newMapFile == null) {
 						chooser.result = SelectMapResult.CANCEL;
 					}
@@ -74,7 +74,7 @@ public class SelectMapDialog extends JDialog
 					}
 					return newMapFile;
 				case OPEN:
-					return selectedFile.getFile();
+					return selectedFile.getXmlFile();
 				case CANCEL:
 					break;
 			}
@@ -204,14 +204,14 @@ public class SelectMapDialog extends JDialog
 
 	private SelectMapResult result = SelectMapResult.CANCEL;
 
-	private SelectMapDialog(Collection<Asset> assets)
+	private SelectMapDialog(Collection<MapAsset> assets)
 	{
 		super(null, java.awt.Dialog.ModalityType.TOOLKIT_MODAL);
 		setDefaultCloseOperation(DISPOSE_ON_CLOSE);
 
 		DefaultListModel<MapAsset> listModel = new DefaultListModel<>();
-		for (Asset ah : assets) {
-			listModel.addElement(new MapAsset(ah));
+		for (MapAsset mapAsset : assets) {
+			listModel.addElement(mapAsset);
 		}
 
 		list = new JList<>();

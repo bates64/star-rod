@@ -21,7 +21,7 @@ public enum ExpectedAsset
 	ICON_X				(AssetSubdir.ICON, "battle/XBandage.png", true),
 	CIRCLE_SHADOW		(AssetSubdir.ENTITY, "shadow/circle.png", false),
 	SQUARE_SHADOW		(AssetSubdir.ENTITY, "shadow/square.png", false),
-	KMR_BG				(AssetSubdir.MAP_BG, "kmr_bg.png", true),
+	KMR_BG				(AssetSubdir.MAPFS, "backgrounds/kmr.bg.png", true),
 	WORLD_MAP_BG		(AssetSubdir.PAUSE, "world_map.png", true),
 	CRASH_GUY			(AssetSubdir.NPC_SPRITE, "ShyGuy/rasters/Raster1A.png", true);
 	// @formatter:on

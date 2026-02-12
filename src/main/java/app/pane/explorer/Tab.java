@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import javax.swing.Icon;
+import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
@@ -51,9 +52,12 @@ public class Tab extends DockTab
 
 	private JPanel topBar;
 	private JPanel breadcrumbsPanel;
+	private JButton filterButton;
 	private SearchField searchField;
 	private JPanel resultsPanel;
 	private JScrollPane scrollPane;
+
+	private boolean showOnlyOwned = false;
 
 	private WatchService watchService;
 	private Thread watchThread;
@@ -67,10 +71,21 @@ public class Tab extends DockTab
 		// topBar (36) + border top (7) + 2 rows (160) + 1 vgap (1) + border bottom (12) = 216
 		setPreferredSize(new Dimension(400, 216));
 
-		topBar = new JPanel(new MigLayout("h 36!, ins 5, fill, gap 8", "[grow][]", "[fill]"));
+		topBar = new JPanel(new MigLayout("h 36!, ins 5, fill, gap 8", "[grow][][]", "[fill]"));
 
 		breadcrumbsPanel = new JPanel(new MigLayout("ins 5 14 0 14, gap 0", "", "[center]"));
 		topBar.add(breadcrumbsPanel);
+
+		filterButton = new JButton(ThemedIcon.EYE);
+		filterButton.setFocusable(false);
+		filterButton.putClientProperty("JButton.buttonType", "borderless");
+		filterButton.addActionListener(e -> {
+			showOnlyOwned = !showOnlyOwned;
+			updateFilterButton();
+			refresh();
+		});
+		updateFilterButton();
+		topBar.add(filterButton, "w 26!");
 
 		searchField = new SearchField();
 		topBar.add(searchField, "w 200!");
@@ -148,8 +163,7 @@ public class Tab extends DockTab
 	{
 		breadcrumbsPanel.removeAll();
 
-		String projectId = Environment.getProject().getManifest().getId();
-		breadcrumbsPanel.add(createBreadcrumbLabel(projectId, ""), "aligny baseline");
+		breadcrumbsPanel.add(createBreadcrumbLabel("assets", ""), "aligny baseline");
 
 		if (!currentPath.isEmpty()) {
 			String[] parts = currentPath.split("/");
@@ -253,7 +267,18 @@ public class Tab extends DockTab
 
 	// --- Results ---
 
-	private void refresh()
+	private void updateFilterButton()
+	{
+		if (showOnlyOwned) {
+            filterButton.setIcon(ThemedIcon.EYE_OFF);
+			filterButton.setToolTipText("Show assets from dependencies");
+		} else {
+			filterButton.setIcon(ThemedIcon.EYE);
+			filterButton.setToolTipText("Hide assets from dependencies");
+		}
+	}
+
+	void refresh()
 	{
 		resultsPanel.removeAll();
 
@@ -262,8 +287,13 @@ public class Tab extends DockTab
 		for (String subdirName : listing.subdirectories())
 			resultsPanel.add(new DirectoryItem(this, subdirName, currentPath + subdirName + "/"));
 
-		for (Asset asset : listing.files())
+		for (Asset asset : listing.files()) {
+			// Filter based on ownership if toggle is enabled
+			if (showOnlyOwned && !asset.isOwned())
+				continue;
+
 			resultsPanel.add(new AssetItem(this, asset));
+		}
 
 		resultsPanel.revalidate();
 		resultsPanel.repaint();

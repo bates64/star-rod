@@ -1,6 +1,9 @@
 package assets
 
+import app.Environment
 import org.apache.commons.io.FileUtils
+import project.build.BuildCtx
+import project.build.BuildResult
 import java.awt.Image
 import java.awt.RenderingHints
 import java.awt.datatransfer.DataFlavor
@@ -10,9 +13,12 @@ import java.io.File
 import java.nio.file.Path
 import kotlin.io.path.*
 
-/** An asset on disk, but not yet loaded because it may be expensive to load. */
+/**
+ * An asset on disk, but not yet loaded because it may be expensive to load.
+ * Has Copy-on-Write semantics: if an unowned asset is modified, it is copied to the project so it can be owned.
+ */
 open class Asset internal constructor(
-	val root: Path,
+	var assetsDir: AssetsDir,
 	var relativePath: Path,
 ) {
 	init {
@@ -21,9 +27,13 @@ open class Asset internal constructor(
 		}
 	}
 
-	internal constructor(root: Path, relativePath: String) : this(root, Path(relativePath))
-	internal constructor(root: File, relativePath: String) : this(root.toPath(), relativePath)
-	internal constructor(other: Asset) : this(other.root, other.relativePath)
+	/** Root directory containing this asset. */
+	val root: Path
+		get() = assetsDir.path
+
+	/** Whether this asset is owned by the project. */
+	val isOwned: Boolean
+		get() = assetsDir.isOwned
 
 	/** Full path on disk. May be a directory. */
 	var path: Path
@@ -33,8 +43,8 @@ open class Asset internal constructor(
 			relativePath = root.relativize(value)
 		}
 
-	val name: String get() = relativePath.nameWithoutExtension
-	val extension: String get() = relativePath.extension
+	val name: String get() = relativePath.nameWithoutAssetExtension
+	val extension: String get() = relativePath.assetExtension
 	val isDirectory: Boolean get() = path.isDirectory()
 
 	private var cachedThumbnail: Image? = null
@@ -44,17 +54,48 @@ open class Asset internal constructor(
 
 	fun exists(): Boolean = path.exists()
 
-	fun lastModified(): Long = path.getLastModifiedTime().toMillis()
-
 	open fun getAssetDescription(): String? = null
 
-	/** Deletes this asset from disk. */
-	open fun delete(): Boolean = FileUtils.deleteQuietly(path.toFile())
+	/**
+	 * Copies this asset to the project directory if it's not already owned.
+	 * Updates this asset in-place to point to the project directory.
+	 */
+	private fun ensureOwned() {
+		if (isOwned) return
 
-	/** Renames this asset within its current directory. */
+		// Get the project's owned assets directory
+		val project = Environment.getProject()
+		val projectAssetsDir = project.ownedAssetsDir
+		val projectPath = projectAssetsDir.path / relativePath
+
+		// Copy the file/directory to the project if it doesn't already exist
+		if (!projectPath.exists()) {
+			if (isDirectory) {
+				FileUtils.copyDirectory(path.toFile(), projectPath.toFile())
+			} else {
+				projectPath.parent?.createDirectories()
+				path.copyTo(projectPath, overwrite = false)
+			}
+		}
+
+		// Update this asset to point to the project directory
+		assetsDir = projectAssetsDir
+	}
+
+	/** Deletes this asset from disk. Only works for owned assets. */
+	open fun delete(): Boolean {
+		if (!isOwned) {
+			return false
+		}
+		return FileUtils.deleteQuietly(path.toFile())
+	}
+
+	/** Renames this asset within its current directory. CoW: copies to project first if needed. */
 	open fun rename(name: String): Boolean {
+		ensureOwned()
+
 		// Preserve file extension
-		val newPath = path.parent?.resolve(name + extension) ?: return false
+		val newPath = path.parent?.resolve("$name.$extension") ?: return false
 		if (newPath.exists())
 			return false
 
@@ -65,8 +106,10 @@ open class Asset internal constructor(
 	}
 
 	// TODO: take a Path
-	/** Moves this asset to a different directory. */
+	/** Moves this asset to a different directory. CoW: copies to project first if needed. */
 	open fun move(targetDir: File): Boolean {
+		ensureOwned()
+
 		val targetPath = targetDir.toPath().resolve(path.name)
 		if (targetPath.exists())
 			return false
@@ -76,6 +119,17 @@ open class Asset internal constructor(
 			true
 		}.getOrDefault(false)
 	}
+
+	/**
+	 * Generate a header file for this asset if needed.
+	 * Called before build() for all assets.
+	 * @param headerPath Path where the header should be written
+	 * @return true if a header was generated, false if this asset doesn't need a header
+	 */
+	open suspend fun writeHeader(headerPath: Path): Boolean = false
+
+	/** Build this asset. Override in subclasses that require compilation. */
+	open suspend fun build(ctx: BuildCtx): BuildResult = BuildResult.NoOp
 
 	/** Whether to paint a checkerboard behind the thumbnail for transparency. */
 	open fun thumbnailHasCheckerboard(): Boolean = true

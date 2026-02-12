@@ -56,7 +56,6 @@ abstract class Item extends JPanel
 	boolean dropTarget;
 	private JTextField renameField;
 
-	private static final JPopupMenu contextMenu = buildContextMenu();
 	private static Item popupItem;
 
 	Item(Tab explorer, String name, Icon defaultIcon, boolean checkerboard)
@@ -141,14 +140,17 @@ abstract class Item extends JPanel
 
 		explorer.select(this);
 		popupItem = this;
-		contextMenu.show(this, e.getX(), e.getY());
+
+		JPopupMenu menu = buildContextMenu(asset);
+		menu.show(this, e.getX(), e.getY());
 	}
 
-	private static JPopupMenu buildContextMenu()
+	private static JPopupMenu buildContextMenu(Asset asset)
 	{
 		var menu = new JPopupMenu();
+		boolean owned = asset.isOwned();
 
-		var renameItem = new JMenuItem("Rename");
+		var renameItem = new JMenuItem(owned ? "Rename..." : "Create copy...");
 		renameItem.addActionListener(e -> {
 			if (popupItem != null)
 				popupItem.onRename();
@@ -156,6 +158,10 @@ abstract class Item extends JPanel
 		menu.add(renameItem);
 
 		var deleteItem = new JMenuItem("Delete");
+		deleteItem.setEnabled(owned);
+		if (!owned) {
+			deleteItem.setToolTipText("This asset is not owned by your project");
+		}
 		deleteItem.addActionListener(e -> {
 			if (popupItem != null)
 				popupItem.onDelete();
@@ -236,6 +242,8 @@ abstract class Item extends JPanel
 					.setTitle("Rename Failed")
 					.setMessage("Could not rename " + currentName + " to " + newName + ".")
 					.show();
+			} else {
+				explorer.refresh();
 			}
 		};
 
@@ -269,21 +277,13 @@ abstract class Item extends JPanel
 		if (asset == null)
 			return;
 
-		String assetName = asset.getName();
-		int result = SwingUtils.getConfirmDialog()
-			.setTitle("Delete")
-			.setMessage("Delete " + assetName + "?")
-			.setOptionsType(JOptionPane.YES_NO_OPTION)
-			.choose();
-
-		if (result != JOptionPane.YES_OPTION)
-			return;
-
 		if (!asset.delete()) {
 			SwingUtils.getErrorDialog()
 				.setTitle("Delete Failed")
-				.setMessage("Could not delete " + assetName + ".")
+				.setMessage("Could not delete " + asset.getName() + ".")
 				.show();
+		} else {
+			explorer.refresh();
 		}
 	}
 

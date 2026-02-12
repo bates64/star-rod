@@ -137,14 +137,14 @@ public abstract class TextureManager
 		TextureArchive ta;
 
 		try {
-			Asset ah = AssetManager.getTextureArchive(texArchiveName);
-			if (!ah.exists())
+			var ah = AssetManager.getTextureArchive(texArchiveName);
+			if (ah == null || !ah.exists())
 				return false;
 			if (FilenameUtils.getExtension(ah.getName()).equals(Directories.EXT_OLD_TEX)) {
 				ta = TextureArchive.loadLegacy(ah.getFile());
 			}
 			else {
-				ta = TextureArchive.load(ah.getFile());
+				ta = TextureArchive.load(ah);
 			}
 		}
 		catch (IOException e) {

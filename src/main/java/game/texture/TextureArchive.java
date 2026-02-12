@@ -7,6 +7,8 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
+import assets.Asset;
+import assets.ui.TexturesAsset;
 import org.apache.commons.io.FilenameUtils;
 
 import com.google.gson.Gson;
@@ -45,17 +47,17 @@ public class TextureArchive
 		boolean variant;
 	}
 
-	public static TextureArchive load(File texFile) throws IOException
+	public static TextureArchive load(TexturesAsset asset) throws IOException
 	{
-		String texName = FilenameUtils.getBaseName(texFile.getName());
+		String texName = asset.getName();
 		TextureArchive ta = new TextureArchive(texName);
 
 		Gson gson = new Gson();
-		JsonReader jsonReader = new JsonReader(new FileReader(texFile));
+		JsonReader jsonReader = new JsonReader(new FileReader(asset.getPath().resolve("textures.json").toFile()));
 		JsonTexture[] jsonTextures = gson.fromJson(jsonReader, JsonTexture[].class);
 
 		for (JsonTexture tex : jsonTextures) {
-			ta.textureList.add(Texture.parseTexture(texFile, tex));
+			ta.textureList.add(Texture.parseTexture(asset.getFile(), tex));
 		}
 
 		return ta;

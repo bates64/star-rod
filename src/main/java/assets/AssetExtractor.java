@@ -2,23 +2,17 @@ package assets;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.HashMap;
 
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.FilenameUtils;
 
-import app.Directories;
 import app.Environment;
-import app.LoadingBar;
-import app.Resource;
-import app.Resource.ResourceType;
 import app.StarRodMain;
-import app.input.IOUtils;
 import game.map.Map;
 import game.map.compiler.CollisionDecompiler;
 import game.map.compiler.GeometryDecompiler;
 import game.map.marker.Marker;
 import util.Logger;
+import util.Priority;
 
 public class AssetExtractor
 {
@@ -34,8 +28,8 @@ public class AssetExtractor
 		private final String name;
 		private String desc;
 
-		private String shapeName;
-		private String hitName;
+		private String shapePath;
+		private String hitPath;
 		private String texName;
 		private String bgName;
 
@@ -46,62 +40,127 @@ public class AssetExtractor
 		private boolean hasHitOverride;
 		private boolean hasTexOverride;
 
-		public MapTemplate(String[] mapDef)
+		private String shapeOverrideName;
+		private String hitOverrideName;
+
+		/**
+		 * Creates a MapTemplate from CSV definition.
+		 * @param mapfsRoot The mapfs root directory
+		 * @param mapDef CSV tokens: [mapName, shapePath, hitPath, texPath, bgPath, desc]
+		 * @param isStage true if this is a stage, false if map
+		 */
+		public MapTemplate(File mapfsRoot, String[] mapDef, boolean isStage)
 		{
 			this.name = mapDef[0];
+			this.shapePath = mapDef[1];
+			this.hitPath = mapDef[2];
+			String texPath = mapDef[3];
+			String bgPath = mapDef[4];
+			this.desc = mapDef[5];
+
 			String areaName = name.substring(0, 3);
+			String extension = isStage ? ".stage" : ".map";
 
-			shapeName = mapDef[1];
-			hasShapeOverride = !shapeName.equals(name + "_shape");
+			// Resolve shape file and detect override
+			String expectedShapePath = "areas/" + areaName + "/" + name + extension + "/shape.bin";
+			hasShapeOverride = !shapePath.equals(expectedShapePath);
+			shapeFile = new File(mapfsRoot, shapePath);
 
-			hitName = mapDef[2];
-			hasHitOverride = !hitName.equals(name + "_hit");
+			if (hasShapeOverride) {
+				// Extract override name from path: "areas/tik/tik_18.stage/shape.bin" -> "tik_18"
+				String[] parts = shapePath.split("/");
+				if (parts.length >= 3) {
+					String dirName = parts[2]; // "tik_18.stage" or "tik_18.map"
+					shapeOverrideName = dirName.replaceAll("\\.(map|stage)$", "");
+				}
+			}
 
-			texName = mapDef[3];
-			if (texName.equalsIgnoreCase("none"))
+			// Resolve hit file and detect override
+			String expectedHitPath = "areas/" + areaName + "/" + name + extension + "/hit.bin";
+			hasHitOverride = !hitPath.equals(expectedHitPath);
+			hitFile = new File(mapfsRoot, hitPath);
+
+			if (hasHitOverride) {
+				String[] parts = hitPath.split("/");
+				if (parts.length >= 3) {
+					String dirName = parts[2];
+					hitOverrideName = dirName.replaceAll("\\.(map|stage)$", "");
+				}
+			}
+
+			// Resolve texture name
+			if (texPath.equals("none")) {
 				texName = "";
-			hasTexOverride = !texName.equals(areaName + "_tex");
+				hasTexOverride = false;
+			}
+			else {
+				// Extract texture name from path: "areas/kmr/kmr.tex" -> "kmr"
+				String[] parts = texPath.split("/");
+				if (parts.length >= 2) {
+					String texDirName = parts[2]; // "kmr.tex"
+					texName = texDirName.replace(".tex", "");
+				}
+				else {
+					texName = "";
+				}
 
-			bgName = mapDef[4];
-			if (bgName.equalsIgnoreCase("none"))
+				String expectedTexName = areaName;
+				hasTexOverride = !texName.equals(expectedTexName);
+			}
+
+			// Resolve background name
+			if (bgPath.equals("none")) {
 				bgName = "";
+			}
+			else {
+				// Extract bg name from path: "backgrounds/kmr.bg.png" -> "kmr"
+				String[] parts = bgPath.split("/");
+				if (parts.length >= 2) {
+					String bgFileName = parts[1]; // "kmr.bg.png"
+					bgName = bgFileName.replace(".bg.png", "");
+				}
+				else {
+					bgName = "";
+				}
+			}
+		}
 
-			desc = mapDef[5];
+		/**
+		 * Returns the directory path for this map (e.g., "areas/kmr/kmr_00.map").
+		 */
+		public String getMapDirPath()
+		{
+			// Extract from shapePath: "areas/kmr/kmr_00.map/shape.bin" -> "areas/kmr/kmr_00.map"
+			int lastSlash = shapePath.lastIndexOf('/');
+			if (lastSlash != -1) {
+				return shapePath.substring(0, lastSlash);
+			}
+			return "";
 		}
 	}
 
 	public static void extractAll() throws IOException
 	{
 		// only extract in base asset dir
-		int numDirs = Environment.assetDirectories.size();
-		File assetDir = Environment.assetDirectories.get(numDirs - 1);
+		File assetDir = AssetManager.getBaseAssetDir();
 
 		File sentinel = new File(assetDir, ".star_rod_extracted");
 		if (!sentinel.exists()) {
-			LoadingBar.show("Extracting Assets");
-			Logger.log("Extracting assets in " + assetDir.getName());
+			Logger.log("Processing engine assets...", Priority.MILESTONE);
 
-			HashMap<String, File> assetFiles = new HashMap<>();
-
-			// find all relevant asset files
-			File subdir = AssetSubdir.MAP_GEOM.get(assetDir);
-			for (File assetFile : IOUtils.getFilesWithExtension(subdir, ".bin", true)) {
-				String name = FilenameUtils.getBaseName(assetFile.getName());
-				assetFiles.put(name, assetFile);
-			}
+			File mapfsDir = AssetSubdir.MAPFS.get(assetDir);
 
 			// extract maps
-			for (String mapInfo : Resource.getText(ResourceType.Extract, "maps.csv")) {
+			for (String mapInfo : app.Resource.getText(app.Resource.ResourceType.Extract, "maps.csv")) {
 				String[] tokens = mapInfo.trim().split("\\s*,\\s*");
-				MapTemplate template = new MapTemplate(tokens);
-
-				template.shapeFile = assetFiles.get(template.shapeName);
-				template.hitFile = assetFiles.get(template.hitName);
+				MapTemplate template = new MapTemplate(mapfsDir, tokens, false);
 
 				Logger.log("Generating map source: " + template.name);
 				Map map = generateMap(template);
 				try {
-					map.saveMapWithoutHeader(new File(subdir, map.getName() + Directories.EXT_MAP));
+					File outputDir = new File(mapfsDir, template.getMapDirPath());
+					File outputFile = new File(outputDir, "map.xml");
+					map.saveMapWithoutHeader(outputFile);
 				}
 				catch (Exception e) {
 					StarRodMain.displayStackTrace(e);
@@ -109,12 +168,9 @@ public class AssetExtractor
 			}
 
 			// extract stages
-			for (String stageInfo : Resource.getText(ResourceType.Extract, "stages.csv")) {
+			for (String stageInfo : app.Resource.getText(app.Resource.ResourceType.Extract, "stages.csv")) {
 				String[] tokens = stageInfo.trim().split("\\s*,\\s*");
-				MapTemplate template = new MapTemplate(tokens);
-
-				template.shapeFile = assetFiles.get(template.shapeName);
-				template.hitFile = assetFiles.get(template.hitName);
+				MapTemplate template = new MapTemplate(mapfsDir, tokens, true);
 
 				Logger.log("Generating stage source: " + template.name);
 				Map map = generateMap(template);
@@ -124,7 +180,9 @@ public class AssetExtractor
 				}
 
 				try {
-					map.saveMapWithoutHeader(new File(subdir, map.getName() + Directories.EXT_MAP));
+					File outputDir = new File(mapfsDir, template.getMapDirPath());
+					File outputFile = new File(outputDir, "map.xml");
+					map.saveMapWithoutHeader(outputFile);
 				}
 				catch (Exception e) {
 					StarRodMain.displayStackTrace(e);
@@ -145,24 +203,22 @@ public class AssetExtractor
 
 		map.desc = cfg.desc;
 
+		// Set shape override if needed
 		if (cfg.hasShapeOverride) {
 			map.scripts.overrideShape.set(true);
-			String override = cfg.shapeName;
-			if (override.endsWith("_shape"))
-				override = override.substring(0, override.length() - "_shape".length());
-			map.scripts.shapeOverrideName.set(override);
+			map.scripts.shapeOverrideName.set(cfg.shapeOverrideName);
 		}
 
+		// Set hit override if needed
 		if (cfg.hasHitOverride) {
 			map.scripts.overrideHit.set(true);
-			String override = cfg.shapeName;
-			if (override.endsWith("_hit"))
-				override = override.substring(0, override.length() - "_hit".length());
-			map.scripts.hitOverrideName.set(override);
+			map.scripts.hitOverrideName.set(cfg.hitOverrideName);
 		}
 
+		// Set texture override if needed
 		map.scripts.overrideTex.set(cfg.hasTexOverride);
 
+		// Decompile geometry and collision
 		if (cfg.shapeFile != null && cfg.shapeFile.exists()) {
 			new GeometryDecompiler(map, cfg.shapeFile);
 		}

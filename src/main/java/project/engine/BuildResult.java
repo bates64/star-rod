@@ -71,6 +71,16 @@ public class BuildResult
 		return Optional.ofNullable(outputRom);
 	}
 
+	public Optional<File> getOutputSyms()
+	{
+		if (outputRom == null)
+			return Optional.empty();
+
+		// syms.ld is in the same directory as the ROM
+		File syms = new File(outputRom.getParentFile(), "syms.ld");
+		return syms.exists() ? Optional.of(syms) : Optional.empty();
+	}
+
 	public Optional<String> getErrorMessage()
 	{
 		return Optional.ofNullable(errorMessage);

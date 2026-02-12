@@ -88,6 +88,7 @@ dependencies {
     implementation("commons-io:commons-io:2.16.1")
     implementation("org.apache.commons:commons-text:1.12.0")
     implementation("org.apache.commons:commons-lang3:3.14.0")
+    implementation("org.apache.commons:commons-compress:1.26.0")
 
     implementation("com.miglayout:miglayout-core:11.3")
     implementation("com.miglayout:miglayout-swing:11.3")

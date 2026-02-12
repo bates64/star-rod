@@ -9,6 +9,7 @@ import com.formdev.flatlaf.extras.FlatSVGIcon;
 
 import app.Resource;
 import app.Resource.ResourceType;
+import org.jetbrains.annotations.NotNull;
 import util.Logger;
 
 public abstract class ThemedIcon
@@ -24,6 +25,14 @@ public abstract class ThemedIcon
 			Logger.logError(e.getMessage());
 			return null;
 		}
+	}
+
+	@NotNull
+	private static FlatSVGIcon getIcon15(String name)
+	{
+		FlatSVGIcon icon = getIcon(name).derive(15, 15);
+		assert icon != null;
+		return icon;
 	}
 
 	public static final FlatSVGIcon VISIBILITY_OFF_24 = getIcon("visibility_off_24");
@@ -84,7 +93,9 @@ public abstract class ThemedIcon
 	public static final FlatSVGIcon PACKAGE_24 = getIcon("package");
 	public static final FlatSVGIcon PACKAGE_16 = PACKAGE_24.derive(16, 16);
 
-	public static final FlatSVGIcon GIT_BRANCH = getIcon("git_branch");
-
-	public static final FlatSVGIcon SEARCH = getIcon("search");
+	/* Add new icons here, no need to use _24/_16 suffixes */
+	public static final FlatSVGIcon GIT_BRANCH = getIcon15("git_branch");
+	public static final FlatSVGIcon SEARCH = getIcon15("search");
+	public static final FlatSVGIcon EYE = getIcon15("eye");
+	public static final FlatSVGIcon EYE_OFF = getIcon15("eye_off");
 }

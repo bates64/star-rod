@@ -55,6 +55,7 @@ import app.SwingUtils;
 import app.SwingUtils.OpenDialogCounter;
 import assets.Asset;
 import assets.AssetManager;
+import assets.ui.MapAsset;
 import assets.ui.SelectBackgroundDialog;
 import assets.ui.SelectMapDialog;
 import assets.ui.SelectTexDialog;
@@ -1303,10 +1304,10 @@ public final class SwingGUI extends StarRodFrame implements ActionListener, Logg
 	private void prompt_OpenMap(String mapName)
 	{
 		if (!editor.map.modified || promptForSave()) {
-			Asset ah = AssetManager.getMap(mapName);
+			MapAsset ah = AssetManager.getMap(mapName);
 			if (ah.exists()) {
 				editor.doNextFrame(() -> {
-					editor.action_OpenMap(ah.getFile());
+					editor.action_OpenMap(ah.getXmlFile());
 				});
 			}
 		}

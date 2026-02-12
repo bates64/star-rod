@@ -53,11 +53,11 @@ public enum Directories
 	// Directories relative to the current project's engine (papermario-dx)
 
 	ENGINE_SRC			(Root.ENGINE,					"/src/"),
-	ENGINE_SRC_WORLD		(Root.ENGINE, ENGINE_SRC,			"/world/"),
-	ENGINE_SRC_STAGE		(Root.ENGINE, ENGINE_SRC,			"/battle/common/stage/"),
+	ENGINE_SRC_WORLD	(Root.ENGINE, ENGINE_SRC,			"/world/"),
+	ENGINE_SRC_STAGE	(Root.ENGINE, ENGINE_SRC,			"/battle/common/stage/"),
 	ENGINE_INCLUDE		(Root.ENGINE,			 		"/include/"),
-	ENGINE_INCLUDE_MAPFS	(Root.ENGINE, ENGINE_INCLUDE,		"/mapfs/"),
-	ENGINE_ASSETS_US	(Root.ENGINE, 					"/assets/us/");
+	ENGINE_INCLUDE_MAPFS(Root.ENGINE, ENGINE_INCLUDE,		"/mapfs/"),
+	US_MAPFS			(Root.ENGINE, 					"/assets/us/mapfs/");
 
 	// @formatter:on
 	//=======================================================================================

@@ -17,6 +17,9 @@ import java.util.TreeSet;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import assets.ui.BackgroundAsset;
+import assets.ui.MapAsset;
+import assets.ui.TexturesAsset;
 import org.apache.commons.io.FileUtils;
 
 import app.Environment;
@@ -27,34 +30,33 @@ public class AssetManager
 {
 	public static File getTopLevelAssetDir()
 	{
-		return Environment.assetDirectories.get(0);
+		return Environment.getProject().getOwnedAssetsDir().getPath().toFile();
 	}
 
 	public static File getBaseAssetDir()
 	{
-		int numDirs = Environment.assetDirectories.size();
-		return Environment.assetDirectories.get(numDirs - 1);
+		return Environment.getProject().getEngineAssetsDir().getPath().toFile();
 	}
 
 	public static Asset get(AssetSubdir subdir, String path)
 	{
-		for (File assetDir : Environment.assetDirectories) {
-			Asset ah = AssetRegistry.getInstance().create(assetDir.toPath(), java.nio.file.Path.of(subdir + path));
+		for (AssetsDir assetsDir : Environment.getProject().getAssetDirectories()) {
+			Asset ah = AssetRegistry.getInstance().create(assetsDir, java.nio.file.Path.of(subdir + path));
 
 			if (ah.exists())
 				return ah;
 		}
-		return AssetRegistry.getInstance().create(AssetManager.getTopLevelAssetDir().toPath(), java.nio.file.Path.of(subdir + path));
+		return AssetRegistry.getInstance().create(java.nio.file.Path.of(subdir + path));
 	}
 
 	public static Asset getTopLevel(Asset source)
 	{
-		return AssetRegistry.getInstance().create(getTopLevelAssetDir().toPath(), source.getRelativePath());
+		return AssetRegistry.getInstance().create(source.getRelativePath());
 	}
 
 	public static Asset getBase(AssetSubdir subdir, String path)
 	{
-		return AssetRegistry.getInstance().create(getBaseAssetDir().toPath(), java.nio.file.Path.of(subdir + path));
+		return AssetRegistry.getInstance().create(Environment.getProject().getEngineAssetsDir(), java.nio.file.Path.of(subdir + path));
 	}
 
 	/**
@@ -63,47 +65,53 @@ public class AssetManager
 	 */
 	public static void deleteAll(Asset asset)
 	{
-		for (File assetDir : Environment.assetDirectories) {
-			File f = new File(assetDir, asset.getRelativePath().toString());
+		for (AssetsDir assetsDir : Environment.getProject().getAssetDirectories()) {
+			File f = new File(assetsDir.getPath().toFile(), asset.getRelativePath().toString());
 			if (f.exists())
 				FileUtils.deleteQuietly(f);
 		}
 	}
 
-
-	public static Asset getTextureArchive(String texName)
+	public static TexturesAsset getTextureArchive(String texName)
 	{
-		return get(AssetSubdir.MAP_TEX, texName + EXT_NEW_TEX);
+		Asset asset = get(AssetSubdir.MAPFS, texName);
+		if (!asset.exists()) {
+			texName = texName.replace("_tex", "");
+			asset = get(AssetSubdir.MAPFS,  "areas/" + texName + "/" + texName + ".tex");
+		}
+		return (TexturesAsset) asset;
 	}
 
-	public static File getTexBuildDir()
+	public static MapAsset getMap(String mapName)
 	{
-		return AssetSubdir.MAP_TEX.getModDir();
-	}
-
-	public static Asset getMap(String mapName)
-	{
-		return get(AssetSubdir.MAP_GEOM, mapName + EXT_MAP);
+		Asset asset = get(AssetSubdir.MAPFS, mapName);
+		if (!asset.exists()) {
+			String areaName = asset.getName().substring(0, 3);
+			asset = get(AssetSubdir.MAPFS,  "areas/" + areaName + "/" + mapName + ".map");
+		}
+		return (MapAsset) asset;
 	}
 
 	public static File getSaveMapFile(String mapName)
 	{
-		return new File(getMapBuildDir(), mapName + EXT_MAP);
+		Asset map = getMap(mapName);
+		return map.exists() ? map.getPath().toFile() : null;
 	}
 
 	public static File getMapBuildDir()
 	{
-		return AssetSubdir.MAP_GEOM.getModDir();
+		// Maps are now in areas subdirectories
+		return AssetSubdir.MAPFS.getModDir();
 	}
 
-	public static Asset getBackground(String bgName)
+	public static BackgroundAsset getBackground(String bgName)
 	{
-		return get(AssetSubdir.MAP_BG, bgName + EXT_PNG);
-	}
-
-	public static File getBackgroundBuildDir()
-	{
-		return AssetSubdir.MAP_BG.getModDir();
+		Asset asset = get(AssetSubdir.MAPFS, bgName);
+		if (!asset.exists()) {
+			bgName = bgName.replace("_bg", "");
+			asset = get(AssetSubdir.MAPFS, "backgrounds/" + bgName + ".bg" + EXT_PNG);
+		}
+		return (BackgroundAsset) asset;
 	}
 
 	public static Asset getNpcSprite(String spriteName)
@@ -136,28 +144,31 @@ public class AssetManager
 		return getAssetMap(AssetSubdir.PLR_SPRITE_PAL, EXT_PNG);
 	}
 
-	public static Collection<Asset> getMapSources() throws IOException
+	/**
+	 * Gets all map sources in the new structure (mapfs/areas/**\/*.map/map.xml).
+	 * @return Collection of MapAsset instances
+	 */
+	public static Collection<assets.ui.MapAsset> getMapSources() throws IOException
 	{
-		return getAssets(AssetSubdir.MAP_GEOM, EXT_MAP, (p) -> {
-			// skip crash and backup files
-			String filename = p.getFileName().toString();
-			return !(filename.endsWith(MAP_CRASH_SUFFIX) || filename.endsWith(MAP_BACKUP_SUFFIX));
-		});
+		return AssetRegistry.getInstance().getAll(MapAsset.class);
 	}
 
-	public static Collection<Asset> getBackgrounds() throws IOException
+	/**
+	 * Gets all background images in the new structure (mapfs/backgrounds/*.bg.png).
+	 * @return Collection of background image assets
+	 */
+	public static Collection<BackgroundAsset> getBackgrounds() throws IOException
 	{
-		return getAssets(AssetSubdir.MAP_BG, EXT_PNG);
+		return AssetRegistry.getInstance().getAll(BackgroundAsset.class);
 	}
 
-	public static Collection<Asset> getLegacyTextureArchives() throws IOException
+	/**
+	 * Gets all texture archives in the new structure (mapfs/areas/**\/*.tex/).
+	 * @return Collection of texture directory assets
+	 */
+	public static Collection<TexturesAsset> getTextureArchives() throws IOException
 	{
-		return getAssets(AssetSubdir.MAP_TEX, EXT_OLD_TEX);
-	}
-
-	public static Collection<Asset> getTextureArchives() throws IOException
-	{
-		return getAssets(AssetSubdir.MAP_TEX, EXT_NEW_TEX);
+		return AssetRegistry.getInstance().getAll(TexturesAsset.class);
 	}
 
 	public static Collection<Asset> getMessages() throws IOException
@@ -210,8 +221,9 @@ public class AssetManager
 	{
 		Map<String, Asset> assetMap = new HashMap<>();
 
-		for (File stackDir : Environment.assetDirectories) {
-			Path assetDir = dir.get(stackDir).toPath();
+		for (AssetsDir assetsDir : Environment.getProject().getAssetDirectories()) {
+			Path stackDir = assetsDir.getPath();
+			Path assetDir = dir.get(stackDir.toFile()).toPath();
 
 			if (!subdir.isEmpty())
 				assetDir = assetDir.resolve(subdir);
@@ -229,7 +241,7 @@ public class AssetManager
 						continue;
 
 					String relPath = dir + subdir + filename;
-					Asset ah = AssetRegistry.getInstance().create(stackDir.toPath(), java.nio.file.Path.of(relPath));
+					Asset ah = AssetRegistry.getInstance().create(assetsDir, java.nio.file.Path.of(relPath));
 
 					// only add first occurance down the asset stack traversal
 					assetMap.putIfAbsent(filename, ah);
@@ -251,7 +263,7 @@ public class AssetManager
 	 * Lists all files and subdirectories at a relative path across the asset stack.
 	 * Files are returned as Assets (first occurrence in the stack wins).
 	 * Subdirectories are returned as names (union across all stack levels).
-	 * @param relativePath Relative path from asset root, e.g. "" for root, "mapfs/", "mapfs/geom/"
+	 * @param relativePath Relative path from asset root
 	 */
 	public static DirectoryListing listDirectory(String relativePath)
 	{
@@ -261,8 +273,9 @@ public class AssetManager
 		TreeSet<String> ignoredPaths = new TreeSet<>();
 		ignoredPaths.add(project.engine.Engine.PROJECT_ENGINE_PATH);
 
-		for (File stackDir : Environment.assetDirectories) {
-			Path dir = stackDir.toPath().resolve(relativePath);
+		for (AssetsDir assetsDir : Environment.getProject().getAssetDirectories()) {
+			Path stackDir = assetsDir.getPath();
+			Path dir = stackDir.resolve(relativePath);
 
 			if (!Files.exists(dir) || !Files.isDirectory(dir))
 				continue;
@@ -278,9 +291,19 @@ public class AssetManager
 						continue;
 
 					if (Files.isDirectory(entry)) {
-						subdirSet.add(name);
+						// Check if directory has a registered extension (e.g., "foo.map" directory)
+						Path dirAsPath = java.nio.file.Path.of(relPath);
+						String dirExtension = assets.AssetRegistryKt.getAssetExtension(dirAsPath);
+						if (!dirExtension.isEmpty()) {
+							// Directory has a registered extension, treat it as an asset
+							Asset asset = AssetRegistry.getInstance().create(assetsDir, dirAsPath);
+							fileMap.putIfAbsent(name, asset);
+						} else {
+							// Normal subdirectory
+							subdirSet.add(name);
+						}
 					} else {
-						Asset asset = AssetRegistry.getInstance().create(stackDir.toPath(), java.nio.file.Path.of(relPath));
+						Asset asset = AssetRegistry.getInstance().create(assetsDir, java.nio.file.Path.of(relPath));
 						fileMap.putIfAbsent(name, asset);
 					}
 				}
@@ -305,8 +328,8 @@ public class AssetManager
 	public static List<File> getStackDirsForPath(String relativePath)
 	{
 		List<File> dirs = new ArrayList<>();
-		for (File stackDir : Environment.assetDirectories) {
-			File dir = new File(stackDir, relativePath);
+		for (AssetsDir assetsDir : Environment.getProject().getAssetDirectories()) {
+			File dir = new File(assetsDir.getPath().toFile(), relativePath);
 			if (dir.isDirectory())
 				dirs.add(dir);
 		}
@@ -318,7 +341,8 @@ public class AssetManager
 		// use TreeMap to keep assets sorted
 		TreeMap<String, Asset> assetMap = new TreeMap<>();
 
-		for (File assetDir : Environment.assetDirectories) {
+		for (AssetsDir assetsDir : Environment.getProject().getAssetDirectories()) {
+			File assetDir = assetsDir.getPath().toFile();
 			File iconDir = AssetSubdir.ICON.get(assetDir);
 			if (!iconDir.exists())
 				continue;
@@ -334,7 +358,7 @@ public class AssetManager
 					continue;
 				}
 
-				Asset ah = AssetRegistry.getInstance().create(assetDir.toPath(), java.nio.file.Path.of(AssetSubdir.ICON + relativeString));
+				Asset ah = AssetRegistry.getInstance().create(assetsDir, java.nio.file.Path.of(AssetSubdir.ICON + relativeString));
 				if (!assetMap.containsKey(relativeString)) {
 					assetMap.put(relativeString, ah);
 				}

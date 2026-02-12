@@ -5,7 +5,6 @@ import java.awt.Frame;
 import java.awt.Image;
 import java.awt.Toolkit;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
@@ -16,8 +15,6 @@ import java.nio.ByteBuffer;
 import java.security.CodeSource;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.jar.Attributes;
@@ -26,13 +23,11 @@ import java.util.regex.Pattern;
 
 import javax.imageio.ImageIO;
 import javax.swing.ImageIcon;
-import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 
 import org.apache.commons.io.FileExistsException;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.SystemUtils;
-import org.yaml.snakeyaml.Yaml;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -56,7 +51,6 @@ import dev.kdl.parse.KdlParseException;
 import game.ProjectDatabase;
 import game.entity.EntityExtractor;
 import game.map.editor.ui.dialogs.ChooseDialogResult;
-import game.map.editor.ui.dialogs.DirChooser;
 import game.map.editor.ui.dialogs.OpenFileChooser;
 import game.message.font.FontManager;
 import util.Logger;
@@ -104,8 +98,6 @@ public abstract class Environment
 
 	private static final File usBaseRom = Directories.BASEROM.file("papermario.us.z64");
 	private static ByteBuffer romBytes;
-
-	public static List<File> assetDirectories;
 
 	private static boolean initialized = false;
 
@@ -537,18 +529,15 @@ public abstract class Environment
 
 		LoadingBar.show("Loading project", Priority.MILESTONE, true);
 
-		try {
-			engine.splitAssets();
-		} catch (BuildException e) {
-			Logger.logError("Failed to split assets: " + e.getMessage());
-			return false;
+		// Only split assets if they don't already exist
+		if (!Directories.US_MAPFS.toFile().exists()) {
+			try {
+				engine.splitAssets();
+			} catch (BuildException e) {
+				Logger.logError("Failed to split assets: " + e.getMessage());
+				return false;
+			}
 		}
-
-		// Asset stack (TODO: move to Project?)
-		assetDirectories = new ArrayList<>();
-		assetDirectories.add(project.getDirectory());
-		// ...dependencies...
-		assetDirectories.add(Directories.ENGINE_ASSETS_US.toFile());
 
 		if (!ensureDumpExtracted()) {
 			return false;

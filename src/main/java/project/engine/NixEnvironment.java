@@ -16,6 +16,16 @@ public class NixEnvironment implements BuildEnvironment
 	private static final String ROM_PATH = "ver/us/build/papermario.z64";
 
 	private final ProcessRunner runner = new ProcessRunner();
+	private final File engineDir;
+
+	/**
+	 * Creates a new Nix environment.
+	 * @param engineDir The engine directory to build in (null if only using for getEngineBaseDir)
+	 */
+	public NixEnvironment(File engineDir)
+	{
+		this.engineDir = engineDir;
+	}
 
 	// --- Engine storage and git operations ---
 
@@ -112,23 +122,29 @@ public class NixEnvironment implements BuildEnvironment
 	}
 
 	@Override
-	public BuildResult configure(File projectDir, BuildOutputListener listener) throws BuildException, IOException
+	public File getEngineDir()
 	{
-		validateEnvironment(projectDir);
-		return runNixCommand(projectDir, "./configure", listener);
+		return engineDir;
 	}
 
 	@Override
-	public BuildResult build(File projectDir, BuildOutputListener listener) throws BuildException, IOException
+	public BuildResult configure(BuildOutputListener listener) throws BuildException, IOException
 	{
-		validateEnvironment(projectDir);
-		ProcessRunner.ProcessResult result = runNixCommandRaw(projectDir, "NINJA_STATUS='" + BuildOutputDialog.NINJA_STATUS + "' ninja", listener);
+		validateEnvironment(engineDir);
+		return runNixCommand(engineDir, "./configure", listener);
+	}
+
+	@Override
+	public BuildResult build(BuildOutputListener listener) throws BuildException, IOException
+	{
+		validateEnvironment(engineDir);
+		ProcessRunner.ProcessResult result = runNixCommandRaw(engineDir, "NINJA_STATUS='" + BuildOutputDialog.NINJA_STATUS + "' ninja", listener);
 
 		if (result.wasCancelled()) {
 			return BuildResult.cancelled(result.getDuration());
 		}
 
-		File rom = new File(projectDir, ROM_PATH);
+		File rom = new File(engineDir, ROM_PATH);
 		if (result.isSuccess() && rom.exists()) {
 			return BuildResult.success(result.getExitCode(), result.getDuration(), rom);
 		}
@@ -139,18 +155,18 @@ public class NixEnvironment implements BuildEnvironment
 	}
 
 	@Override
-	public BuildResult clean(File projectDir, BuildOutputListener listener) throws BuildException, IOException
+	public BuildResult clean(BuildOutputListener listener) throws BuildException, IOException
 	{
-		validateEnvironment(projectDir);
-		return runNixCommand(projectDir, "./configure --clean", listener);
+		validateEnvironment(engineDir);
+		return runNixCommand(engineDir, "./configure --clean", listener);
 	}
 
 	@Override
-	public CompletableFuture<BuildResult> buildAsync(File projectDir, BuildOutputListener listener)
+	public CompletableFuture<BuildResult> buildAsync(BuildOutputListener listener)
 	{
 		return CompletableFuture.supplyAsync(() -> {
 			try {
-				return build(projectDir, listener);
+				return build(listener);
 			}
 			catch (BuildException | IOException e) {
 				return BuildResult.failure(-1, java.time.Duration.ZERO, e.getMessage());

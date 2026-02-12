@@ -52,29 +52,40 @@ public class Engine
 	 */
 	public static Engine forProject(Project project) throws BuildException, IOException
 	{
-		BuildEnvironment buildEnv = createBuildEnvironment();
 		String ref = project.getManifest().getEngineRef();
 
 		// Check for submodule first
 		File submoduleDir = new File(project.getDirectory(), PROJECT_ENGINE_PATH);
-		if (isGitRepo(submoduleDir))
+		if (isGitRepo(submoduleDir)) {
+			BuildEnvironment buildEnv = createBuildEnvironment(submoduleDir);
 			return new Engine(submoduleDir, ref, true, buildEnv);
+		}
 
 		// Worktree-based engine
-		File engineBase = buildEnv.getEngineBaseDir();
+		// Create a temporary BuildEnvironment to get the base directory
+		BuildEnvironment tempEnv = createBuildEnvironmentWithoutDir();
+		File engineBase = tempEnv.getEngineBaseDir();
 
 		// Use ref as directory name so projects with the same ref share the worktree
 		// Prefix with wt- to prevent collision between foo and foo/bar
 		File worktreeDir = new File(engineBase, "worktrees/wt-" + ref);
 
+		BuildEnvironment buildEnv = createBuildEnvironment(worktreeDir);
 		return new Engine(worktreeDir, ref, false, buildEnv);
 	}
 
-	private static BuildEnvironment createBuildEnvironment() throws BuildException
+	private static BuildEnvironment createBuildEnvironment(File engineDir) throws BuildException
 	{
 		if (Environment.isWindows())
-			return new WslNixOsEnvironment();
-		return new NixEnvironment();
+			return new WslNixOsEnvironment(engineDir);
+		return new NixEnvironment(engineDir);
+	}
+
+	private static BuildEnvironment createBuildEnvironmentWithoutDir() throws BuildException
+	{
+		if (Environment.isWindows())
+			return new WslNixOsEnvironment(null);
+		return new NixEnvironment(null);
 	}
 
 	private File getBareRepoDir()
@@ -130,7 +141,7 @@ public class Engine
 	public void splitAssets() throws BuildException, IOException
 	{
 		Logger.log("Splitting assets from ROM...", Priority.MILESTONE);
-		BuildResult result = buildEnv.configure(directory, BuildOutputListener.toLogger());
+		BuildResult result = buildEnv.configure(BuildOutputListener.toLogger());
 		if (!result.isSuccess())
 			throw new BuildException("Failed to split assets: " + result.getErrorMessage());
 	}

@@ -695,9 +695,9 @@ public class Map implements XmlSerializable
 		long t1 = System.nanoTime();
 		double sec = (t1 - t0) / 1e9;
 		if (sec > 0.5)
-			Logger.logf("Loaded %s in %.02f seconds", f.getName(), sec);
+			Logger.logf("Loaded %s in %.02f seconds", f.toString(), sec);
 		else
-			Logger.logf("Loaded %s in %.02f ms", f.getName(), sec * 1e3);
+			Logger.logf("Loaded %s in %.02f ms", f.toString(), sec * 1e3);
 
 		return map;
 	}

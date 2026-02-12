@@ -52,6 +52,7 @@ import app.config.Options;
 import app.config.Options.Scope;
 import assets.Asset;
 import assets.AssetManager;
+import assets.ui.MapAsset;
 import assets.ui.SelectMapDialog;
 import assets.ui.SelectTexDialog;
 import common.FrameLimiter;
@@ -859,7 +860,7 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 				continue;
 			}
 
-			Asset ah = AssetManager.getMap(mapName);
+			MapAsset ah = AssetManager.getMap(mapName);
 			if (ah.exists()) {
 				recentMaps.add(mapName);
 			}
@@ -963,7 +964,7 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 		try {
 			File backupFile = AssetManager.getSaveMapFile(baseMap.getName() + Directories.MAP_BACKUP_SUFFIX);
 
-			if (!backupFile.exists() || backupFile.lastModified() <= baseMap.lastModified)
+			if (backupFile == null || !backupFile.exists() || backupFile.lastModified() <= baseMap.lastModified)
 				return baseMap;
 
 			Map backupMap = Map.loadMap(backupFile);
@@ -1000,10 +1001,10 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 		if (editorConfig != null) {
 			String lastMapName = editorConfig.getString(Options.RecentMap0);
 			if (lastMapName != null && !lastMapName.isBlank()) {
-				Asset ah = AssetManager.getMap(lastMapName);
+				MapAsset ah = AssetManager.getMap(lastMapName);
 				if (ah.exists()) {
 					options = new String[] { "Browse Maps", "Reopen " + lastMapName };
-					lastMap = ah.getFile();
+					lastMap = ah.getXmlFile();
 				}
 			}
 		}
@@ -3173,7 +3174,7 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 
 			case CHOSE_MAP:
 				changeMapState = ChangeMapState.LOADING_MAP;
-				destMapFile = AssetManager.getMap(destMapName).getFile();
+				destMapFile = AssetManager.getMap(destMapName).getXmlFile();
 				if (!destMapFile.exists()) {
 					changeMapState = ChangeMapState.LOADING_FAILED;
 					break;
@@ -3993,14 +3994,14 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 				Logger.logError("Override name is missing or empty.");
 				return;
 			}
-			Asset ah = AssetManager.getMap(overrideName);
+			MapAsset ah = AssetManager.getMap(overrideName);
 			if (!ah.exists()) {
 				Logger.logError("Couldn't find map: " + overrideName + Directories.EXT_MAP);
 				return;
 			}
-			shapeOverride = Map.loadMap(ah.getFile());
+			shapeOverride = Map.loadMap(ah.getXmlFile());
 			TextureManager.assignModelTextures(shapeOverride);
-			Logger.log("Loaded override geometry: " + shapeOverride.getName());
+			Logger.log("Loaded override geometry: " + ah.getName());
 		}
 	}
 
@@ -4014,13 +4015,13 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 				Logger.logError("Override name is missing or empty.");
 				return;
 			}
-			Asset ah = AssetManager.getMap(overrideName);
+			MapAsset ah = AssetManager.getMap(overrideName);
 			if (!ah.exists()) {
 				Logger.logError("Couldn't find map: " + overrideName + Directories.EXT_MAP);
 				return;
 			}
-			hitOverride = Map.loadMap(ah.getFile());
-			Logger.log("Loaded override collision: " + hitOverride.getName());
+			hitOverride = Map.loadMap(ah.getXmlFile());
+			Logger.log("Loaded override collision: " + ah.getName());
 		}
 	}
 

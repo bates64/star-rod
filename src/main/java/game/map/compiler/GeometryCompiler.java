@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.RandomAccessFile;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -74,9 +75,18 @@ public class GeometryCompiler
 
 	public GeometryCompiler(Map map) throws IOException
 	{
-		File build_dec = new File(AssetManager.getMapBuildDir(), map.getName() + "_shape.bin");
+		this(map, new File(AssetManager.getMapBuildDir(), map.getName() + "_shape.bin"));
+	}
 
-		Logger.log("Compiling map geometry to " + build_dec.getPath());
+	public GeometryCompiler(Map map, Path outputPath) throws IOException
+	{
+		this(map, outputPath.toFile());
+	}
+
+	public GeometryCompiler(Map map, File outputFile) throws IOException
+	{
+		Logger.log("Compiling map geometry to " + outputFile.getPath());
+		File build_dec = outputFile;
 
 		if (build_dec.exists())
 			build_dec.delete();

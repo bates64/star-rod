@@ -34,10 +34,14 @@ public class ObjExporter
 
 	public void writeModels(Iterable<Model> models, String texName)
 	{
-		File textureFile = AssetManager.get(AssetSubdir.MAP_TEX, texName + "/" + texName + ".mtl").getFile();
-		if (textureFile.exists()) {
-			pw.println("mtllib " + texName);
-			pw.println("");
+		// Look for MTL file in texture archive directory
+		assets.Asset texArchive = AssetManager.getTextureArchive(texName);
+		if (texArchive != null) {
+			File textureFile = new File(texArchive.getFile(), texName + ".mtl");
+			if (textureFile.exists()) {
+				pw.println("mtllib " + texName);
+				pw.println("");
+			}
 		}
 
 		for (Model mdl : models) {

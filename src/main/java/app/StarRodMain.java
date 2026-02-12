@@ -36,6 +36,7 @@ import app.pane.Pane;
 import assets.Asset;
 import assets.AssetManager;
 import assets.ExpectedAsset;
+import assets.ui.MapAsset;
 import common.BaseEditor;
 import game.globals.editor.GlobalsEditor;
 import game.map.Map;
@@ -49,6 +50,8 @@ import game.sprite.editor.SpriteEditor;
 import game.texture.editor.ImageEditor;
 import game.worldmap.WorldMapEditor;
 import net.miginfocom.swing.MigLayout;
+import project.build.BuildManager;
+import project.build.BuildStatusBar;
 import tools.SwingInspectorKt;
 import util.Logger;
 
@@ -59,6 +62,9 @@ public class StarRodMain extends StarRodFrame
 	private static final int MIN_WINDOW_WIDTH = MIN_PANE_WIDTH * 3 + 300;
 	private static final int MIN_WINDOW_HEIGHT = 600;
 	private static final int MIN_DOCK_HEIGHT = 140;
+
+	private BuildManager buildManager;
+	private PlayButton playButton;
 
 	public static void main(String[] args) throws InterruptedException
 	{
@@ -73,6 +79,12 @@ public class StarRodMain extends StarRodFrame
 		boolean isCommandLine = args.length > 0 || GraphicsEnvironment.isHeadless();
 
 		if (isCommandLine) {
+			// Handle help command before initialization
+			if (args.length > 0 && (args[0].equalsIgnoreCase("-HELP") || args[0].equalsIgnoreCase("-H") || args[0].equalsIgnoreCase("--HELP"))) {
+				printHelp();
+				return;
+			}
+
 			Environment.initialize(true);
 			runCommandLine(args);
 			Environment.exit();
@@ -176,16 +188,6 @@ public class StarRodMain extends StarRodFrame
 		});
 		buttons.add(themesMenuButton);
 
-		// Build Project button
-		JButton buildProjectButton = new JButton("Build Project");
-		trySetIcon(buildProjectButton, ExpectedAsset.ICON_GOLD);
-		SwingUtils.setFontSize(buildProjectButton, 12);
-		buildProjectButton.getAccessibleContext().setAccessibleName("buildProjectButton");
-		buildProjectButton.addActionListener((e) -> {
-			action_buildProject();
-		});
-		buttons.add(buildProjectButton);
-
 		// Open directories buttons
 		JButton openConfigDirButton = new JButton("Open Config Dir");
 		trySetIcon(openConfigDirButton, ExpectedAsset.ICON_SILVER);
@@ -222,6 +224,14 @@ public class StarRodMain extends StarRodFrame
 						.choose();
 
 				if (choice == JOptionPane.OK_OPTION) {
+					// Stop build manager before exiting
+					if (buildManager != null) {
+						buildManager.stop();
+					}
+					// Cleanup play button
+					if (playButton != null) {
+						playButton.cleanup();
+					}
 					dispose();
 					Environment.exit();
 				}
@@ -244,7 +254,6 @@ public class StarRodMain extends StarRodFrame
 		buttonsPanel.add(themesMenuButton, "growx");
 		buttonsPanel.add(openConfigDirButton, "growx");
 		buttonsPanel.add(openProjectDirButton, "growx");
-		buttonsPanel.add(buildProjectButton, "growx, gaptop 8");
 
 		leftPane.add(buttonsPanel, "growx");
 		leftPane.setMinimumSize(new Dimension(MIN_PANE_WIDTH, 0));
@@ -256,11 +265,14 @@ public class StarRodMain extends StarRodFrame
 		middlePane.add(new JLabel("Middle Pane"), "center");
 		middlePane.setMinimumSize(new Dimension(MIN_PANE_WIDTH, 0));
 
-		// Right pane - placeholder for now
+		// Right pane - play button
 		Pane rightPane = new Pane();
 		rightPane.setLayout(new MigLayout("fill, ins 8"));
 		rightPane.getAccessibleContext().setAccessibleName("rightPane");
-		rightPane.add(new JLabel("Right Pane"), "center");
+
+		playButton = new PlayButton();
+		rightPane.add(playButton, "pos 0 0, w 48!, h 48!");
+
 		rightPane.setMinimumSize(new Dimension(MIN_PANE_WIDTH, 0));
 
 		// Dock (bottom panel in middle column)
@@ -290,6 +302,15 @@ public class StarRodMain extends StarRodFrame
 
 		// Status bar
 		Bar statusBar = new Bar();
+
+		// Build status bar
+		BuildStatusBar buildStatusBar = new BuildStatusBar();
+		statusBar.setBuildStatusBar(buildStatusBar);
+
+		// Build manager - start background build and file watching
+		buildManager = new BuildManager(Environment.getProject());
+		buildManager.addListener(buildStatusBar);
+		buildManager.start();
 
 		// Layout
 		setLayout(new MigLayout("fill, ins 4, gap 4, wrap"));
@@ -396,12 +417,6 @@ public class StarRodMain extends StarRodFrame
 		});
 	}
 
-	private void action_buildProject()
-	{
-		BuildOutputDialog dialog = new BuildOutputDialog(this);
-		dialog.startBuild();
-	}
-
 	private void action_openDir(File dir)
 	{
 		if (dir.exists()) {
@@ -476,98 +491,261 @@ public class StarRodMain extends StarRodFrame
 		}
 	}
 
+	private static void printHelp()
+	{
+		System.out.println("Star Rod - Paper Mario Modding Toolkit");
+		System.out.println("Usage: java -jar StarRod.jar <command> [args...]");
+		System.out.println();
+		System.out.println("Commands:");
+		System.out.println("  help                           Show this help message");
+		System.out.println("  version                        Show version information");
+		System.out.println();
+		System.out.println("Project Building:");
+		System.out.println("  build                          Build complete Diorama distribution package");
+		System.out.println("  archive                        Build AssetsArchive only (assets.bin)");
+		System.out.println();
+		System.out.println("Package Management:");
+		System.out.println("  apply <diorama> <rom> [out]    Apply Diorama package to ROM file");
+		System.out.println("  inspect <archive>              Show contents of AssetsArchive file");
+		System.out.println();
+		System.out.println("Examples:");
+		System.out.println("  java -jar StarRod.jar build");
+		System.out.println("  java -jar StarRod.jar apply mymod.diorama papermario.z64 modded.z64");
+		System.out.println("  java -jar StarRod.jar inspect .starrod/build/assets.bin");
+	}
+
+	private static void applyDioramaToRom(String dioramaFile, String romFile, String outputRom) throws Exception
+	{
+		Logger.log("Applying Diorama to ROM...");
+		Logger.log("  Diorama: " + dioramaFile);
+		Logger.log("  ROM:     " + romFile);
+		Logger.log("  Output:  " + outputRom);
+
+		java.nio.file.Path dioramaPath = java.nio.file.Paths.get(dioramaFile);
+		java.nio.file.Path romPath = java.nio.file.Paths.get(romFile);
+		java.nio.file.Path outputPath = java.nio.file.Paths.get(outputRom);
+
+		if (!java.nio.file.Files.exists(dioramaPath)) {
+			throw new java.io.IOException("Diorama file not found: " + dioramaFile);
+		}
+
+		if (!java.nio.file.Files.exists(romPath)) {
+			throw new java.io.IOException("ROM file not found: " + romFile);
+		}
+
+		// Copy ROM to output location if different
+		if (!romPath.equals(outputPath)) {
+			java.nio.file.Files.copy(romPath, outputPath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+		}
+
+		// Apply Diorama
+		assets.archive.AssetsArchiveRomPatcher patcher = new assets.archive.AssetsArchiveRomPatcher(outputPath);
+		patcher.applyDiorama(dioramaPath);
+
+		Logger.log("Diorama applied successfully!");
+		Logger.log("Output ROM: " + outputPath);
+	}
+
+	private static void inspectArchive(String archiveFile) throws Exception
+	{
+		Logger.log("Inspecting AssetsArchive: " + archiveFile);
+
+		java.nio.file.Path archivePath = java.nio.file.Paths.get(archiveFile);
+
+		if (!java.nio.file.Files.exists(archivePath)) {
+			throw new java.io.IOException("Archive file not found: " + archiveFile);
+		}
+
+		byte[] data = java.nio.file.Files.readAllBytes(archivePath);
+
+		// Parse header
+		java.nio.ByteBuffer buffer = java.nio.ByteBuffer.wrap(data).order(java.nio.ByteOrder.BIG_ENDIAN);
+
+		// Magic (6 bytes)
+		byte[] magicBytes = new byte[6];
+		buffer.get(magicBytes);
+		String magic = new String(magicBytes, java.nio.charset.StandardCharsets.US_ASCII);
+
+		// Project name (16 bytes)
+		byte[] nameBytes = new byte[16];
+		buffer.get(nameBytes);
+		String projectName = new String(nameBytes, java.nio.charset.StandardCharsets.US_ASCII).trim().replaceAll("\0", "");
+
+		// Skip reserved (10 bytes)
+		buffer.position(32);
+
+		System.out.println();
+		System.out.println("AssetsArchive Information:");
+		System.out.println("  Magic:        " + magic);
+		System.out.println("  Project:      " + projectName);
+		System.out.println("  File size:    " + data.length + " bytes");
+		System.out.println();
+		System.out.println("Table of Contents:");
+		System.out.println("  " + String.format("%-60s %12s %12s %12s", "Name", "Offset", "Comp. Size", "Decomp. Size"));
+		System.out.println("  " + "-".repeat(100));
+
+		int entryCount = 0;
+		long totalCompressed = 0;
+		long totalDecompressed = 0;
+
+		// Read TOC entries
+		while (buffer.remaining() >= 76) {
+			// Name (64 bytes)
+			byte[] entryNameBytes = new byte[64];
+			buffer.get(entryNameBytes);
+			String entryName = new String(entryNameBytes, java.nio.charset.StandardCharsets.US_ASCII).trim().replaceAll("\0", "");
+
+			// Offset, compressed size, decompressed size (4 bytes each)
+			int offset = buffer.getInt();
+			int compressedSize = buffer.getInt();
+			int decompressedSize = buffer.getInt();
+
+			// Check for sentinel
+			if (entryName.startsWith("END DATA")) {
+				System.out.println("  " + String.format("%-60s %12s %12s %12s", entryName, "-", "-", "-"));
+				if (offset != 0) {
+					System.out.println("  (Next node at: 0x" + Integer.toHexString(offset) + ")");
+				}
+				break;
+			}
+
+			System.out.println("  " + String.format("%-60s %12d %12d %12d", entryName, offset, compressedSize, decompressedSize));
+
+			entryCount++;
+			totalCompressed += compressedSize;
+			totalDecompressed += decompressedSize;
+		}
+
+		System.out.println("  " + "-".repeat(100));
+		System.out.println("  Total: " + entryCount + " entries");
+		System.out.println("  Compressed:   " + totalCompressed + " bytes");
+		System.out.println("  Decompressed: " + totalDecompressed + " bytes");
+
+		if (totalDecompressed > 0) {
+			double ratio = (double) totalCompressed / totalDecompressed * 100.0;
+			System.out.println("  Compression:  " + String.format("%.1f%%", ratio));
+		}
+
+		System.out.println();
+	}
+
 	private static void runCommandLine(String[] args)
 	{
 		for (int i = 0; i < args.length; i++) {
-			switch (args[i].toUpperCase()) {
-				case "-VERSION":
+			String cmd = args[i].toLowerCase();
+
+			switch (cmd) {
+				case "help":
+				case "-h":
+				case "--help":
+				// Backward compatibility
+				case "-help":
+					printHelp();
+					break;
+
+				case "version":
+				// Backward compatibility
+				case "-version":
 					System.out.println("VERSION=" + Environment.getVersionString());
 					break;
 
-				case "-COMPILESHAPE":
-				case "-COMPILEHIT":
-				case "-GENERATESCRIPT":
-				case "-COMPILEMAP":
-					if (args.length > i + 1) {
-						String mapName = args[i + 1];
-						Asset mapAsset = AssetManager.getMap(mapName);
-
-						if (mapAsset == null) {
-							Logger.logfError("Cannot find map '%s'!", mapName);
-							break;
+				case "build":
+				case "diorama": // Alias
+				// Backward compatibility
+				case "pmdx":
+				case "-buildproject":
+				case "-buildpmdx":
+					try {
+						Logger.log("Building Diorama package...");
+						project.Build build = new project.Build(Environment.getProject());
+						boolean success = build.executeAsync(true, true).get();
+						if (!success) {
+							Logger.logError("Diorama build failed");
+							Environment.exit(1);
 						}
+						Logger.log("Diorama built successfully");
+					}
+					catch (Exception e) {
+						Logger.logError("Diorama build failed: " + e.getMessage());
+						Logger.printStackTrace(e);
+						Environment.exit(1);
+					}
+					break;
 
-						Map map = Map.loadMap(mapAsset.getFile());
+				case "archive":
+				// Backward compatibility
+				case "-buildarchive":
+					try {
+						Logger.log("Building AssetsArchive...");
+						project.Build build = new project.Build(Environment.getProject());
+						boolean success = build.executeAsync(true, false).get();
+						if (!success) {
+							Logger.logError("AssetsArchive build failed");
+							Environment.exit(1);
+						}
+						Logger.log("AssetsArchive built successfully: .starrod/build/assets.bin");
+					}
+					catch (Exception e) {
+						Logger.logError("AssetsArchive build failed: " + e.getMessage());
+						Logger.printStackTrace(e);
+						Environment.exit(1);
+					}
+					break;
+
+				case "apply":
+				// Backward compatibility
+				case "-applypmdx":
+					if (args.length > i + 2) {
+						String dioramaFile = args[i + 1];
+						String romFile = args[i + 2];
+						String outputRom = args.length > i + 3 ? args[i + 3] : romFile;
+
 						try {
-							if (args[i].equalsIgnoreCase("-CompileMap")) {
-								new GeometryCompiler(map);
-								new CollisionCompiler(map);
-							}
-							else if (args[i].equalsIgnoreCase("-CompileShape")) {
-								new GeometryCompiler(map);
-							}
-							else if (args[i].equalsIgnoreCase("-CompileHit")) {
-								new CollisionCompiler(map);
-							}
-							else if (args[i].equalsIgnoreCase("-GenerateScript")) {
-								new ScriptGenerator(map);
-							}
-							else {
-								throw new IllegalStateException();
-							}
+							applyDioramaToRom(dioramaFile, romFile, outputRom);
 						}
-						catch (BuildException | IOException | InvalidInputException e) {
+						catch (assets.archive.InvalidRomException e) {
+							Logger.logError("Invalid ROM: " + e.getMessage());
+							Logger.logError("");
+							Logger.logError("To create a valid papermario-dx ROM:");
+							Logger.logError("  1. Clone papermario-dx: git clone https://github.com/bates64/papermario-dx.git");
+							Logger.logError("  2. Build the ROM: cd papermario-dx && ./configure && ninja");
+							Logger.logError("  3. Use the built ROM (ver/current/papermario.z64) with 'apply'");
+							Environment.exit(1);
+						}
+						catch (Exception e) {
+							Logger.logError("Failed to apply Diorama: " + e.getMessage());
 							Logger.printStackTrace(e);
+							Environment.exit(1);
+						}
+
+						i += (args.length > i + 3) ? 3 : 2;
+					}
+					else {
+						Logger.logError("'apply' requires arguments: <diorama-file> <rom-file> [output-rom]");
+						Environment.exit(1);
+					}
+					break;
+
+				case "inspect":
+				// Backward compatibility
+				case "-inspectarchive":
+					if (args.length > i + 1) {
+						String archiveFile = args[i + 1];
+
+						try {
+							inspectArchive(archiveFile);
+						}
+						catch (Exception e) {
+							Logger.logError("Failed to inspect archive: " + e.getMessage());
+							Logger.printStackTrace(e);
+							Environment.exit(1);
 						}
 
 						i++;
 					}
-					else
-						Logger.logfError("%s expects a mapName argument!", args[i]);
-					break;
-
-				case "-COMPILEMAPS":
-					try {
-						File buildDir = AssetManager.getMapBuildDir();
-						for (Asset ah : AssetManager.getMapSources()) {
-							// get existing compiled binaries
-							String mapName = Map.deriveName(ah.getFile());
-							File binShape = new File(buildDir, mapName + "_shape.bin");
-							File binHit = new File(buildDir, mapName + "_hit.bin");
-
-							// check if the map source is newer
-							boolean buildShape = !binShape.exists() || binShape.lastModified() < ah.lastModified();
-							boolean buildHit = !binHit.exists() || binHit.lastModified() < ah.lastModified();
-
-							if (!buildShape && !buildHit) {
-								continue;
-							}
-
-							try {
-								Map map = Map.loadMap(ah.getFile());
-								if (buildShape) {
-									new GeometryCompiler(map);
-								}
-								if (buildHit) {
-									new CollisionCompiler(map);
-								}
-							}
-							catch (IOException | BuildException e) {
-								Logger.printStackTrace(e);
-							}
-						}
-					}
-					catch (IOException e) {
-						Logger.printStackTrace(e);
-					}
-					break;
-
-				case "-BUILDPROJECT":
-					try {
-						Environment.getProject().build();
-					}
-					catch (Exception e) {
-						Logger.logError("Build failed: " + e.getMessage());
+					else {
+						Logger.logError("'inspect' requires argument: <archive-file>");
+						Environment.exit(1);
 					}
 					break;
 

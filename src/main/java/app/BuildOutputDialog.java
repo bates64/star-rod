@@ -39,6 +39,7 @@ public class BuildOutputDialog extends JDialog
 
 	private BuildEnvironment buildEnv;
 	private boolean buildComplete = false;
+	private java.util.function.Consumer<BuildResult> onComplete;
 
 	public BuildOutputDialog(Frame parent)
 	{
@@ -90,6 +91,12 @@ public class BuildOutputDialog extends JDialog
 		setLocationRelativeTo(parent);
 	}
 
+	/** Sets a callback to be invoked when the build completes. */
+	public void setOnComplete(java.util.function.Consumer<BuildResult> onComplete)
+	{
+		this.onComplete = onComplete;
+	}
+
 	/**
 	 * Starts the build process asynchronously.
 	 */
@@ -99,11 +106,10 @@ public class BuildOutputDialog extends JDialog
 
 		// Create build environment on background thread
 		Environment.getExecutor().submit(() -> {
-			File projectDir = Environment.getProject().getDirectory();
 			buildEnv = Environment.getProject().getEngine().getBuildEnvironment();
 
 			try {
-				buildEnv.configure(projectDir, getOutputListener());
+				buildEnv.configure(getOutputListener());
 			}
 			catch (IOException | BuildException e) {
 				SwingUtilities.invokeLater(() -> {
@@ -113,7 +119,7 @@ public class BuildOutputDialog extends JDialog
 				return;
 			}
 
-			buildEnv.buildAsync(projectDir, getOutputListener()).thenAccept(result -> {
+			buildEnv.buildAsync(getOutputListener()).thenAccept(result -> {
 				SwingUtilities.invokeLater(() -> handleBuildComplete(result));
 			}).exceptionally(ex -> {
 				SwingUtilities.invokeLater(() -> handleBuildError(ex));
@@ -169,6 +175,10 @@ public class BuildOutputDialog extends JDialog
 
 		if (buildEnv != null) {
 			buildEnv = null;
+		}
+
+		if (onComplete != null) {
+			onComplete.accept(result);
 		}
 
 		switch (result.getStatus()) {

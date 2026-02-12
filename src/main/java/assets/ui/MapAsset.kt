@@ -4,7 +4,15 @@ import app.Directories.PROJ_THUMBNAIL
 import app.Environment
 import assets.Asset
 import assets.AssetManager
+import assets.AssetsDir
+import game.map.Map
+import game.map.compiler.CollisionCompiler
+import game.map.compiler.GeometryCompiler
 import game.map.editor.MapEditor
+import project.build.ArtifactType
+import project.build.BuildArtifact
+import project.build.BuildCtx
+import project.build.BuildResult
 import util.Logger
 import util.Priority
 import java.awt.Image
@@ -17,17 +25,17 @@ import java.nio.file.Path
 import java.util.regex.Pattern
 import javax.imageio.ImageIO
 
-class MapAsset(root: Path, relativePath: Path) : Asset(root, relativePath) {
+class MapAsset(assetsDir: AssetsDir, relativePath: Path) : Asset(assetsDir, relativePath) {
 	@JvmField
 	var desc: String = ""
 
-	/** Convenience constructor for Java interop. */
-	constructor(asset: Asset) : this(asset.root, asset.relativePath)
+	/** The map.xml file inside the .map directory. */
+	val xmlFile: File get() = path.resolve("map.xml").toFile()
 
 	init {
 		// Read Map tag quickly without parsing whole XML file
 		try {
-			BufferedReader(FileReader(getFile())).use { reader ->
+			BufferedReader(FileReader(xmlFile)).use { reader ->
 				var line: String?
 				while (true) {
 					line = reader.readLine() ?: break // Encountered final line without finding Map tag
@@ -49,6 +57,30 @@ class MapAsset(root: Path, relativePath: Path) : Asset(root, relativePath) {
 	}
 
 	override fun getAssetDescription(): String = desc
+
+	override suspend fun build(ctx: BuildCtx): BuildResult {
+		return try {
+			// Load the map from XML
+			val map = Map.loadMap(xmlFile)
+
+			// Compile geometry
+			val shape = ctx.artifact(this, "_shape")
+			GeometryCompiler(map, shape)
+
+			// Compile collision
+			val hit = ctx.artifact(this, "_hit")
+			CollisionCompiler(map, hit)
+
+			BuildResult.Success(
+				artifacts = listOf(
+					BuildArtifact(shape, ArtifactType.SHAPE),
+					BuildArtifact(hit, ArtifactType.COLLISION)
+				)
+			)
+		} catch (e: Exception) {
+			BuildResult.Failed(e)
+		}
+	}
 
 	override fun delete(): Boolean {
 		val thumbFile = File("$PROJ_THUMBNAIL${relativePath}.png")
@@ -101,15 +133,15 @@ class MapAsset(root: Path, relativePath: Path) : Asset(root, relativePath) {
 			var editor: MapEditor? = null
 
 			try {
-				for (asset in AssetManager.getMapSources()) {
-					val thumbFile = File("$PROJ_THUMBNAIL${asset.relativePath}.png")
+				for (mapAsset in AssetManager.getMapSources()) {
+					val thumbFile = File("$PROJ_THUMBNAIL${mapAsset.relativePath}.png")
 					if (thumbFile.exists())
 						continue
-					Logger.log("Capturing thumbnail for $asset...", Priority.MILESTONE)
+					Logger.log("Capturing thumbnail for $mapAsset...", Priority.MILESTONE)
 					if (editor == null)
 						editor = MapEditor(false)
 					editor.generateThumbnail(
-						asset.getFile(),
+						mapAsset.xmlFile,
 						thumbFile,
 						Asset.THUMBNAIL_WIDTH * 2,
 						Asset.THUMBNAIL_HEIGHT * 2

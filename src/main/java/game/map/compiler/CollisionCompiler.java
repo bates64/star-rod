@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.RandomAccessFile;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Objects;
@@ -27,9 +28,29 @@ public class CollisionCompiler
 {
 	public CollisionCompiler(Map map) throws IOException
 	{
-		File build_dec = new File(AssetManager.getMapBuildDir(), map.getName() + "_hit.bin");
+		this(map, new File(AssetManager.getMapBuildDir(), map.getName() + "_hit.bin"),
+		     Directories.ENGINE_INCLUDE_MAPFS.file(map.getName() + "_hit.h"));
+	}
 
-		Logger.log("Compiling map collision to " + build_dec.getPath());
+	public CollisionCompiler(Map map, Path outputPath) throws IOException
+	{
+		this(map, outputPath.toFile(), null);
+	}
+
+	public CollisionCompiler(Map map, File outputFile) throws IOException
+	{
+		this(map, outputFile, null);
+	}
+
+	public CollisionCompiler(Map map, Path outputPath, Path headerPath) throws IOException
+	{
+		this(map, outputPath.toFile(), headerPath != null ? headerPath.toFile() : null);
+	}
+
+	public CollisionCompiler(Map map, File outputFile, File headerFile) throws IOException
+	{
+		Logger.log("Compiling map collision to " + outputFile.getPath());
+		File build_dec = outputFile;
 
 		if (build_dec.exists())
 			build_dec.delete();
@@ -44,16 +65,17 @@ public class CollisionCompiler
 		raf.writeInt(zoneHeaderOffset);
 		raf.close();
 
-		File headerFile = Directories.ENGINE_INCLUDE_MAPFS.file(map.getName() + "_hit.h");
-		try (PrintWriter pw = IOUtils.getBufferedPrintWriter(headerFile)) {
-			for (Collider c : map.colliderTree.getList()) {
-				pw.printf("#define %-23s 0x%X%n", "COLLIDER_" + c.getName(), c.getNode().getTreeIndex());
+		if (headerFile != null) {
+			try (PrintWriter pw = IOUtils.getBufferedPrintWriter(headerFile)) {
+				for (Collider c : map.colliderTree.getList()) {
+					pw.printf("#define %-23s 0x%X%n", "COLLIDER_" + c.getName(), c.getNode().getTreeIndex());
+				}
+				pw.println();
+				for (Zone z : map.zoneTree.getList()) {
+					pw.printf("#define %-23s 0x%X%n", "ZONE_" + z.getName(), z.getNode().getTreeIndex());
+				}
+				pw.println();
 			}
-			pw.println();
-			for (Zone z : map.zoneTree.getList()) {
-				pw.printf("#define %-23s 0x%X%n", "ZONE_" + z.getName(), z.getNode().getTreeIndex());
-			}
-			pw.println();
 		}
 	}
 

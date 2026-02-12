@@ -32,11 +32,17 @@ public class WslNixOsEnvironment implements BuildEnvironment
 
 	private final ProcessRunner runner = new ProcessRunner();
 	private boolean shutdownRegistered = false;
+	private final File engineDir;
 
 	private static final int MIN_WINDOWS_BUILD = 19041; // Windows 10 version 2004
 
-	public WslNixOsEnvironment() throws BuildException
+	/**
+	 * Creates a new WSL NixOS environment.
+	 * @param engineDir The engine directory to build in (null if only using for getEngineBaseDir)
+	 */
+	public WslNixOsEnvironment(File engineDir) throws BuildException
 	{
+		this.engineDir = engineDir;
 		validateSystemRequirements();
 		validateWslSupport();
 		registerShutdownHook();
@@ -158,21 +164,27 @@ public class WslNixOsEnvironment implements BuildEnvironment
 	}
 
 	@Override
-	public BuildResult configure(File projectDir, BuildOutputListener listener) throws BuildException, IOException
+	public File getEngineDir()
 	{
-		return runWslCommand(projectDir, "./configure", listener);
+		return engineDir;
 	}
 
 	@Override
-	public BuildResult build(File projectDir, BuildOutputListener listener) throws BuildException, IOException
+	public BuildResult configure(BuildOutputListener listener) throws BuildException, IOException
 	{
-		ProcessRunner.ProcessResult result = runWslCommandRaw(projectDir, "NINJA_STATUS='" + BuildOutputDialog.NINJA_STATUS + "' ./configure && ninja", listener);
+		return runWslCommand(engineDir, "./configure", listener);
+	}
+
+	@Override
+	public BuildResult build(BuildOutputListener listener) throws BuildException, IOException
+	{
+		ProcessRunner.ProcessResult result = runWslCommandRaw(engineDir, "NINJA_STATUS='" + BuildOutputDialog.NINJA_STATUS + "' ./configure && ninja", listener);
 
 		if (result.wasCancelled()) {
 			return BuildResult.cancelled(result.getDuration());
 		}
 
-		File rom = new File(projectDir, ROM_PATH);
+		File rom = new File(engineDir, ROM_PATH);
 		if (result.isSuccess() && rom.exists()) {
 			return BuildResult.success(result.getExitCode(), result.getDuration(), rom);
 		}
@@ -183,17 +195,17 @@ public class WslNixOsEnvironment implements BuildEnvironment
 	}
 
 	@Override
-	public BuildResult clean(File projectDir, BuildOutputListener listener) throws BuildException, IOException
+	public BuildResult clean(BuildOutputListener listener) throws BuildException, IOException
 	{
-		return runWslCommand(projectDir, "./configure --clean", listener);
+		return runWslCommand(engineDir, "./configure --clean", listener);
 	}
 
 	@Override
-	public CompletableFuture<BuildResult> buildAsync(File projectDir, BuildOutputListener listener)
+	public CompletableFuture<BuildResult> buildAsync(BuildOutputListener listener)
 	{
 		return CompletableFuture.supplyAsync(() -> {
 			try {
-				return build(projectDir, listener);
+				return build(listener);
 			}
 			catch (BuildException | IOException e) {
 				return BuildResult.failure(-1, java.time.Duration.ZERO, e.getMessage());
