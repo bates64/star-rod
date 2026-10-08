@@ -20,9 +20,9 @@ public class MapObjectsJson
 	private final JsonArray categories = new JsonArray();
 
 	/**
-	 * The trees of models, colliders, zones, and markers. Each is a category: an object with an "id", a "name", and
-	 * "children", each an object with an "id", a "name", a "type" (as MapObjectType), whether it's a "group", and its
-	 * own "children".
+	 * The trees of models, colliders, zones, and markers. Each is a category: an object with an "id", a "name", the
+	 * "rootId" of the group at its top, and "children", each an object with an "id", a "name", a "type" (as
+	 * MapObjectType), whether it's a "group", and its own "children".
 	 */
 	public MapObjectsJson(List<MapObjectTreeModel<?>> trees, List<String> names)
 	{
@@ -30,6 +30,10 @@ public class MapObjectsJson
 			JsonObject category = new JsonObject();
 			category.addProperty("id", names.get(i).toLowerCase());
 			category.addProperty("name", names.get(i));
+			// the group at the top of the tree, which objects can be created in
+			MapObject root = trees.get(i).getRoot().getUserObject();
+			objects.put(root.uniqueID, root);
+			category.addProperty("rootId", root.uniqueID);
 			category.add("children", children(trees.get(i).getRoot()));
 			categories.add(category);
 		}

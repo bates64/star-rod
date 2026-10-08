@@ -4,6 +4,7 @@ public enum PreviewOriginMode
 {
 	// @formatter:off
 	CURSOR		("3D Cursor Position"),
+	CLICK		("Where You Clicked"),
 	SELECTION	("Center of Selection"),
 	ORIGIN		("World Origin");
 	// @formatter:on

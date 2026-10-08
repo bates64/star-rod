@@ -14,6 +14,7 @@ import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 import javax.swing.JRadioButtonMenuItem;
+import javax.swing.KeyStroke;
 import javax.swing.MenuElement;
 import javax.swing.SwingUtilities;
 
@@ -201,9 +202,59 @@ public class RemoteView
 		JsonObject json = new JsonObject();
 		json.addProperty("path", path);
 		json.addProperty("enabled", item.isEnabled());
+		String keybinding = keybinding(item.getAccelerator());
+		if (keybinding != null)
+			json.addProperty("keybinding", keybinding);
 		if (item instanceof JCheckBoxMenuItem || item instanceof JRadioButtonMenuItem)
 			json.addProperty("checked", item.isSelected());
 		items.add(json);
+	}
+
+	/**
+	 * A menu item's shortcut as the other program writes a keybinding, such as "shift+g" or "f2", or null if it has
+	 * none, or one with a key that has no name here.
+	 */
+	private static String keybinding(KeyStroke stroke)
+	{
+		if (stroke == null)
+			return null;
+		int code = stroke.getKeyCode();
+		String key;
+		if (code >= KeyEvent.VK_A && code <= KeyEvent.VK_Z || code >= KeyEvent.VK_0 && code <= KeyEvent.VK_9)
+			key = String.valueOf((char) code).toLowerCase();
+		else if (code >= KeyEvent.VK_F1 && code <= KeyEvent.VK_F12)
+			key = "f" + (code - KeyEvent.VK_F1 + 1);
+		else
+			key = switch (code) {
+				case KeyEvent.VK_MINUS -> "-";
+				case KeyEvent.VK_EQUALS -> "=";
+				case KeyEvent.VK_COMMA -> ",";
+				case KeyEvent.VK_PERIOD -> ".";
+				case KeyEvent.VK_SLASH -> "/";
+				case KeyEvent.VK_OPEN_BRACKET -> "[";
+				case KeyEvent.VK_CLOSE_BRACKET -> "]";
+				case KeyEvent.VK_DELETE -> "delete";
+				case KeyEvent.VK_BACK_SPACE -> "backspace";
+				case KeyEvent.VK_ESCAPE -> "escape";
+				case KeyEvent.VK_ENTER -> "enter";
+				case KeyEvent.VK_SPACE -> "space";
+				case KeyEvent.VK_TAB -> "tab";
+				default -> null;
+			};
+		if (key == null)
+			return null;
+
+		int modifiers = stroke.getModifiers();
+		StringBuilder keybinding = new StringBuilder();
+		if ((modifiers & InputEvent.CTRL_DOWN_MASK) != 0)
+			keybinding.append("ctrl+");
+		if ((modifiers & InputEvent.SHIFT_DOWN_MASK) != 0)
+			keybinding.append("shift+");
+		if ((modifiers & InputEvent.ALT_DOWN_MASK) != 0)
+			keybinding.append("alt+");
+		if ((modifiers & InputEvent.META_DOWN_MASK) != 0)
+			keybinding.append("meta+");
+		return keybinding.append(key).toString();
 	}
 
 	/** Clicks the menu item at a path of labels, as a user would, on Swing's thread. */

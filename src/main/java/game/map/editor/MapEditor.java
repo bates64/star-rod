@@ -381,6 +381,9 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 
 	// set while another program shows the views and sends input, in place of this program's window
 	private RemoteView remote = null;
+	private RemoteObjectActions remoteActions = null;
+	// where the other program's last right click landed on the map, if it did
+	private Vector3f clickPoint = null;
 	// the map's objects and the selection as last sent to it, to send only changes
 	private MapObjectsJson remoteObjects = null;
 	private String remoteObjectsSent = null;
@@ -778,6 +781,8 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 	{
 		remote = new RemoteView(session, glCanvas, keyboard, mouse, this);
 		remote.setMenuBar(gui.getJMenuBar());
+		remoteActions = new RemoteObjectActions(this);
+		showModeInViewport = false;
 
 		try {
 			EditableField.setCallbacksEnabled(true);
@@ -817,6 +822,8 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 				remote.getSession().send(message);
 			}
 		}
+
+		remoteActions.sendState();
 
 		boolean modified = commandManager.isModifiedSinceSave();
 		if (!Boolean.valueOf(modified).equals(remoteModifiedSent)) {
@@ -871,6 +878,28 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 				selectionManager.selectObjectsFromGUI(objs, List.of(), false);
 				break;
 			}
+			case "objectAction": {
+				MapObject target = (message.has("target") && remoteObjects != null)
+					? remoteObjects.get(message.get("target").getAsInt())
+					: null;
+				remoteActions.run(message.get("action").getAsString(), target, message);
+				break;
+			}
+			case "selectionMode":
+				// objects, triangles, vertices, or points, as Star Rod's radio buttons choose
+				submitGuiCommand(switch (SelectionMode.valueOf(message.get("mode").getAsString())) {
+					case TRIANGLE -> GuiCommand.SELECT_TRIANGLES;
+					case VERTEX -> GuiCommand.SELECT_VERTICES;
+					case POINT -> GuiCommand.SELECT_POINTS;
+					default -> GuiCommand.SELECT_OBJECTS;
+				});
+				break;
+			case "pickPoint":
+				clickPoint = pickPointAtPointer();
+				break;
+			case "showType":
+				remoteActions.showType(MapObjectType.valueOf(message.get("objectType").getAsString()));
+				break;
 			case "views":
 				// the perspective view alone, or all four
 				mainViewMode = message.get("four").getAsBoolean() ? ViewMode.FOUR : ViewMode.ONE;
@@ -2516,6 +2545,24 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 			case VertexPaint:
 				break;
 		}
+	}
+
+	/** Where the pointer is over the map, as a middle click picks it, or null if it's over nothing. */
+	private Vector3f pickPointAtPointer()
+	{
+		if (currentRay == null)
+			return null;
+		PickHit hit = selectionManager.pickWorld(getGeometryMap(), currentRay, activeView, true);
+		return hit.missed() ? null : new Vector3f(hit.point);
+	}
+
+	/**
+	 * Where the other program's last right click landed on the map, which objects created from its menu go to,
+	 * leaving the 3D cursor where it is, or null if it missed.
+	 */
+	public Vector3f getClickPoint()
+	{
+		return clickPoint;
 	}
 
 	@Override
@@ -4341,6 +4388,18 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 		});
 	}
 
+	/** Whether any objects have been copied, for pasting. */
+	public boolean hasCopiedObjects()
+	{
+		return clipboardFile.exists();
+	}
+
+	/** The other program showing this editor's views, if one is. */
+	public RemoteView remote()
+	{
+		return remote;
+	}
+
 	private void copyObjects()
 	{
 		if (editorMode != EditorMode.Modify || selectionManager.getSelectionMode() != SelectionMode.OBJECT)
@@ -4464,9 +4523,13 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 
 	public void action_CreateMarker(String name, MarkerType type, MapObjectNode<Marker> parent)
 	{
-		assert (Thread.holdsLock(modifyLock));
+		action_CreateMarker(name, type, parent, cursor3D.getPosition());
+	}
 
-		Vector3f pos = cursor3D.getPosition();
+	/** Creates a marker at `pos`. */
+	public void action_CreateMarker(String name, MarkerType type, MapObjectNode<Marker> parent, Vector3f pos)
+	{
+		assert (Thread.holdsLock(modifyLock));
 
 		Marker m = new Marker(name, type, pos.x, pos.y, pos.z, 0);
 		// a path starts with a point, which Path mode drags the others out of
@@ -4889,7 +4952,8 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 
 		debugMode = editorConfig.getBoolean(Options.EditorDebugMode);
 
-		showModeInViewport = editorConfig.getBoolean(Options.ShowCurrentMode);
+		// another program showing the views shows the mode with its own buttons
+		showModeInViewport = remote == null && editorConfig.getBoolean(Options.ShowCurrentMode);
 
 		gui.setScrollSensitivity(editorConfig.getInteger(Options.ScrollSensitivity));
 	}

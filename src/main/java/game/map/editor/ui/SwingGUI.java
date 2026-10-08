@@ -346,7 +346,6 @@ public final class SwingGUI extends StarRodFrame implements ActionListener, Logg
 
 		setLayout(new MigLayout());
 		add(glCanvas, "grow, push");
-
 		add(createSidePanel(), "w " + SIDE_PANEL_WIDTH + "!, growy, wrap");
 		//	add(createSidePanel(), "w 400:36%:36%, growy, wrap"); //TODO test this on 4k
 
@@ -1824,7 +1823,7 @@ public final class SwingGUI extends StarRodFrame implements ActionListener, Logg
 		});
 	}
 
-	private void prompt_GenerateUV()
+	public void prompt_GenerateUV()
 	{
 		int choice = SwingUtils.getConfirmDialog()
 			.setParent(this)

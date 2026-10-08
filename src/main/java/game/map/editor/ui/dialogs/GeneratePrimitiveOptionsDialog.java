@@ -54,6 +54,7 @@ public class GeneratePrimitiveOptionsDialog extends JDialog
 	private Primitive primitiveType = DEFAULT_TYPE;
 
 	private final PreviewGeneratorPrimitive preview;
+	private final JComboBox<PreviewOriginMode> originModeBox;
 
 	private final ShapeGenerator cube = new CubeGenerator();
 	private final ShapeGenerator cubeBevel = new BeveledCubeGenerator();
@@ -118,6 +119,11 @@ public class GeneratePrimitiveOptionsDialog extends JDialog
 				case CURSOR:
 					target = MapEditor.instance().getCursorPosition();
 					break;
+				case CLICK:
+					// or the cursor, if the click missed the map
+					Vector3f clicked = MapEditor.instance().getClickPoint();
+					target = (clicked != null) ? clicked : MapEditor.instance().getCursorPosition();
+					break;
 				case SELECTION:
 					Selection<?> currentSelection = MapEditor.instance().selectionManager.currentSelection;
 					if (!currentSelection.isEmpty())
@@ -145,7 +151,7 @@ public class GeneratePrimitiveOptionsDialog extends JDialog
 		});
 		cbUseDepth.setIconTextGap(8);
 
-		JComboBox<PreviewOriginMode> originModeBox = new JComboBox<>(PreviewOriginMode.values());
+		originModeBox = new JComboBox<>(PreviewOriginMode.values());
 		originModeBox.setSelectedItem(preview.originMode);
 		originModeBox.addActionListener((e) -> {
 			if (preview != null)
@@ -288,6 +294,8 @@ public class GeneratePrimitiveOptionsDialog extends JDialog
 		preview.visible = true;
 		preview.parentObj = parentObj;
 		preview.targetBatch = targetBatch;
+		// which can have changed since the dialog was last open
+		originModeBox.setSelectedItem(preview.originMode);
 		updatePreview();
 	}
 
