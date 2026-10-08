@@ -32,6 +32,7 @@ public class RemoteView
 	private final RemoteOutput output = new RemoteOutput();
 
 	private boolean focused = false;
+	private boolean visible = true;
 	// where each mouse button was pressed, which a release at the same place makes a click, as AWT has it
 	private final Point[] pressedAt = new Point[4];
 
@@ -65,6 +66,12 @@ public class RemoteView
 	public boolean isClosed()
 	{
 		return session.isClosed();
+	}
+
+	/** Whether the other program shows the views, which the editor needn't draw while it doesn't. */
+	public boolean isVisible()
+	{
+		return visible;
 	}
 
 	/** Whether the other program's view of the editor has the keyboard. */
@@ -101,7 +108,11 @@ public class RemoteView
 					break;
 				}
 				case "show":
+					visible = true;
 					output.resend();
+					break;
+				case "hide":
+					visible = false;
 					break;
 				case "focus":
 					focused = message.get("focused").getAsBoolean();

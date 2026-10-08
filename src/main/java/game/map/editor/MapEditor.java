@@ -42,6 +42,8 @@ import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL11;
 import org.w3c.dom.Element;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
 import common.FrameLimiter;
@@ -159,6 +161,7 @@ import game.map.shape.TriangleBatch;
 import game.map.shape.UV;
 import game.map.shape.UVGenerator;
 import game.map.tree.MapObjectNode;
+import game.map.tree.MapObjectTreeModel;
 import game.sprite.SpriteLoader;
 import game.texture.ModelTexture;
 import renderer.buffers.LineRenderQueue;
@@ -378,6 +381,10 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 
 	// set while another program shows the views and sends input, in place of this program's window
 	private RemoteView remote = null;
+	// the map's objects and the selection as last sent to it, to send only changes
+	private MapObjectsJson remoteObjects = null;
+	private String remoteObjectsSent = null;
+	private String remoteSelectionSent = null;
 
 	/**
 	 * Rendering options
@@ -791,10 +798,53 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 		}
 	}
 
+	/** Sends the remote session the map's objects, a few times a second, and the selection, when they change. */
+	private void sendRemoteState()
+	{
+		if (remoteObjects == null || frameCounter % 15 == 0) {
+			remoteObjects = new MapObjectsJson(
+				List.<MapObjectTreeModel<?>> of(getGeometryMap().modelTree, getCollisionMap().colliderTree,
+					getCollisionMap().zoneTree, map.markerTree),
+				List.of("Models", "Colliders", "Zones", "Markers"));
+			String objects = remoteObjects.getCategories().toString();
+			if (!objects.equals(remoteObjectsSent)) {
+				remoteObjectsSent = objects;
+				JsonObject message = new JsonObject();
+				message.addProperty("type", "objects");
+				message.add("categories", remoteObjects.getCategories());
+				remote.getSession().send(message);
+			}
+		}
+
+		JsonArray ids = new JsonArray();
+		for (MapObject obj : selectionManager.getSelectedObjects())
+			ids.add(obj.uniqueID);
+		String selection = ids.toString();
+		if (!selection.equals(remoteSelectionSent)) {
+			remoteSelectionSent = selection;
+			JsonObject message = new JsonObject();
+			message.addProperty("type", "selection");
+			message.add("ids", ids);
+			remote.getSession().send(message);
+		}
+	}
+
 	/** Acts on a message from the remote session for the map editor, rather than its views. */
 	private void receiveRemoteMessage(JsonObject message)
 	{
 		switch (message.get("type").getAsString()) {
+			case "select": {
+				List<MapObject> objs = new ArrayList<>();
+				for (JsonElement id : message.getAsJsonArray("ids")) {
+					MapObject obj = (remoteObjects != null) ? remoteObjects.get(id.getAsInt()) : null;
+					if (obj != null)
+						objs.add(obj);
+				}
+				if (!objs.isEmpty())
+					selectionManager.setObjectType(objs.get(0).getObjectType());
+				selectionManager.selectObjectsFromGUI(objs, List.of(), false);
+				break;
+			}
 			case "views":
 				// the perspective view alone, or all four
 				mainViewMode = message.get("four").getAsBoolean() ? ViewMode.FOUR : ViewMode.ONE;
@@ -1395,7 +1445,8 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 
 			synchronized (modifyLock) {
 				step();
-				glCanvas.render();
+				if (remote == null || remote.isVisible())
+					glCanvas.render();
 			}
 
 			long t_beforesync = System.nanoTime();
@@ -1437,8 +1488,10 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 
 	private void step()
 	{
-		if (remote != null)
+		if (remote != null) {
 			remote.receive(this::receiveRemoteMessage);
+			sendRemoteState();
+		}
 
 		BasicProfiler profiler = null;
 		if (doStepProfiling) {
