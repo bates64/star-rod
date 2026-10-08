@@ -207,7 +207,11 @@ public class MessageRenderer
 		return glID;
 	}
 
-	private final void drawBackground(int glTexID)
+	/**
+	 * Draws the panoramic background across the view, as much of it as the game shows for the view's width in its
+	 * pixels, which is the viewport's at `cameraZoom`.
+	 */
+	private final void drawBackground(int glTexID, float cameraZoom)
 	{
 		projMatrix.ortho(0.0f, 1.0f, 1.0f, 0.0f, 1.0f, -1.0f);
 		RenderState.setProjectionMatrix(projMatrix);
@@ -215,7 +219,7 @@ public class MessageRenderer
 
 		float hfov = 105;
 		float right = (hfov + 360) / 360;
-		float scaleX = RenderState.getViewportSizeX() / 600.0f;
+		float scaleX = RenderState.getViewportSizeX() * cameraZoom / 300.0f;
 
 		BasicTexturedShader shader = ShaderManager.use(BasicTexturedShader.class);
 		shader.texture.bind(glTexID);
@@ -375,7 +379,7 @@ public class MessageRenderer
 	{
 		assert (printer != null);
 
-		drawBackground(glBackgroundTexID);
+		drawBackground(glBackgroundTexID, cameraZoom);
 
 		float halfW = (editor.glCanvasWidth() / 2.0f) * cameraZoom;
 		float halfH = (editor.glCanvasHeight() / 2.0f) * cameraZoom;

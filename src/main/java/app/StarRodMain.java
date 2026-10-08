@@ -109,16 +109,18 @@ public class StarRodMain extends StarRodFrame
 	private List<JButton> buttons = new ArrayList<>();
 
 	/**
-	 * Opens a file in an editor, with another program showing its views and sending it input, such as Diorama64, which
-	 * listens on the port. The project is the current directory. The editor is `map` for a map.xml or
-	 * stage.xml.
+	 * Opens an editor, with another program showing its views and sending it input, such as Diorama64, which listens
+	 * on the port. The project is the current directory. The editor is `map`, for a map.xml or stage.xml, or `message`,
+	 * which previews the messages the other program sends it, and has no file.
 	 *
-	 * Usage: -RemoteEditor &lt;editor&gt; &lt;port&gt; &lt;file&gt;
+	 * Usage: -RemoteEditor map &lt;port&gt; &lt;file&gt; | -RemoteEditor message &lt;port&gt;
 	 */
 	private static void runRemoteEditor(String[] args)
 	{
-		if (args.length != 4 || !args[1].equals("map")) {
-			System.err.println("Usage: -RemoteEditor map <port> <file>");
+		boolean map = args.length == 4 && args[1].equals("map");
+		boolean message = args.length == 3 && args[1].equals("message");
+		if (!map && !message) {
+			System.err.println("Usage: -RemoteEditor map <port> <file> | -RemoteEditor message <port>");
 			System.exit(1);
 		}
 		LoadingBar.disable();
@@ -126,10 +128,15 @@ public class StarRodMain extends StarRodFrame
 		try {
 			RemoteSession session = new RemoteSession("127.0.0.1", Integer.parseInt(args[2]));
 			RemoteDialogs.start(session);
-			Map map = Map.loadMap(new File(args[3]));
-			if (map == null)
-				throw new IOException("Couldn't load " + args[3]);
-			new MapEditor(false).launchRemote(map, session);
+			if (message) {
+				new MessageEditor().launchRemote(session);
+			}
+			else {
+				Map loaded = Map.loadMap(new File(args[3]));
+				if (loaded == null)
+					throw new IOException("Couldn't load " + args[3]);
+				new MapEditor(false).launchRemote(loaded, session);
+			}
 		}
 		catch (Throwable t) {
 			Logger.printStackTrace(t);

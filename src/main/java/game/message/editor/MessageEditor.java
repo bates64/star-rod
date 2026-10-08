@@ -63,6 +63,10 @@ import javax.swing.text.StyledDocument;
 
 import org.apache.commons.io.FilenameUtils;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+
 import common.BaseEditor;
 import common.BaseEditorSettings;
 
@@ -180,6 +184,11 @@ public class MessageEditor extends BaseEditor
 	private volatile boolean ignoreDocumentContentChanges = false;
 	private volatile boolean ignoreDocumentFormatChanges = false;
 
+	// the message another program previews, in place of the text pane, and where its caret is
+	private volatile String remoteText = "[End]";
+	private volatile int remoteCaret = 0;
+	private boolean remoteTagsSent = false;
+
 	public static enum PollResult
 	{
 		OK, MISSING, MODIFIED
@@ -226,14 +235,23 @@ public class MessageEditor extends BaseEditor
 	public void cleanup(boolean crashed)
 	{
 		renderer.cleanup();
-		getConfig().setBoolean(Options.StrPrintDelay, cbPrintDelay.isSelected());
-		getConfig().setBoolean(Options.StrViewportGuides, cbShowViewportGuides.isSelected());
-		getConfig().setBoolean(Options.StrUseCulling, cbCulling.isSelected());
+
+		Config cfg = getConfig();
+		if (cfg != null) {
+			cfg.setBoolean(Options.StrPrintDelay, cbPrintDelay.isSelected());
+			cfg.setBoolean(Options.StrViewportGuides, cbShowViewportGuides.isSelected());
+			cfg.setBoolean(Options.StrUseCulling, cbCulling.isSelected());
+		}
 	}
 
 	@Override
 	protected void update(double deltaTime)
 	{
+		if (remote() != null) {
+			updateRemote();
+			return;
+		}
+
 		if (varsChanged) {
 			for (int i = 0; i < varBuffers.length; i++) {
 				String s = varFields[i].getText();
@@ -268,6 +286,171 @@ public class MessageEditor extends BaseEditor
 			target.editorShouldSync = false;
 			syncString(target);
 		}
+	}
+
+	/**
+	 * Previews the message another program sends, fitting the screen in its view, without the text pane or saving,
+	 * which the other program does instead.
+	 */
+	private void updateRemote()
+	{
+		if (!remoteTagsSent) {
+			remoteTagsSent = true;
+			remote().getSession().send(describeTags());
+		}
+
+		if (varsChanged) {
+			for (int i = 0; i < varBuffers.length; i++)
+				varBuffers[i] = StringEncoder.encodeVar(varFields[i].getText(), false);
+		}
+
+		if (imageChanged)
+			renderer.setVarImage(varImage);
+
+		if (textChanged || caretChanged || varsChanged) {
+			if (textChanged || varsChanged)
+				printer.setSequences(StringEncoder.encodeText(remoteText, varBuffers));
+			printer.setCurrentPage(Math.min(remoteCaret, remoteText.length()));
+			textChanged = false;
+			caretChanged = false;
+			varsChanged = false;
+		}
+
+		// the whole screen, and as much around it as fits
+		cameraX = 160.0f;
+		cameraY = 120.0f;
+		cameraZoom = Math.max(320.0f / Math.max(1, glCanvasWidth()), 240.0f / Math.max(1, glCanvasHeight()));
+
+		printer.update();
+	}
+
+	/**
+	 * Acts on the other program's messages: "preview" sets the message previewed and its caret, "replay" prints it
+	 * again, "options" sets the preview's options, "vars" sets the message's variables, and "check" asks for the
+	 * errors in each of a list of messages, which the reply, "checked", has in the same order, each as where in the
+	 * message it is and what's wrong.
+	 */
+	@Override
+	protected void receiveRemoteMessage(JsonObject message)
+	{
+		switch (message.get("type").getAsString()) {
+			case "preview":
+				String text = message.get("text").getAsString();
+				if (!text.equals(remoteText)) {
+					remoteText = text;
+					textChanged = true;
+				}
+				remoteCaret = message.get("caret").getAsInt();
+				caretChanged = true;
+				break;
+			case "replay":
+				textChanged = true;
+				break;
+			case "options":
+				if (message.has("printDelay"))
+					cbPrintDelay.setSelected(message.get("printDelay").getAsBoolean());
+				if (message.has("guides"))
+					cbShowViewportGuides.setSelected(message.get("guides").getAsBoolean());
+				if (message.has("grid"))
+					cbShowGrid.setSelected(message.get("grid").getAsBoolean());
+				if (message.has("culling"))
+					cbCulling.setSelected(message.get("culling").getAsBoolean());
+				textChanged = true;
+				break;
+			case "vars":
+				JsonArray vars = message.getAsJsonArray("vars");
+				for (int i = 0; i < varFields.length && i < vars.size(); i++)
+					varFields[i].setText(vars.get(i).getAsString());
+				varsChanged = true;
+				break;
+			case "check":
+				JsonArray results = new JsonArray();
+				for (JsonElement markup : message.getAsJsonArray("messages")) {
+					JsonArray errors = new JsonArray();
+					try {
+						for (Sequence seq : StringEncoder.encodeText(markup.getAsString(), varBuffers)) {
+							if (seq.hasError()) {
+								JsonObject error = new JsonObject();
+								error.addProperty("start", seq.srcStart);
+								error.addProperty("length", seq.srcLen);
+								error.addProperty("message", seq.getErrorMessage());
+								errors.add(error);
+							}
+						}
+					}
+					catch (RuntimeException e) {
+						JsonObject error = new JsonObject();
+						error.addProperty("start", 0);
+						error.addProperty("length", 0);
+						error.addProperty("message", String.valueOf(e.getMessage()));
+						errors.add(error);
+					}
+					results.add(errors);
+				}
+				JsonObject reply = new JsonObject();
+				reply.addProperty("type", "checked");
+				reply.add("id", message.get("id"));
+				reply.add("errors", results);
+				remote().getSession().send(reply);
+				break;
+		}
+	}
+
+	/**
+	 * The tags a message can have, for the other program to suggest, as a "tags" message: control and special
+	 * characters, styles, functions, and effects, each with how many arguments it takes, and the fonts and voices the
+	 * Font and Voice functions name.
+	 */
+	private static JsonObject describeTags()
+	{
+		JsonObject tags = new JsonObject();
+		tags.addProperty("type", "tags");
+
+		JsonArray controls = new JsonArray();
+		for (StringConstants.ControlCharacter c : StringConstants.ControlCharacter.values()) {
+			if (c != StringConstants.ControlCharacter.FUNC && c != StringConstants.ControlCharacter.STYLE)
+				controls.add(tag(c.name, c.args));
+		}
+		tags.add("controls", controls);
+
+		JsonArray specials = new JsonArray();
+		for (SpecialCharacter c : SpecialCharacter.values())
+			specials.add(c.name.replaceFirst("^~", ""));
+		tags.add("specials", specials);
+
+		JsonArray styles = new JsonArray();
+		for (StringConstants.StringStyle style : StringConstants.StringStyle.values())
+			styles.add(tag(style.name, style.args));
+		tags.add("styles", styles);
+
+		JsonArray functions = new JsonArray();
+		for (StringConstants.StringFunction func : StringConstants.StringFunction.values())
+			functions.add(tag(func.name, func.args));
+		tags.add("functions", functions);
+
+		JsonArray effects = new JsonArray();
+		for (StringEffect effect : StringEffect.values())
+			effects.add(tag(effect.name, effect.args));
+		tags.add("effects", effects);
+
+		JsonArray fonts = new JsonArray();
+		for (StringConstants.StringFont font : StringConstants.StringFont.values())
+			fonts.add(font.name);
+		tags.add("fonts", fonts);
+
+		JsonArray voices = new JsonArray();
+		for (StringConstants.StringVoice voice : StringConstants.StringVoice.values())
+			voices.add(voice.name);
+		tags.add("voices", voices);
+		return tags;
+	}
+
+	private static JsonObject tag(String name, int args)
+	{
+		JsonObject tag = new JsonObject();
+		tag.addProperty("name", name);
+		tag.addProperty("args", args);
+		return tag;
 	}
 
 	@Override

@@ -37,8 +37,13 @@ import javax.swing.WindowConstants;
 
 import org.apache.commons.io.FileUtils;
 
+import com.google.gson.JsonObject;
+
 import common.KeyboardInput.KeyboardInputListener;
 import common.MouseInput.MouseManagerListener;
+import common.remote.RemoteDialogs;
+import common.remote.RemoteSession;
+import common.remote.RemoteView;
 
 import app.Directories;
 import app.Environment;
@@ -94,6 +99,9 @@ public abstract class BaseEditor extends GLEditor implements Logger.Listener, Mo
 
 	// editor state
 	private volatile boolean closeRequested = false;
+
+	// set while another program shows the view and sends input, in place of this editor's window
+	private RemoteView remote = null;
 	private volatile OpenDialogCounter openDialogs = new OpenDialogCounter();
 
 	protected boolean glWindowGrabsMouse;
@@ -138,7 +146,8 @@ public abstract class BaseEditor extends GLEditor implements Logger.Listener, Mo
 			}
 		}
 
-		if (settings.hasConfig) {
+		// another program keeps the settings of an editor it shows, rather than the project's config
+		if (settings.hasConfig && !RemoteDialogs.isActive()) {
 			File editorConfigFile = new File(PROJ_CFG + "/" + settings.configFileName);
 			config = readEditorConfig(settings.configScope, editorConfigFile);
 		}
@@ -342,6 +351,91 @@ public abstract class BaseEditor extends GLEditor implements Logger.Listener, Mo
 
 		return exitToMenu;
 	}
+
+	/**
+	 * Runs the editor with `session` showing its view and sending input, and no window of its own, until the
+	 * session closes. Messages from the session for the editor, rather than its view, go to
+	 * {@link #receiveRemoteMessage}.
+	 */
+	public final void launchRemote(RemoteSession session)
+	{
+		if (runState != RunState.SETUP)
+			throw new IllegalStateException("Cannot launch an editor which is already running!");
+		else
+			runState = RunState.RUN;
+
+		remote = new RemoteView(session, glCanvas, keyboard, mouse, null);
+
+		try {
+			FrameLimiter limiter = new FrameLimiter();
+
+			// force glInit
+			glCanvas.render();
+
+			while (!remote.isClosed()) {
+				long t0 = System.nanoTime();
+				time = t0 / 1e9;
+
+				if (!glCanvas.getSize().equals(prevCanvasSize)) {
+					resizeViews();
+					prevCanvasSize = glCanvas.getSize();
+				}
+
+				synchronized (modifyLock) {
+					remote.receive(this::receiveRemoteMessage);
+					keyboard.update(this, remote.isFocused());
+					mouse.update(this, remote.isFocused());
+
+					runInContext(() -> {
+						while (!eventQueue.isEmpty())
+							eventQueue.poll().run();
+
+						for (Tickable ticker : tickers)
+							ticker.tick(deltaTime);
+
+						update(deltaTime);
+
+						if (remote.isVisible()) {
+							remote.beginFrame();
+							glDraw();
+							remote.endFrame();
+						}
+					});
+				}
+
+				limiter.sync(targetFPS);
+				deltaTime = (System.nanoTime() - t0) / 1e9;
+				frameCounter++;
+			}
+
+			runState = RunState.CLOSE;
+			base_cleanup(false);
+		}
+		catch (Throwable t) {
+			Logger.printStackTrace(t);
+			try {
+				if (runState != RunState.CLOSE)
+					base_cleanup(true);
+			}
+			catch (Throwable x) {
+				// ignore exceptions in crash-cleanup
+			}
+			throw new StarRodException(t);
+		}
+		finally {
+			session.close();
+		}
+	}
+
+	/** The other program showing this editor's view, if one is. */
+	public final RemoteView remote()
+	{
+		return remote;
+	}
+
+	/** Acts on a message from the other program showing this editor, for the editor rather than its view. */
+	protected void receiveRemoteMessage(JsonObject message)
+	{}
 
 	private void base_cleanup(boolean crashed)
 	{
