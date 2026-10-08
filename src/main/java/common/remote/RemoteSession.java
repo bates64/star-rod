@@ -11,6 +11,7 @@ import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.function.Predicate;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -25,6 +26,7 @@ import util.Logger;
  */
 public class RemoteSession
 {
+	private volatile Predicate<JsonObject> immediateHandler = null;
 	public static final byte JSON = 0;
 	public static final byte FRAME = 1;
 
@@ -58,6 +60,15 @@ public class RemoteSession
 	public boolean isClosed()
 	{
 		return closed;
+	}
+
+	/**
+	 * Has `handler` see each message as it's received, before it's polled for, which it takes by returning true.
+	 * It's called on the session's own thread, so it can answer a thread waiting for the message.
+	 */
+	public void setImmediateHandler(Predicate<JsonObject> handler)
+	{
+		immediateHandler = handler;
 	}
 
 	/** The next message received, or null if there's none yet. */
@@ -124,7 +135,10 @@ public class RemoteSession
 				in.readFully(body);
 				if (body[0] == JSON) {
 					String json = new String(body, 1, length - 1, StandardCharsets.UTF_8);
-					received.add(JsonParser.parseString(json).getAsJsonObject());
+					JsonObject message = JsonParser.parseString(json).getAsJsonObject();
+					Predicate<JsonObject> handler = immediateHandler;
+					if (handler == null || !handler.test(message))
+						received.add(message);
 				}
 			}
 		}

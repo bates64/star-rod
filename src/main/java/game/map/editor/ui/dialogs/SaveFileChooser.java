@@ -9,6 +9,7 @@ import org.lwjgl.system.MemoryStack;
 import org.lwjgl.util.tinyfd.TinyFileDialogs;
 
 import app.SwingUtils;
+import common.remote.RemoteDialogs;
 
 public class SaveFileChooser
 {
@@ -55,7 +56,9 @@ public class SaveFileChooser
 				aFilterPatterns.put(stack.UTF8("*." + s));
 			aFilterPatterns.flip();
 
-			String path = TinyFileDialogs.tinyfd_saveFileDialog(title, defaultPath, aFilterPatterns, filterName);
+			String path = RemoteDialogs.isActive()
+				? RemoteDialogs.chooseFile("save", title, currentDirectory, filterExts)
+				: TinyFileDialogs.tinyfd_saveFileDialog(title, defaultPath, aFilterPatterns, filterName);
 			if (path != null) {
 				selected = new File(path);
 				result = checkForOverwrite(selected) ? ChooseDialogResult.APPROVE : ChooseDialogResult.CANCEL;

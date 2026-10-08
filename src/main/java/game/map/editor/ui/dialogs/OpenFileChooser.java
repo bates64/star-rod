@@ -6,6 +6,8 @@ import org.lwjgl.PointerBuffer;
 import org.lwjgl.system.MemoryStack;
 import org.lwjgl.util.tinyfd.TinyFileDialogs;
 
+import common.remote.RemoteDialogs;
+
 public class OpenFileChooser
 {
 	private final String title;
@@ -40,6 +42,14 @@ public class OpenFileChooser
 	{
 		String defaultPath = getDefaultPath(currentDirectory);
 		ChooseDialogResult result;
+
+		if (RemoteDialogs.isActive()) {
+			String path = RemoteDialogs.chooseFile("open", title, currentDirectory, filterExts);
+			selected = (path != null) ? new File(path) : null;
+			if (selected != null)
+				currentDirectory = selected.getParentFile();
+			return (selected != null) ? ChooseDialogResult.APPROVE : ChooseDialogResult.CANCEL;
+		}
 
 		try (MemoryStack stack = MemoryStack.stackPush()) {
 			PointerBuffer aFilterPatterns = stack.mallocPointer(filterExts.length);

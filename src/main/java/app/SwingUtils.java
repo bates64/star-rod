@@ -48,6 +48,8 @@ import javax.swing.undo.CannotRedoException;
 import javax.swing.undo.CannotUndoException;
 import javax.swing.undo.UndoManager;
 
+import common.remote.RemoteDialogs;
+
 public class SwingUtils
 {
 	private static class PaddedBorder extends CompoundBorder implements UIResource
@@ -299,6 +301,9 @@ public class SwingUtils
 
 		public int choose()
 		{
+			if (RemoteDialogs.isActive() && message instanceof String text)
+				return chooseRemotely(text);
+
 			if (counter != null)
 				counter.increment();
 
@@ -314,6 +319,32 @@ public class SwingUtils
 				counter.decrement();
 
 			return result;
+		}
+
+		/** Shows a text message in another program, which answers as {@link JOptionPane} would. */
+		private int chooseRemotely(String text)
+		{
+			String kind = switch (messageType) {
+				case JOptionPane.ERROR_MESSAGE -> "error";
+				case JOptionPane.WARNING_MESSAGE -> "warning";
+				case JOptionPane.QUESTION_MESSAGE -> "question";
+				default -> "info";
+			};
+			if (options != null) {
+				String[] labels = new String[options.length];
+				for (int i = 0; i < options.length; i++)
+					labels[i] = String.valueOf(options[i]);
+				return RemoteDialogs.ask(kind, title, text, labels);
+			}
+			return switch (optionType) {
+				case JOptionPane.YES_NO_OPTION -> RemoteDialogs.ask(kind, title, text, "Yes", "No");
+				case JOptionPane.YES_NO_CANCEL_OPTION -> RemoteDialogs.ask(kind, title, text, "Yes", "No", "Cancel");
+				case JOptionPane.OK_CANCEL_OPTION -> {
+					int choice = RemoteDialogs.ask(kind, title, text, "OK", "Cancel");
+					yield (choice == 1) ? JOptionPane.CANCEL_OPTION : choice;
+				}
+				default -> RemoteDialogs.ask(kind, title, text, "OK");
+			};
 		}
 	}
 

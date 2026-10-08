@@ -4,6 +4,8 @@ import java.io.File;
 
 import org.lwjgl.util.tinyfd.TinyFileDialogs;
 
+import common.remote.RemoteDialogs;
+
 public class DirChooser
 {
 	private String title;
@@ -31,7 +33,9 @@ public class DirChooser
 	public ChooseDialogResult prompt()
 	{
 		String defaultPath = (currentDirectory == null) ? null : currentDirectory.getAbsolutePath();
-		String path = TinyFileDialogs.tinyfd_selectFolderDialog(title, defaultPath);
+		String path = RemoteDialogs.isActive()
+			? RemoteDialogs.chooseFile("folder", title, currentDirectory)
+			: TinyFileDialogs.tinyfd_selectFolderDialog(title, defaultPath);
 		if (path == null)
 			return ChooseDialogResult.CANCEL;
 		selected = new File(path);

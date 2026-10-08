@@ -37,6 +37,7 @@ import javax.swing.SwingWorker;
 import javax.swing.WindowConstants;
 
 import common.BaseEditor;
+import common.remote.RemoteDialogs;
 import common.remote.RemoteSession;
 
 import app.input.InvalidInputException;
@@ -124,6 +125,7 @@ public class StarRodMain extends StarRodFrame
 		Environment.initialize(false);
 		try {
 			RemoteSession session = new RemoteSession("127.0.0.1", Integer.parseInt(args[2]));
+			RemoteDialogs.start(session);
 			Map map = Map.loadMap(new File(args[3]));
 			if (map == null)
 				throw new IOException("Couldn't load " + args[3]);
@@ -514,6 +516,14 @@ public class StarRodMain extends StarRodFrame
 	public static void displayStackTrace(Throwable e, File log)
 	{
 		Logger.printStackTrace(e);
+
+		// another program shows the error, whose stack trace is in its log of what's printed
+		if (RemoteDialogs.isActive()) {
+			String message = e.getClass().getSimpleName() + ((e.getMessage() != null) ? ": " + e.getMessage() : "");
+			SwingUtilities.invokeLater(() -> RemoteDialogs.ask("error", "Star Rod Error",
+				message + "\n\nThe stack trace is in .dx/star-rod.log.", "OK"));
+			return;
+		}
 
 		if (!Environment.isCommandLine()) {
 			SwingUtilities.invokeLater(() -> {

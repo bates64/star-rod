@@ -54,6 +54,7 @@ import org.lwjgl.assimp.Assimp;
 import common.EditorCanvas;
 import common.KeyBindingsPanel;
 import common.commands.AbstractCommand;
+import common.remote.RemoteDialogs;
 
 import app.Environment;
 import app.StarRodFrame;
@@ -345,7 +346,18 @@ public final class SwingGUI extends StarRodFrame implements ActionListener, Logg
 		//	PlatformDefaults.setLogicalPixelBase( PlatformDefaults.BASE_REAL_PIXEL );
 
 		setLayout(new MigLayout());
-		add(glCanvas, "grow, push");
+		if (RemoteDialogs.isActive()) {
+			// Another program shows the views, and this window isn't shown. The canvas goes in a window that's never
+			// shown either, but has what the canvas needs to draw, off the screen.
+			Frame canvasHolder = new Frame();
+			canvasHolder.setLayout(null);
+			canvasHolder.add(glCanvas);
+			canvasHolder.pack();
+		}
+		else {
+			add(glCanvas, "grow, push");
+		}
+
 		add(createSidePanel(), "w " + SIDE_PANEL_WIDTH + "!, growy, wrap");
 		//	add(createSidePanel(), "w 400:36%:36%, growy, wrap"); //TODO test this on 4k
 
