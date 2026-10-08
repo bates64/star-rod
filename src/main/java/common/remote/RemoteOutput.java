@@ -1,18 +1,19 @@
 package common.remote;
 
 import static org.lwjgl.opengl.GL11.*;
+import static org.lwjgl.opengl.GL15.*;
+import static org.lwjgl.opengl.GL21.GL_PIXEL_PACK_BUFFER;
 import static org.lwjgl.opengl.GL30.*;
 
 import java.nio.ByteBuffer;
 import java.util.zip.CRC32C;
 
-import org.lwjgl.BufferUtils;
-
 import renderer.shaders.RenderState;
 
 /**
  * Stands in for the window's framebuffer while a {@link RemoteSession} shows the views, and reads back each frame
- * drawn to it. It has depth and stencil as the window's does, since picking reads them.
+ * drawn to it. It has depth and stencil as the window's does, since picking reads them. Frames are read back through
+ * two pixel buffers, so the GPU copies out one frame while the previous is sent, which sends each frame one frame late.
  */
 public class RemoteOutput
 {
@@ -22,7 +23,11 @@ public class RemoteOutput
 	private int width = 0;
 	private int height = 0;
 
-	private ByteBuffer pixels = null;
+	private final int[] packBuffers = new int[2];
+	// whether each pack buffer has a frame that hasn't been read yet
+	private final boolean[] packed = new boolean[2];
+	private int nextPack = 0;
+	private ByteBuffer mapped = null;
 	private long lastChecksum = -1;
 	private final CRC32C checksum = new CRC32C();
 
@@ -50,7 +55,15 @@ public class RemoteOutput
 			glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, depthStencilBuffer);
 
 			glBindRenderbuffer(GL_RENDERBUFFER, 0);
-			pixels = BufferUtils.createByteBuffer(width * height * 4);
+
+			for (int i = 0; i < packBuffers.length; i++) {
+				glDeleteBuffers(packBuffers[i]);
+				packBuffers[i] = glGenBuffers();
+				glBindBuffer(GL_PIXEL_PACK_BUFFER, packBuffers[i]);
+				glBufferData(GL_PIXEL_PACK_BUFFER, (long) width * height * 4, GL_STREAM_READ);
+				packed[i] = false;
+			}
+			glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
 			lastChecksum = -1;
 			this.width = width;
 			this.height = height;
@@ -62,21 +75,37 @@ public class RemoteOutput
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 	}
 
-	/** Reads back what was drawn since {@link #begin}, and sends it to `session` if it changed. */
+	/**
+	 * Starts reading back what was drawn since {@link #begin}, and sends `session` the frame before it, if it changed.
+	 */
 	public void end(RemoteSession session)
 	{
+		int current = nextPack;
+		int previous = 1 - current;
+
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, frameBuffer);
 		glReadBuffer(GL_COLOR_ATTACHMENT0);
-		pixels.clear();
-		glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+		glBindBuffer(GL_PIXEL_PACK_BUFFER, packBuffers[current]);
+		glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, 0L);
+		packed[current] = true;
 
-		checksum.reset();
-		checksum.update(pixels.duplicate());
-		long sum = checksum.getValue();
-		if (sum != lastChecksum) {
-			lastChecksum = sum;
-			session.sendFrame(width, height, pixels);
+		if (packed[previous]) {
+			glBindBuffer(GL_PIXEL_PACK_BUFFER, packBuffers[previous]);
+			mapped = glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY, (long) width * height * 4, mapped);
+			if (mapped != null) {
+				checksum.reset();
+				checksum.update(mapped.duplicate());
+				long sum = checksum.getValue();
+				if (sum != lastChecksum) {
+					lastChecksum = sum;
+					session.sendFrame(width, height, mapped);
+				}
+				glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
+			}
+			packed[previous] = false;
 		}
+		glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+		nextPack = previous;
 	}
 
 	/** Sends the next frame even if it's the same as the last, such as to a view that's just been shown. */
