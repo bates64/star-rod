@@ -20,6 +20,9 @@ public class ThreadSafeCommandManager
 
 	private final Runnable modifyCallback;
 
+	// the newest command that modified data when the data was last saved, or null if none had
+	private AbstractCommand savedCommand = null;
+
 	/**
 	 * Creates a new {@code ThreadSafeCommandManager} with a specified undo limit.
 	 *
@@ -143,6 +146,32 @@ public class ThreadSafeCommandManager
 		synchronized (modifyLock) {
 			undoStack.clear();
 			redoStack.clear();
+			savedCommand = null;
 		}
+	}
+
+	/** Records that the data, as it is now, was saved. */
+	public void markSaved()
+	{
+		synchronized (modifyLock) {
+			savedCommand = newestModifyingCommand();
+		}
+	}
+
+	/** Whether the data differs from when it was last saved, which undoing or redoing back to that point reverses. */
+	public boolean isModifiedSinceSave()
+	{
+		synchronized (modifyLock) {
+			return newestModifyingCommand() != savedCommand;
+		}
+	}
+
+	private AbstractCommand newestModifyingCommand()
+	{
+		for (int i = undoStack.size() - 1; i >= 0; i--) {
+			if (undoStack.get(i).modifiesData())
+				return undoStack.get(i);
+		}
+		return null;
 	}
 }

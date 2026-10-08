@@ -9,8 +9,15 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
 import java.util.function.Consumer;
 
+import javax.swing.JCheckBoxMenuItem;
+import javax.swing.JMenu;
+import javax.swing.JMenuBar;
+import javax.swing.JMenuItem;
+import javax.swing.JRadioButtonMenuItem;
+import javax.swing.MenuElement;
 import javax.swing.SwingUtilities;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
 import common.KeyboardInput;
@@ -32,6 +39,10 @@ public class RemoteView
 	private final RemoteOutput output = new RemoteOutput();
 
 	private boolean focused = false;
+	// the editor's menus, which the other program can show and click, and what was last sent of them
+	private JMenuBar menuBar = null;
+	private String menuSent = null;
+	private int receiveCount = 0;
 	private boolean visible = true;
 	// where each mouse button was pressed, which a release at the same place makes a click, as AWT has it
 	private final Point[] pressedAt = new Point[4];
@@ -66,6 +77,15 @@ public class RemoteView
 	public boolean isClosed()
 	{
 		return session.isClosed();
+	}
+
+	/**
+	 * Offers the session the editor's menus. It's sent each item, by its path of labels such as "Map/Has Background",
+	 * whenever which items are enabled or checked changes, and can click them.
+	 */
+	public void setMenuBar(JMenuBar menuBar)
+	{
+		this.menuBar = menuBar;
 	}
 
 	/** Whether the other program shows the views, which the editor needn't draw while it doesn't. */
@@ -136,10 +156,83 @@ public class RemoteView
 				case "key":
 					receiveKey(message);
 					break;
+				case "menu":
+					clickMenuItem(message.get("path").getAsString());
+					break;
 				default:
 					editorMessages.accept(message);
 			}
 		}
+
+		// a few times a second
+		if (menuBar != null && receiveCount++ % 15 == 0)
+			sendMenu();
+	}
+
+	/** Sends the menus, if which items are enabled or checked changed. */
+	private void sendMenu()
+	{
+		JsonArray items = new JsonArray();
+		for (MenuElement menu : menuBar.getSubElements())
+			describeMenuItems(menu, "", items);
+		String menu = items.toString();
+		if (!menu.equals(menuSent)) {
+			menuSent = menu;
+			JsonObject message = new JsonObject();
+			message.addProperty("type", "menu");
+			message.add("items", items);
+			session.send(message);
+		}
+	}
+
+	private static void describeMenuItems(MenuElement element, String parentPath, JsonArray items)
+	{
+		if (!(element instanceof JMenuItem item)) {
+			for (MenuElement child : element.getSubElements())
+				describeMenuItems(child, parentPath, items);
+			return;
+		}
+		String path = parentPath + item.getText().trim();
+		if (item instanceof JMenu) {
+			for (MenuElement child : item.getSubElements())
+				describeMenuItems(child, path + "/", items);
+			return;
+		}
+		JsonObject json = new JsonObject();
+		json.addProperty("path", path);
+		json.addProperty("enabled", item.isEnabled());
+		if (item instanceof JCheckBoxMenuItem || item instanceof JRadioButtonMenuItem)
+			json.addProperty("checked", item.isSelected());
+		items.add(json);
+	}
+
+	/** Clicks the menu item at a path of labels, as a user would, on Swing's thread. */
+	private void clickMenuItem(String path)
+	{
+		if (menuBar == null)
+			return;
+		SwingUtilities.invokeLater(() -> {
+			JMenuItem item = findMenuItem(menuBar, "", path);
+			if (item != null && item.isEnabled())
+				item.doClick(0);
+		});
+	}
+
+	private static JMenuItem findMenuItem(MenuElement element, String parentPath, String path)
+	{
+		for (MenuElement child : element.getSubElements()) {
+			String childPath = parentPath;
+			if (child instanceof JMenuItem item) {
+				childPath = parentPath + item.getText().trim();
+				if (!(item instanceof JMenu) && childPath.equals(path))
+					return item;
+				childPath += "/";
+			}
+			JMenuItem found = findMenuItem(child, childPath, path);
+			if (found != null)
+				return found;
+		}
+		return null;
 	}
 
 	/** A button press or release, as AWT button 1 (left), 2 (middle), or 3 (right). */

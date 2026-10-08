@@ -385,6 +385,7 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 	private MapObjectsJson remoteObjects = null;
 	private String remoteObjectsSent = null;
 	private String remoteSelectionSent = null;
+	private Boolean remoteModifiedSent = null;
 
 	/**
 	 * Rendering options
@@ -776,6 +777,7 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 	public void launchRemote(Map map, RemoteSession session)
 	{
 		remote = new RemoteView(session, glCanvas, keyboard, mouse, this);
+		remote.setMenuBar(gui.getJMenuBar());
 
 		try {
 			EditableField.setCallbacksEnabled(true);
@@ -816,6 +818,15 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 			}
 		}
 
+		boolean modified = commandManager.isModifiedSinceSave();
+		if (!Boolean.valueOf(modified).equals(remoteModifiedSent)) {
+			remoteModifiedSent = modified;
+			JsonObject message = new JsonObject();
+			message.addProperty("type", "dirty");
+			message.addProperty("dirty", modified);
+			remote.getSession().send(message);
+		}
+
 		JsonArray ids = new JsonArray();
 		for (MapObject obj : selectionManager.getSelectedObjects())
 			ids.add(obj.uniqueID);
@@ -833,6 +844,21 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 	private void receiveRemoteMessage(JsonObject message)
 	{
 		switch (message.get("type").getAsString()) {
+			case "save": {
+				action_SaveMap();
+				JsonObject reply = new JsonObject();
+				reply.addProperty("type", "saved");
+				reply.addProperty("saved", !commandManager.isModifiedSinceSave());
+				reply.addProperty("file", AssetManager.getSaveMapFile(map.getName()).getAbsolutePath());
+				remote.getSession().send(reply);
+				break;
+			}
+			case "undo":
+				executeShortcut(EditorShortcut.UNDO);
+				break;
+			case "redo":
+				executeShortcut(EditorShortcut.REDO);
+				break;
 			case "select": {
 				List<MapObject> objs = new ArrayList<>();
 				for (JsonElement id : message.getAsJsonArray("ids")) {
@@ -1466,7 +1492,8 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 				avFPS = 0;
 			}
 
-			if (backupInterval > 0 && time >= lastBackupTime + 60.0 * backupInterval)
+			// a remote session's program keeps its own history of the map
+			if (remote == null && backupInterval > 0 && time >= lastBackupTime + 60.0 * backupInterval)
 				saveBackup();
 		}
 	}
@@ -3937,6 +3964,7 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 		}
 
 		map.modified = false;
+		commandManager.markSaved();
 		lastBackupTime = time;
 		return true;
 	}
@@ -3961,6 +3989,7 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 		}
 
 		map.modified = false;
+		commandManager.markSaved();
 		lastBackupTime = time;
 
 		updateWindowTitle();
