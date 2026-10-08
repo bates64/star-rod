@@ -26,10 +26,14 @@ import javax.swing.JRadioButton;
 import javax.swing.JSlider;
 import javax.swing.JTextField;
 import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
 import javax.swing.border.Border;
 
 import common.Vector3f;
 import common.commands.AbstractCommand;
+
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 
 import app.SwingUtils;
 import game.map.editor.render.RenderingOptions.SurfaceMode;
@@ -340,6 +344,77 @@ public class PaintManager
 			for (Color rc : recentColors)
 				paintVertexTab.recentColorPreviews[i++].setForeground(rc);
 		}
+	}
+
+	private static JsonArray toJson(Color c)
+	{
+		JsonArray rgba = new JsonArray();
+		rgba.add(c.getRed());
+		rgba.add(c.getGreen());
+		rgba.add(c.getBlue());
+		rgba.add(c.getAlpha());
+		return rgba;
+	}
+
+	/**
+	 * The brush, as another program shows it: its color as [r, g, b, a], whether it paints each of those channels,
+	 * the colors used recently, its inner and outer radius, its power, its falloff, of `falloffs`, and whether models
+	 * show their textures while painting.
+	 */
+	public static JsonObject getBrush()
+	{
+		PaintVertexPanel tab = paintVertexTab;
+		JsonObject brush = new JsonObject();
+		brush.add("color", toJson(tab.selectedColor));
+		JsonArray channels = new JsonArray();
+		for (PaintSlider channel : new PaintSlider[] { tab.channelR, tab.channelG, tab.channelB, tab.channelA })
+			channels.add(channel.isPaintEnabled());
+		brush.add("channels", channels);
+		JsonArray recent = new JsonArray();
+		for (Color c : recentColors)
+			recent.add(toJson(c));
+		brush.add("recent", recent);
+		brush.addProperty("inner", tab.innerRadiusSlider.getValue());
+		brush.addProperty("outer", tab.outerRadiusSlider.getValue());
+		brush.addProperty("power", tab.forceSlider.getValue());
+		brush.addProperty("falloff", getFallOffType().ordinal());
+		JsonArray falloffs = new JsonArray();
+		for (BrushFallOffType type : BrushFallOffType.values())
+			falloffs.add(type.name());
+		brush.add("falloffs", falloffs);
+		brush.addProperty("showTextures", tab.cbShowTextures.isSelected());
+		return brush;
+	}
+
+	/** Sets those of the brush's settings, as {@link #getBrush()} names them, that `brush` has. */
+	public static void setBrush(JsonObject brush)
+	{
+		SwingUtilities.invokeLater(() -> {
+			PaintVertexPanel tab = paintVertexTab;
+			if (brush.has("color")) {
+				JsonArray rgba = brush.getAsJsonArray("color");
+				tab.setSelectedColor(new Color(rgba.get(0).getAsInt(), rgba.get(1).getAsInt(),
+					rgba.get(2).getAsInt(), rgba.get(3).getAsInt()));
+			}
+			if (brush.has("channels")) {
+				JsonArray channels = brush.getAsJsonArray("channels");
+				PaintSlider[] sliders = { tab.channelR, tab.channelG, tab.channelB, tab.channelA };
+				for (int i = 0; i < sliders.length; i++)
+					sliders[i].checkbox.setSelected(channels.get(i).getAsBoolean());
+			}
+			if (brush.has("outer")) {
+				tab.outerRadiusSlider.setValue(brush.get("outer").getAsInt());
+				tab.innerRadiusSlider.setMaximum(tab.outerRadiusSlider.getValue());
+			}
+			if (brush.has("inner"))
+				tab.innerRadiusSlider.setValue(brush.get("inner").getAsInt());
+			if (brush.has("power"))
+				tab.forceSlider.setValue(brush.get("power").getAsInt());
+			if (brush.has("falloff"))
+				tab.fallOffComboBox.setSelectedIndex(brush.get("falloff").getAsInt());
+			if (brush.has("showTextures"))
+				tab.cbShowTextures.setSelected(brush.get("showTextures").getAsBoolean());
+		});
 	}
 
 	public static SurfaceMode getRenderMode()

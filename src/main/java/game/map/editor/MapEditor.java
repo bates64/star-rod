@@ -383,6 +383,7 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 	private RemoteView remote = null;
 	private RemoteObjectActions remoteActions = null;
 	private RemoteProperties remoteProperties = null;
+	private RemoteModes remoteModes = null;
 	// where the other program's last right click landed on the map, if it did
 	private Vector3f clickPoint = null;
 	// the map's objects and the selection as last sent to it, to send only changes
@@ -784,6 +785,7 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 		remote.setMenuBar(gui.getJMenuBar());
 		remoteActions = new RemoteObjectActions(this);
 		remoteProperties = new RemoteProperties(this);
+		remoteModes = new RemoteModes(this);
 		showModeInViewport = false;
 
 		try {
@@ -827,6 +829,7 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 
 		remoteActions.sendState();
 		remoteProperties.send();
+		remoteModes.send();
 
 		boolean modified = commandManager.isModifiedSinceSave();
 		if (!Boolean.valueOf(modified).equals(remoteModifiedSent)) {
@@ -900,6 +903,23 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 			case "setProperty":
 				remoteProperties.set(message.get("key").getAsString(), message.get("value"),
 					message.has("enabled") ? message.get("enabled").getAsBoolean() : null);
+				break;
+			case "editorMode":
+				// only the modes another program shows
+				switch (EditorMode.valueOf(message.get("mode").getAsString())) {
+					case Texture -> remoteModes.setMode(EditorMode.Texture);
+					case VertexPaint -> remoteModes.setMode(EditorMode.VertexPaint);
+					default -> remoteModes.setMode(EditorMode.Modify);
+				}
+				break;
+			case "chooseTexture":
+				remoteModes.chooseTexture(message.has("name") ? message.get("name").getAsString() : null);
+				break;
+			case "selectTextureModels":
+				remoteModes.selectModelsWithTexture();
+				break;
+			case "setBrush":
+				PaintManager.setBrush(message.getAsJsonObject("brush"));
 				break;
 			case "pickPoint":
 				clickPoint = pickPointAtPointer();
@@ -2289,11 +2309,11 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 				break;
 
 			case Texture:
-				PickHit hit = Map.pickObjectFromSet(clickRayLMB, map.modelTree);
-				if (!hit.missed()) {
-					MapObject obj = (MapObject) hit.obj;
-					setSelectedTexture(((Model) obj).getMesh().texture);
-				}
+				// another program's view applies with the left button, as the more common action
+				if (remote != null)
+					applyTextureAt(clickRayLMB);
+				else
+					takeTextureAt(clickRayLMB);
 				break;
 
 			case VertexPaint:
@@ -2458,15 +2478,10 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 			case Options:
 				break;
 			case Texture:
-				PickHit hit = Map.pickObjectFromSet(clickRayRMB, map.modelTree);
-				if (!hit.missed()) {
-					Model mdl = (Model) hit.obj;
-					List<Model> mdlList = selectionManager.getSelectedObjects(Model.class);
-					if (mdlList.size() > 0 && mdlList.contains(mdl))
-						executeCommand(new ApplyTextureToList(mdlList, selectionManager.selectedTexture));
-					else
-						executeCommand(new ApplyTexture(mdl, selectionManager.selectedTexture));
-				}
+				if (remote != null)
+					takeTextureAt(clickRayRMB);
+				else
+					applyTextureAt(clickRayRMB);
 				break;
 			case VertexPaint:
 				pickVertexColor();
@@ -4467,6 +4482,31 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 		}
 
 		selectionManager.setSelectionMode(mode);
+	}
+
+	/** Selects the texture of the model the ray hits, if it hits one. */
+	private void takeTextureAt(PickRay ray)
+	{
+		PickHit hit = Map.pickObjectFromSet(ray, map.modelTree);
+		if (!hit.missed())
+			setSelectedTexture(((Model) hit.obj).getMesh().texture);
+	}
+
+	/**
+	 * Applies the selected texture to the model the ray hits, or to every selected model, if the one it hits is
+	 * selected.
+	 */
+	private void applyTextureAt(PickRay ray)
+	{
+		PickHit hit = Map.pickObjectFromSet(ray, map.modelTree);
+		if (!hit.missed()) {
+			Model mdl = (Model) hit.obj;
+			List<Model> mdlList = selectionManager.getSelectedObjects(Model.class);
+			if (mdlList.size() > 0 && mdlList.contains(mdl))
+				executeCommand(new ApplyTextureToList(mdlList, selectionManager.selectedTexture));
+			else
+				executeCommand(new ApplyTexture(mdl, selectionManager.selectedTexture));
+		}
 	}
 
 	public void setSelectedTexture(ModelTexture selectedTexture)
