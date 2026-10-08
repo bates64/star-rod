@@ -153,7 +153,7 @@ public class ColliderInfoPanel extends MapInfoPanel<Collider>
 		}
 	}
 
-	private static String makePrettyName(String str)
+	public static String makePrettyName(String str)
 	{
 		str = str.replaceFirst("^SURFACE_TYPE_", "");
 		if (str.equals("INVALID"))

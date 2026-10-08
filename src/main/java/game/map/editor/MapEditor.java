@@ -382,6 +382,7 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 	// set while another program shows the views and sends input, in place of this program's window
 	private RemoteView remote = null;
 	private RemoteObjectActions remoteActions = null;
+	private RemoteProperties remoteProperties = null;
 	// where the other program's last right click landed on the map, if it did
 	private Vector3f clickPoint = null;
 	// the map's objects and the selection as last sent to it, to send only changes
@@ -782,6 +783,7 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 		remote = new RemoteView(session, glCanvas, keyboard, mouse, this);
 		remote.setMenuBar(gui.getJMenuBar());
 		remoteActions = new RemoteObjectActions(this);
+		remoteProperties = new RemoteProperties(this);
 		showModeInViewport = false;
 
 		try {
@@ -824,6 +826,7 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 		}
 
 		remoteActions.sendState();
+		remoteProperties.send();
 
 		boolean modified = commandManager.isModifiedSinceSave();
 		if (!Boolean.valueOf(modified).equals(remoteModifiedSent)) {
@@ -893,6 +896,10 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 					case POINT -> GuiCommand.SELECT_POINTS;
 					default -> GuiCommand.SELECT_OBJECTS;
 				});
+				break;
+			case "setProperty":
+				remoteProperties.set(message.get("key").getAsString(), message.get("value"),
+					message.has("enabled") ? message.get("enabled").getAsBoolean() : null);
 				break;
 			case "pickPoint":
 				clickPoint = pickPointAtPointer();
