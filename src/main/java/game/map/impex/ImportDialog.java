@@ -15,8 +15,12 @@ import javax.swing.WindowConstants;
 
 import app.Environment;
 import app.SwingUtils;
+import game.map.MapObject;
 import game.map.MapObject.MapObjectType;
+import game.map.editor.MapEditor;
+import game.map.editor.RemoteForm;
 import game.map.impex.AssimpImporter.AssimpImportOptions;
+import game.map.tree.MapObjectNode;
 import net.miginfocom.swing.MigLayout;
 import util.ui.FloatTextField;
 
@@ -150,6 +154,31 @@ public class ImportDialog extends JDialog
 		setIconImage(Environment.getDefaultIconImage());
 		setLocationRelativeTo(parent);
 		setModal(true);
+	}
+
+	/**
+	 * The form another program shows in place of this dialog, which imports `f`, into `node`, if it isn't null, or
+	 * else as the type of object the form chooses.
+	 */
+	public static RemoteForm form(MapEditor editor, File f, MapObjectNode<? extends MapObject> node)
+	{
+		ImportAsValue[] types = ImportAsValue.values();
+		String[] typeNames = { "Models", "Colliders", "Zones" };
+
+		RemoteForm form = new RemoteForm("Import " + f.getName(), "Import");
+		if (node == null)
+			form.choice("importAs", "Import as", typeNames, () -> options.importAs.ordinal(),
+				i -> options.importAs = types[i]);
+		form.checkbox("triangulate", "Triangulate faces", () -> options.triangulate,
+			value -> options.triangulate = value);
+		form.checkbox("joinVertices", "Join identical vertices", () -> options.joinVertices,
+			value -> options.joinVertices = value);
+		form.checkbox("convertUp", "Convert to Y-up", () -> options.convertZupToYup,
+			value -> options.convertZupToYup = value);
+		form.number("scale", "Unit scale", () -> options.scale, value -> options.scale = (float) value);
+		form.number("uvScale", "UV scale", () -> options.uvScale, value -> options.uvScale = (float) value);
+		form.onSubmit(() -> editor.map.importViaAssimp(f, options, node));
+		return form;
 	}
 
 	public ImportDialogResult getResult()

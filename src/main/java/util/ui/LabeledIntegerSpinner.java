@@ -14,15 +14,25 @@ import net.miginfocom.swing.MigLayout;
 public class LabeledIntegerSpinner extends JComponent
 {
 	private JSpinner spinner;
+	private String label;
+
+	public String getLabel()
+	{
+		return label;
+	}
 
 	public int getValue()
 	{
 		return (Integer) spinner.getValue();
 	}
 
+	/** Sets the value, within the spinner's range. */
 	public void setValue(int val)
 	{
-		spinner.setValue(val);
+		SpinnerNumberModel model = (SpinnerNumberModel) spinner.getModel();
+		int min = ((Number) model.getMinimum()).intValue();
+		int max = ((Number) model.getMaximum()).intValue();
+		spinner.setValue(Math.max(min, Math.min(max, val)));
 	}
 
 	public void setMaximum(int val)
@@ -39,6 +49,7 @@ public class LabeledIntegerSpinner extends JComponent
 		SpinnerModel model = new SpinnerNumberModel(initialValue, minValue, maxValue, 1);
 		spinner.setModel(model);
 
+		label = msg;
 		JLabel lbl = new JLabel(msg);
 		lbl.setFont(lbl.getFont().deriveFont(12f));
 
@@ -55,6 +66,7 @@ public class LabeledIntegerSpinner extends JComponent
 		SpinnerModel model = new SpinnerNumberModel(initialValue, minValue, maxValue, 1);
 		spinner.setModel(model);
 
+		label = msg;
 		JLabel lbl = new JLabel(msg);
 		lbl.setFont(lbl.getFont().deriveFont(12f));
 		lbl.setForeground(c);

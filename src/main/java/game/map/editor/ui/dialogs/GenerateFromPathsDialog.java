@@ -24,6 +24,7 @@ import javax.swing.event.ChangeListener;
 
 import app.SwingUtils;
 import game.map.editor.MapEditor;
+import game.map.editor.RemoteForm;
 import game.map.editor.geometry.FromPathsGenerator;
 import game.map.editor.render.PreviewDrawMode;
 import game.map.editor.render.PreviewGeneratorFromPaths;
@@ -41,6 +42,7 @@ public class GenerateFromPathsDialog extends JDialog
 	public static final String FRAME_TITLE = "Generate From Selection Options";
 
 	private final PreviewGeneratorFromPaths preview;
+	private final BiConsumer<DialogResult, TriangleBatch> onClose;
 
 	private final JTextField path1Field;
 	private final JTextField path2Field;
@@ -58,6 +60,7 @@ public class GenerateFromPathsDialog extends JDialog
 	{
 		super(parent);
 		this.preview = preview;
+		this.onClose = onCloseCallback;
 		preview.drawMode = PreviewDrawMode.FILLED;
 		preview.useDepth = true;
 
@@ -189,6 +192,44 @@ public class GenerateFromPathsDialog extends JDialog
 		preview.batch = generateTriangles();
 	}
 
+	/**
+	 * The form another program shows in place of this dialog, as a card over the views, where the preview shows. Its
+	 * fields set this dialog's controls, which aren't shown.
+	 */
+	public RemoteForm form()
+	{
+		RemoteForm form = new RemoteForm("New from Paths", "Create").card();
+		PreviewDrawMode[] drawModes = PreviewDrawMode.values();
+		form.info("paths", () -> preview.paths.size() < 2
+			? "Select two path markers to make the object between."
+			: "Between " + path1Field.getText() + " and " + path2Field.getText());
+		form.integer("segments", "Segments", segmentsSlider::getValue, segmentsSlider::setValue);
+		form.checkbox("pathRadii", "Use radii from edge path points", cbOverrideRadius::isSelected,
+			cbOverrideRadius::setSelected);
+		form.integer("radius", "Radius", radiusSlider::getValue, radiusSlider::setValue)
+			.shown(obj -> !cbOverrideRadius.isSelected());
+		form.integer("taper", "Taper", taperSlider::getValue, taperSlider::setValue)
+			.shown(obj -> !cbOverrideRadius.isSelected());
+		form.integer("angle", "Angle", angleSlider::getValue, angleSlider::setValue);
+		form.integer("twist", "Twist", twistSlider::getValue, twistSlider::setValue);
+		form.checkbox("twistPerLength", "Twist per 200 units of length", cbTwistPerUnitLength::isSelected,
+			cbTwistPerUnitLength::setSelected);
+		form.heading("previewHeading", "Preview");
+		form.choice("drawMode", "Draw as", RemoteForm.sentenceCase(drawModes), () -> preview.drawMode.ordinal(),
+			i -> preview.drawMode = drawModes[i]);
+		form.checkbox("depth", "Hide behind the map", () -> preview.useDepth, value -> preview.useDepth = value);
+		form.onChange(this::updatePreview);
+		form.onSubmit(() -> {
+			onClose.accept(DialogResult.ACCEPT, preview.batch);
+			preview.clear();
+		});
+		form.onCancel(() -> {
+			onClose.accept(DialogResult.CANCEL, null);
+			preview.clear();
+		});
+		return form;
+	}
+
 	public String getTypeName()
 	{
 		return (segmentsSlider.getValue() > 2) ? "Pipe" : "Ribbon";
@@ -244,6 +285,12 @@ public class GenerateFromPathsDialog extends JDialog
 		public int getValue()
 		{
 			return slider.getValue();
+		}
+
+		/** Sets the value, within the slider's range. */
+		public void setValue(int value)
+		{
+			slider.setValue(value);
 		}
 
 		public SliderSpinner(String name, int minValue, int maxValue, int initialValue)

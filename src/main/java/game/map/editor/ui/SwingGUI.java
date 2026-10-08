@@ -15,6 +15,8 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -755,6 +757,15 @@ public final class SwingGUI extends StarRodFrame implements ActionListener, Logg
 		});
 		menu.add(item);
 
+		// the side panel's tab of them, for another program, which doesn't show the side panel
+		if (RemoteDialogs.isActive()) {
+			item = new JMenuItem("Edit Panners...");
+			item.addActionListener((e) -> {
+				prompt_EditTexPanner(editor.map.features.texPanners.get(0));
+			});
+			menu.add(item);
+		}
+
 		item.setPreferredSize(menuItemDimension);
 	}
 
@@ -1471,7 +1482,9 @@ public final class SwingGUI extends StarRodFrame implements ActionListener, Logg
 	private void prompt_LoadTextureArchive()
 	{
 		openDialogCount.increment();
-		File texFile = SelectTexDialog.showPrompt(this, editor.map.texName);
+		File texFile = RemoteDialogs.isActive()
+			? pickAsset("Change Texture Archive", AssetManager::getTextureArchives, editor.map.texName)
+			: SelectTexDialog.showPrompt(this, editor.map.texName);
 		openDialogCount.decrement();
 
 		if (texFile != null) {
@@ -1486,7 +1499,9 @@ public final class SwingGUI extends StarRodFrame implements ActionListener, Logg
 	private void prompt_ChangeBackground()
 	{
 		openDialogCount.increment();
-		File bgFile = SelectBackgroundDialog.showPrompt(this, editor.map.bgName);
+		File bgFile = RemoteDialogs.isActive()
+			? pickAsset("Change Background", AssetManager::getBackgrounds, editor.map.bgName)
+			: SelectBackgroundDialog.showPrompt(this, editor.map.bgName);
 		openDialogCount.decrement();
 
 		if (bgFile != null) {
@@ -1501,6 +1516,30 @@ public final class SwingGUI extends StarRodFrame implements ActionListener, Logg
 				}
 			});
 		}
+	}
+
+	public static interface AssetLister
+	{
+		Collection<AssetHandle> list() throws IOException;
+	}
+
+	/** Has another program ask the user to pick one of some assets, by name. Returns the one picked, or null. */
+	public static File pickAsset(String title, AssetLister lister, String current)
+	{
+		List<AssetHandle> assets;
+		try {
+			assets = new ArrayList<>(lister.list());
+		}
+		catch (IOException e) {
+			Logger.logError(e.getMessage());
+			return null;
+		}
+		assets.sort(Comparator.comparing(asset -> FilenameUtils.getBaseName(asset.getName())));
+		List<String> names = new ArrayList<>();
+		for (AssetHandle asset : assets)
+			names.add(FilenameUtils.getBaseName(asset.getName()));
+		int index = RemoteDialogs.pick(title, names, current);
+		return (index < 0) ? null : assets.get(index);
 	}
 
 	public void prompt_Import(MapObjectNode<? extends MapObject> node)
@@ -1522,6 +1561,11 @@ public final class SwingGUI extends StarRodFrame implements ActionListener, Logg
 			editor.map.importFromFile(in, node);
 		}
 		else if (Assimp.aiIsExtensionSupported(ext)) {
+			if (editor.forms() != null) {
+				editor.forms().open(ImportDialog.form(editor, in, node));
+				return;
+			}
+
 			openDialogCount.increment();
 
 			ImportDialog importDialog = new ImportDialog(this, in, node != null);
@@ -1613,6 +1657,11 @@ public final class SwingGUI extends StarRodFrame implements ActionListener, Logg
 
 	public void prompt_EditTexPanner(TexturePanner panner)
 	{
+		if (editor.forms() != null) {
+			editor.forms().open(DialogForms.panners(editor, panner));
+			return;
+		}
+
 		if (editTexPannerDialog == null)
 			editTexPannerDialog = new EditPannerDialog(this);
 
@@ -1638,6 +1687,11 @@ public final class SwingGUI extends StarRodFrame implements ActionListener, Logg
 		if (selection.isEmpty())
 			return;
 
+		if (editor.forms() != null) {
+			editor.forms().open(DialogForms.transform(editor, selection, transformType));
+			return;
+		}
+
 		transformSelectionPanel.setTransformType(transformType);
 		prompt_TransformSelection(selection);
 	}
@@ -1646,6 +1700,11 @@ public final class SwingGUI extends StarRodFrame implements ActionListener, Logg
 	{
 		if (selection.isEmpty())
 			return;
+
+		if (editor.forms() != null) {
+			editor.forms().open(DialogForms.transform(editor, selection, null));
+			return;
+		}
 
 		transformSelectionPanel.setSelection(selection);
 
@@ -1723,6 +1782,10 @@ public final class SwingGUI extends StarRodFrame implements ActionListener, Logg
 		}
 
 		generatePrimitiveDialog.beginPreview(parent, targetBatch);
+		if (editor.forms() != null) {
+			editor.forms().open(generatePrimitiveDialog.form());
+			return;
+		}
 		generatePrimitiveDialog.pack();
 		generatePrimitiveDialog.setVisible(true);
 	}
@@ -1749,6 +1812,10 @@ public final class SwingGUI extends StarRodFrame implements ActionListener, Logg
 		}
 
 		generateFromTrianglesDialog.beginPreview(parent);
+		if (editor.forms() != null) {
+			editor.forms().open(generateFromTrianglesDialog.form());
+			return;
+		}
 		generateFromTrianglesDialog.pack();
 		generateFromTrianglesDialog.setVisible(true);
 	}
@@ -1774,6 +1841,10 @@ public final class SwingGUI extends StarRodFrame implements ActionListener, Logg
 		}
 
 		generateFromPathsDialog.beginPreview(parent);
+		if (editor.forms() != null) {
+			editor.forms().open(generateFromPathsDialog.form());
+			return;
+		}
 		generateFromPathsDialog.pack();
 		generateFromPathsDialog.setVisible(true);
 	}
@@ -1837,6 +1908,11 @@ public final class SwingGUI extends StarRodFrame implements ActionListener, Logg
 
 	public void prompt_GenerateUV()
 	{
+		if (editor.forms() != null) {
+			editor.forms().open(DialogForms.generateUVs(editor));
+			return;
+		}
+
 		int choice = SwingUtils.getConfirmDialog()
 			.setParent(this)
 			.setCounter(openDialogCount)

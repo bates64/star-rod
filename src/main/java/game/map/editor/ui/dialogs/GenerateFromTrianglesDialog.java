@@ -22,6 +22,7 @@ import javax.swing.event.ChangeListener;
 import app.SwingUtils;
 import game.map.Axis;
 import game.map.editor.MapEditor;
+import game.map.editor.RemoteForm;
 import game.map.editor.geometry.FromTrianglesGenerator;
 import game.map.editor.geometry.FromTrianglesGenerator.GeneratorType;
 import game.map.editor.render.PreviewDrawMode;
@@ -37,6 +38,7 @@ public class GenerateFromTrianglesDialog extends JDialog
 	public static final String FRAME_TITLE = "Generate From Selection Options";
 
 	private final PreviewGeneratorFromTriangles preview;
+	private final BiConsumer<DialogResult, TriangleBatch> onClose;
 
 	private GeneratorType generator = GeneratorType.MESH;
 	private final JComboBox<GeneratorType> generatorBox;
@@ -51,6 +53,7 @@ public class GenerateFromTrianglesDialog extends JDialog
 	{
 		super(parent);
 		this.preview = preview;
+		this.onClose = onCloseCallback;
 		preview.drawMode = PreviewDrawMode.FILLED;
 		preview.useDepth = true;
 
@@ -173,6 +176,42 @@ public class GenerateFromTrianglesDialog extends JDialog
 		preview.batch = generateTriangles(preview.triangles);
 	}
 
+	/**
+	 * The form another program shows in place of this dialog, as a card over the views, where the preview shows. Its
+	 * fields set this dialog's controls, which aren't shown.
+	 */
+	public RemoteForm form()
+	{
+		RemoteForm form = new RemoteForm("New from Triangles", "Create").card();
+		GeneratorType[] types = GeneratorType.values();
+		PreviewDrawMode[] drawModes = PreviewDrawMode.values();
+		form.info("hint", () -> "Select triangles to make the object from.")
+			.shown(obj -> preview.triangles == null || preview.triangles.isEmpty());
+		form.choice("generator", "Make", RemoteForm.sentenceCase(types), generatorBox::getSelectedIndex,
+			generatorBox::setSelectedIndex);
+		form.integer("height", "Height", heightSlider::getValue, heightSlider::setValue)
+			.shown(obj -> heightSlider.isVisible());
+		form.integer("threshold", "Threshold", thresholdSpinner::getValue, thresholdSpinner::setValue)
+			.shown(obj -> thresholdSpinner.isVisible());
+		form.choice("axis", "Projection axis", new String[] { "X", "Y", "Z" }, axisComboBox::getSelectedIndex,
+			axisComboBox::setSelectedIndex)
+			.shown(obj -> axisComboBox.isVisible());
+		form.heading("previewHeading", "Preview");
+		form.choice("drawMode", "Draw as", RemoteForm.sentenceCase(drawModes), () -> preview.drawMode.ordinal(),
+			i -> preview.drawMode = drawModes[i]);
+		form.checkbox("depth", "Hide behind the map", () -> preview.useDepth, value -> preview.useDepth = value);
+		form.onChange(this::updatePreview);
+		form.onSubmit(() -> {
+			onClose.accept(DialogResult.ACCEPT, preview.batch);
+			preview.clear();
+		});
+		form.onCancel(() -> {
+			onClose.accept(DialogResult.CANCEL, null);
+			preview.clear();
+		});
+		return form;
+	}
+
 	public String getTypeName()
 	{
 		GeneratorType type = (GeneratorType) generatorBox.getSelectedItem();
@@ -209,6 +248,12 @@ public class GenerateFromTrianglesDialog extends JDialog
 		public int getValue()
 		{
 			return slider.getValue();
+		}
+
+		/** Sets the value, within the slider's range. */
+		public void setValue(int value)
+		{
+			slider.setValue(value);
 		}
 
 		public SliderSpinner(String name, int minValue, int maxValue, int initialValue)

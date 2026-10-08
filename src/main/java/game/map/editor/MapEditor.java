@@ -58,6 +58,7 @@ import common.commands.AbstractCommand;
 import common.commands.CommandBatch;
 import common.commands.EditableField;
 import common.commands.ThreadSafeCommandManager;
+import common.remote.RemoteDialogs;
 import common.remote.RemoteSession;
 import common.remote.RemoteView;
 
@@ -384,6 +385,7 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 	private RemoteObjectActions remoteActions = null;
 	private RemoteProperties remoteProperties = null;
 	private RemoteModes remoteModes = null;
+	private RemoteForms remoteForms = null;
 	// where the other program's last right click landed on the map, if it did
 	private Vector3f clickPoint = null;
 	// the map's objects and the selection as last sent to it, to send only changes
@@ -786,6 +788,7 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 		remoteActions = new RemoteObjectActions(this);
 		remoteProperties = new RemoteProperties(this);
 		remoteModes = new RemoteModes(this);
+		remoteForms = new RemoteForms(this);
 		showModeInViewport = false;
 
 		try {
@@ -830,6 +833,7 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 		remoteActions.sendState();
 		remoteProperties.send();
 		remoteModes.send();
+		remoteForms.send();
 
 		boolean modified = commandManager.isModifiedSinceSave();
 		if (!Boolean.valueOf(modified).equals(remoteModifiedSent)) {
@@ -917,6 +921,10 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 				break;
 			case "selectTextureModels":
 				remoteModes.selectModelsWithTexture();
+				break;
+			case "formField":
+			case "formDone":
+				remoteForms.receive(message);
 				break;
 			case "setBrush":
 				PaintManager.setBrush(message.getAsJsonObject("brush"));
@@ -2037,6 +2045,10 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 				if (editorMode == EditorMode.Modify) {
 					List<Model> models = selectionManager.getSelectedObjects(Model.class);
 					if (models.size() > 0) {
+						if (RemoteDialogs.isActive()) {
+							pickRenderMode(models);
+							break;
+						}
 						SwingUtilities.invokeLater(() -> {
 							JComboBox<RenderMode> selectionBox = new JComboBox<>(RenderMode.getEditorModes());
 							selectionBox.setSelectedItem(models.get(models.size() - 1).renderMode.get());
@@ -3869,6 +3881,26 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 		gui.setSelectedTexture(null);
 	}
 
+	/** Has another program ask the user for a render mode, which `models` are all set to. */
+	private void pickRenderMode(List<Model> models)
+	{
+		RenderMode[] modes = RenderMode.getEditorModes();
+		List<String> names = new ArrayList<>();
+		for (RenderMode mode : modes)
+			names.add(mode.toString());
+		String current = models.get(models.size() - 1).renderMode.get().toString();
+		// asked on another thread, rather than this one, which draws the views the user picks from
+		new Thread(() -> {
+			int index = RemoteDialogs.pick("Set Render Mode", names, current);
+			if (index < 0)
+				return;
+			CommandBatch batch = new CommandBatch();
+			for (Model mdl : models)
+				batch.addCommand(mdl.renderMode.mutator(modes[index]));
+			execute(batch);
+		}).start();
+	}
+
 	/** Prompts on the event dispatch thread, after the caller has released the OpenGL context. */
 	private File promptForTextureArchive()
 	{
@@ -3885,7 +3917,9 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 				if (choice != JOptionPane.YES_OPTION)
 					return null;
 
-				File texFile = SelectTexDialog.showPrompt();
+				File texFile = RemoteDialogs.isActive()
+					? SwingGUI.pickAsset("Change Texture Archive", AssetManager::getTextureArchives, map.texName)
+					: SelectTexDialog.showPrompt();
 				if (texFile != null)
 					return texFile;
 			}
@@ -4420,6 +4454,12 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 	public RemoteView remote()
 	{
 		return remote;
+	}
+
+	/** The forms another program shows in place of dialogs, if the editor is shown by one. */
+	public RemoteForms forms()
+	{
+		return remoteForms;
 	}
 
 	private void copyObjects()

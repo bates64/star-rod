@@ -3,11 +3,16 @@ package game.map.editor.ui.dialogs;
 import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.event.WindowEvent;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.function.BiConsumer;
 
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
+import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -21,6 +26,7 @@ import common.Vector3f;
 
 import app.SwingUtils;
 import game.map.editor.MapEditor;
+import game.map.editor.RemoteForm;
 import game.map.editor.geometry.primitive.BeveledCubeGenerator;
 import game.map.editor.geometry.primitive.ConeGenerator;
 import game.map.editor.geometry.primitive.CubeGenerator;
@@ -54,6 +60,7 @@ public class GeneratePrimitiveOptionsDialog extends JDialog
 	private Primitive primitiveType = DEFAULT_TYPE;
 
 	private final PreviewGeneratorPrimitive preview;
+	private final BiConsumer<DialogResult, TriangleBatch> onClose;
 	private final JComboBox<PreviewOriginMode> originModeBox;
 
 	private final ShapeGenerator cube = new CubeGenerator();
@@ -109,6 +116,7 @@ public class GeneratePrimitiveOptionsDialog extends JDialog
 	{
 		super(parent);
 		this.preview = preview;
+		this.onClose = onCloseCallback;
 
 		preview.setUpdate(() -> {
 			Vector3f target = new Vector3f(0, 0, 0);
@@ -257,20 +265,37 @@ public class GeneratePrimitiveOptionsDialog extends JDialog
 		setResizable(false);
 	}
 
+	// the shapes' controls, in the order they're added, and the label each combo box follows
+	private final List<JComponent> shapeControls = new ArrayList<>();
+	private final Map<JComboBox<?>, String> comboBoxLabels = new HashMap<>();
+	private String lastLabel = "";
+
+	@Override
+	protected void addImpl(Component comp, Object constraints, int index)
+	{
+		super.addImpl(comp, constraints, index);
+		if (comp instanceof JLabel label)
+			lastLabel = label.getText();
+	}
+
 	public void addSpinner(LabeledIntegerSpinner spinner)
 	{
+		shapeControls.add(spinner);
 		add(spinner, "span, growx, wrap");
 		spinner.addChangeListener((e) -> updatePreview());
 	}
 
 	public void addCheckBox(JCheckBox checkBox)
 	{
+		shapeControls.add(checkBox);
 		add(checkBox, "span, growx, wrap");
 		checkBox.addActionListener((e) -> updatePreview());
 	}
 
 	public void addComboBox(JComboBox<?> comboBox)
 	{
+		shapeControls.add(comboBox);
+		comboBoxLabels.put(comboBox, lastLabel);
 		add(comboBox, "span, growx, wrap");
 		comboBox.addActionListener((e) -> updatePreview());
 	}
@@ -302,6 +327,61 @@ public class GeneratePrimitiveOptionsDialog extends JDialog
 	public void updatePreview()
 	{
 		preview.batch = getGenerator().generateTriangles(preview.center);
+	}
+
+	/**
+	 * The form another program shows in place of this dialog, as a card over the views, where the preview shows. Its
+	 * fields set this dialog's controls, which aren't shown, and which each shape shows or hides as here.
+	 */
+	public RemoteForm form()
+	{
+		RemoteForm form = new RemoteForm("New Primitive", "Create").card();
+		Primitive[] shapes = Primitive.values();
+		PreviewOriginMode[] origins = PreviewOriginMode.values();
+		PreviewDrawMode[] drawModes = PreviewDrawMode.values();
+
+		form.choice("shape", "Shape", RemoteForm.sentenceCase(shapes), () -> primitiveType.ordinal(),
+			i -> setType(shapes[i]));
+		form.choice("location", "Location", RemoteForm.sentenceCase(origins), () -> preview.originMode.ordinal(),
+			i -> preview.originMode = origins[i]);
+
+		int n = 0;
+		for (JComponent control : shapeControls) {
+			String key = "option" + n++;
+			if (control instanceof LabeledIntegerSpinner spinner) {
+				form.integer(key, RemoteForm.sentenceCase(spinner.getLabel()), spinner::getValue, spinner::setValue)
+					.shown(obj -> spinner.isVisible());
+			}
+			else if (control instanceof JCheckBox checkBox) {
+				form.checkbox(key, RemoteForm.sentenceCase(checkBox.getText().trim()), checkBox::isSelected,
+					checkBox::setSelected)
+					.shown(obj -> checkBox.isVisible());
+			}
+			else if (control instanceof JComboBox<?> comboBox) {
+				String[] items = new String[comboBox.getItemCount()];
+				for (int i = 0; i < items.length; i++)
+					items[i] = String.valueOf(comboBox.getItemAt(i));
+				form.choice(key, RemoteForm.sentenceCase(comboBoxLabels.get(comboBox).trim()),
+					RemoteForm.sentenceCase(items), comboBox::getSelectedIndex, comboBox::setSelectedIndex)
+					.shown(obj -> comboBox.isVisible());
+			}
+		}
+
+		form.heading("previewHeading", "Preview");
+		form.choice("drawMode", "Draw as", RemoteForm.sentenceCase(drawModes), () -> preview.drawMode.ordinal(),
+			i -> preview.drawMode = drawModes[i]);
+		form.checkbox("depth", "Hide behind the map", () -> preview.useDepth, value -> preview.useDepth = value);
+
+		form.onChange(this::updatePreview);
+		form.onSubmit(() -> {
+			onClose.accept(DialogResult.ACCEPT, preview.batch);
+			preview.clear();
+		});
+		form.onCancel(() -> {
+			onClose.accept(DialogResult.CANCEL, null);
+			preview.clear();
+		});
+		return form;
 	}
 
 	public String getTypeName()

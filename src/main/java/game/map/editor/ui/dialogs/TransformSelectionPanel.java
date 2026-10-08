@@ -275,86 +275,111 @@ public class TransformSelectionPanel extends JPanel implements ActionListener
 	// returns null if an identity transform is selected
 	public TransformMatrix createTransformMatrix()
 	{
-		TransformMatrix m = new TransformMatrix();
-		double sx, sy, sz;
+		Transform t = new Transform();
+		t.type = selectedType;
+		t.origin = transformOrigin;
+		t.size[0] = selectionSizeX;
+		t.size[1] = selectionSizeY;
+		t.size[2] = selectionSizeZ;
+		t.translate[0] = translateSpinnerX.getValue();
+		t.translate[1] = translateSpinnerY.getValue();
+		t.translate[2] = translateSpinnerZ.getValue();
+		t.axis = (Axis) rotateAxisBox.getSelectedItem();
+		t.angle = rotateAngleSpinner.getValue();
+		t.scale[0] = scaleSpinnerX.getValue();
+		t.scale[1] = scaleSpinnerY.getValue();
+		t.scale[2] = scaleSpinnerZ.getValue();
+		t.resize[0] = resizeSpinnerX.getValue();
+		t.resize[1] = resizeSpinnerY.getValue();
+		t.resize[2] = resizeSpinnerZ.getValue();
+		t.flip[0] = flipCheckBoxX.isSelected();
+		t.flip[1] = flipCheckBoxY.isSelected();
+		t.flip[2] = flipCheckBoxZ.isSelected();
+		return t.createMatrix();
+	}
 
-		switch (selectedType) {
-			case Translate:
-				if (translateSpinnerX.getValue() == 0
-					&& translateSpinnerY.getValue() == 0
-					&& translateSpinnerZ.getValue() == 0)
-					return null;
+	/** A transform of a selection, of any type, about its center. */
+	public static class Transform
+	{
+		public TransformType type = DEFAULT_TYPE;
+		public final int[] translate = new int[3];
+		public Axis axis = Axis.Y;
+		public double angle = 0;
+		public final double[] scale = { 1, 1, 1 };
+		public final int[] resize = new int[3];
+		public final boolean[] flip = new boolean[3];
 
-				m.setTranslation(translateSpinnerX.getValue(), translateSpinnerY.getValue(), translateSpinnerZ.getValue());
-				break;
+		// the selection's center, and its size, which resizing starts from
+		private Vector3f origin;
+		private final int[] size = new int[3];
 
-			case Rotate:
-				if (rotateAngleSpinner.getValue() == 0)
-					return null;
-
-				TransformMatrix r = new TransformMatrix();
-				r.setRotation((Axis) rotateAxisBox.getSelectedItem(), rotateAngleSpinner.getValue());
-
-				m.setTranslation(-transformOrigin.x, -transformOrigin.y, -transformOrigin.z);
-				m.concat(r);
-				m.translate(transformOrigin);
-				break;
-
-			case Scale:
-				if (scaleSpinnerX.getValue() == 1
-					&& scaleSpinnerY.getValue() == 1
-					&& scaleSpinnerZ.getValue() == 1)
-					return null;
-
-				sx = scaleSpinnerX.getValue();
-				sy = scaleSpinnerY.getValue();
-				sz = scaleSpinnerZ.getValue();
-
-				TransformMatrix scale = new TransformMatrix();
-				scale.setScale(sx, sy, sz);
-
-				m.setTranslation(-transformOrigin.x, -transformOrigin.y, -transformOrigin.z);
-				m.concat(scale);
-				m.translate(transformOrigin);
-				break;
-
-			case Resize:
-				if (resizeSpinnerX.getValue() == selectionSizeX
-					&& resizeSpinnerY.getValue() == selectionSizeY
-					&& resizeSpinnerZ.getValue() == selectionSizeZ)
-					return null;
-
-				sx = (selectionSizeX == 0) ? 1 : (resizeSpinnerX.getValue() / (double) selectionSizeX);
-				sy = (selectionSizeY == 0) ? 1 : (resizeSpinnerY.getValue() / (double) selectionSizeY);
-				sz = (selectionSizeZ == 0) ? 1 : (resizeSpinnerZ.getValue() / (double) selectionSizeZ);
-
-				TransformMatrix rescale = new TransformMatrix();
-				rescale.setScale(sx, sy, sz);
-
-				m.setTranslation(-transformOrigin.x, -transformOrigin.y, -transformOrigin.z);
-				m.concat(rescale);
-				m.translate(transformOrigin);
-				break;
-
-			case Flip:
-				if (!flipCheckBoxX.isSelected()
-					&& !flipCheckBoxY.isSelected()
-					&& !flipCheckBoxZ.isSelected())
-					return null;
-
-				sx = flipCheckBoxX.isSelected() ? -1 : 1;
-				sy = flipCheckBoxY.isSelected() ? -1 : 1;
-				sz = flipCheckBoxZ.isSelected() ? -1 : 1;
-
-				TransformMatrix flip = new TransformMatrix();
-				flip.setScale(sx, sy, sz);
-
-				m.setTranslation(-transformOrigin.x, -transformOrigin.y, -transformOrigin.z);
-				m.concat(flip);
-				m.translate(transformOrigin);
-				break;
+		public void setSelection(Selection<?> selection)
+		{
+			origin = selection.getCenter();
+			size[0] = selection.aabb.max.getX() - selection.aabb.min.getX();
+			size[1] = selection.aabb.max.getY() - selection.aabb.min.getY();
+			size[2] = selection.aabb.max.getZ() - selection.aabb.min.getZ();
+			System.arraycopy(size, 0, resize, 0, 3);
 		}
 
-		return m;
+		// returns null if an identity transform is selected
+		public TransformMatrix createMatrix()
+		{
+			TransformMatrix m = new TransformMatrix();
+			double sx, sy, sz;
+
+			switch (type) {
+				case Translate:
+					if (translate[0] == 0 && translate[1] == 0 && translate[2] == 0)
+						return null;
+					m.setTranslation(translate[0], translate[1], translate[2]);
+					break;
+
+				case Rotate:
+					if (angle == 0)
+						return null;
+					TransformMatrix r = new TransformMatrix();
+					r.setRotation(axis, angle);
+					m.setTranslation(-origin.x, -origin.y, -origin.z);
+					m.concat(r);
+					m.translate(origin);
+					break;
+
+				case Scale:
+					if (scale[0] == 1 && scale[1] == 1 && scale[2] == 1)
+						return null;
+					TransformMatrix scaling = new TransformMatrix();
+					scaling.setScale(scale[0], scale[1], scale[2]);
+					m.setTranslation(-origin.x, -origin.y, -origin.z);
+					m.concat(scaling);
+					m.translate(origin);
+					break;
+
+				case Resize:
+					if (resize[0] == size[0] && resize[1] == size[1] && resize[2] == size[2])
+						return null;
+					sx = (size[0] == 0) ? 1 : (resize[0] / (double) size[0]);
+					sy = (size[1] == 0) ? 1 : (resize[1] / (double) size[1]);
+					sz = (size[2] == 0) ? 1 : (resize[2] / (double) size[2]);
+					TransformMatrix rescale = new TransformMatrix();
+					rescale.setScale(sx, sy, sz);
+					m.setTranslation(-origin.x, -origin.y, -origin.z);
+					m.concat(rescale);
+					m.translate(origin);
+					break;
+
+				case Flip:
+					if (!flip[0] && !flip[1] && !flip[2])
+						return null;
+					TransformMatrix mirror = new TransformMatrix();
+					mirror.setScale(flip[0] ? -1 : 1, flip[1] ? -1 : 1, flip[2] ? -1 : 1);
+					m.setTranslation(-origin.x, -origin.y, -origin.z);
+					m.concat(mirror);
+					m.translate(origin);
+					break;
+			}
+
+			return m;
+		}
 	}
 }
