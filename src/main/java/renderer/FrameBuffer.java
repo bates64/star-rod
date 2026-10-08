@@ -34,7 +34,7 @@ public final class FrameBuffer
 		RenderState.bindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
 		glDrawBuffer(GL_COLOR_ATTACHMENT0);
 
-		RenderState.bindFramebuffer(GL_FRAMEBUFFER, 0);
+		RenderState.bindScreenFramebuffer(GL_FRAMEBUFFER);
 	}
 
 	public void bind(int sizeX, int sizeY)
@@ -82,7 +82,7 @@ public final class FrameBuffer
 
 	public void unbind()
 	{
-		RenderState.bindFramebuffer(GL_FRAMEBUFFER, 0);
+		RenderState.bindScreenFramebuffer(GL_FRAMEBUFFER);
 	}
 
 	public int getFrameBuffer()

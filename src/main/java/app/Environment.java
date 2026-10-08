@@ -652,7 +652,9 @@ public abstract class Environment
 			FontManager.dump();
 		}
 
-		AssetExtractor.extractAll();
+		// papermario-dx's build extracts the assets
+		if (!isDX())
+			AssetExtractor.extractAll();
 
 		return true;
 	}
@@ -661,7 +663,15 @@ public abstract class Environment
 	{
 		File configFile = new File(projectDirectory, FN_PROJ_CONFIG);
 
-		if (!configFile.exists()) {
+		if (isDX()) {
+			// its only option says whether assets were extracted, which papermario-dx's build does
+			projectConfig = new Config(configFile, Scope.Project);
+			for (Options opt : Options.values()) {
+				if (opt.scope == Scope.Project)
+					opt.setToDefault(projectConfig);
+			}
+		}
+		else if (!configFile.exists()) {
 			projectConfig = makeConfig(configFile, Scope.Project);
 			projectConfig.saveConfigFile();
 		}

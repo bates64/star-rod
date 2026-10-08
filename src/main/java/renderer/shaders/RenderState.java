@@ -400,6 +400,25 @@ public abstract class RenderState
 	}
 
 	// --------------------------------------------------------------------------
+	// the framebuffer that stands for the screen
+
+	private static int screenFrameBuffer = 0;
+
+	/**
+	 * The framebuffer drawn to in place of the window's, such as one that's read back and sent to another program.
+	 * 0 is the window's own.
+	 */
+	public static void setScreenFrameBuffer(int frameBuffer)
+	{
+		screenFrameBuffer = frameBuffer;
+	}
+
+	public static void bindScreenFramebuffer(int target)
+	{
+		bindFramebuffer(target, screenFrameBuffer);
+	}
+
+	// --------------------------------------------------------------------------
 	// save viewport size -- do NOT cache this
 
 	private static double defaultFramebufferScaleX = 1.0;
@@ -417,13 +436,21 @@ public abstract class RenderState
 		return Double.isFinite(scale) && scale > 0.0;
 	}
 
+	/**
+	 * Converts a position on the screen to its framebuffer's pixels. A framebuffer standing in for the window's is sized
+	 * in logical pixels.
+	 */
 	public static int toFramebufferX(int logicalX)
 	{
+		if (screenFrameBuffer != 0)
+			return logicalX;
 		return (int) Math.round(logicalX * defaultFramebufferScaleX);
 	}
 
 	public static int toFramebufferY(int logicalY)
 	{
+		if (screenFrameBuffer != 0)
+			return logicalY;
 		return (int) Math.round(logicalY * defaultFramebufferScaleY);
 	}
 

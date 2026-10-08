@@ -42,6 +42,8 @@ import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL11;
 import org.w3c.dom.Element;
 
+import com.google.gson.JsonObject;
+
 import common.FrameLimiter;
 import common.GLEditor;
 import common.KeyboardInput;
@@ -54,6 +56,8 @@ import common.commands.AbstractCommand;
 import common.commands.CommandBatch;
 import common.commands.EditableField;
 import common.commands.ThreadSafeCommandManager;
+import common.remote.RemoteSession;
+import common.remote.RemoteView;
 
 import app.Directories;
 import app.Environment;
@@ -371,6 +375,9 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 
 	private Dimension prevCanvasSize = null;
 	private boolean dummyDraw;
+
+	// set while another program shows the views and sends input, in place of this program's window
+	private RemoteView remote = null;
 
 	/**
 	 * Rendering options
@@ -753,6 +760,50 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 		}
 
 		return !exitCompletely;
+	}
+
+	/**
+	 * Runs the editor on `map`, with `session` showing its views and sending input, and no window of its own, until the
+	 * session closes.
+	 */
+	public void launchRemote(Map map, RemoteSession session)
+	{
+		remote = new RemoteView(session, glCanvas, keyboard, mouse, this);
+
+		try {
+			EditableField.setCallbacksEnabled(true);
+			openMap(map, false);
+			runLoop();
+			cleanup(false);
+		}
+		catch (Throwable t) {
+			Logger.printStackTrace(t);
+			try {
+				cleanup(true);
+			}
+			catch (Throwable x) {
+				// ignore exceptions in crash-cleanup
+			}
+			throw new StarRodException(t);
+		}
+		finally {
+			session.close();
+		}
+	}
+
+	/** Acts on a message from the remote session for the map editor, rather than its views. */
+	private void receiveRemoteMessage(JsonObject message)
+	{
+		switch (message.get("type").getAsString()) {
+			case "views":
+				// the perspective view alone, or all four
+				mainViewMode = message.get("four").getAsBoolean() ? ViewMode.FOUR : ViewMode.ONE;
+				if (mainViewMode == ViewMode.ONE)
+					activeView = perspectiveView;
+				if (editorMode != EditorMode.EditUVs)
+					setViewMode(mainViewMode);
+				break;
+		}
 	}
 
 	@Override
@@ -1334,7 +1385,7 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 		double avMaxFPS = 0;
 		double avFPS = 0;
 
-		while (!gui.isCloseRequested()) {
+		while (!isCloseRequested()) {
 			long t_start = System.nanoTime();
 
 			// Map loading may wait for a Swing dialog; it must not hold modifyLock while doing so.
@@ -1369,8 +1420,26 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 		}
 	}
 
+	private boolean isCloseRequested()
+	{
+		return (remote != null) ? remote.isClosed() : gui.isCloseRequested();
+	}
+
+	private boolean hasKeyboardFocus()
+	{
+		return (remote != null) ? remote.isFocused() : glCanvas.isFocusOwner() && !gui.isModalDialogOpen();
+	}
+
+	private boolean hasMouseFocus()
+	{
+		return (remote != null) ? remote.isFocused() : gui.isFocused() && !gui.isModalDialogOpen();
+	}
+
 	private void step()
 	{
+		if (remote != null)
+			remote.receive(this::receiveRemoteMessage);
+
 		BasicProfiler profiler = null;
 		if (doStepProfiling) {
 			profiler = new BasicProfiler();
@@ -1400,8 +1469,8 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 		selectionManager.testGizmoMouseover(editorMode, currentRay, activeView);
 
 		// handle input
-		keyboard.update(this, glCanvas.isFocusOwner() && !gui.isModalDialogOpen());
-		mouse.update(this, gui.isFocused() && !gui.isModalDialogOpen());
+		keyboard.update(this, hasKeyboardFocus());
+		mouse.update(this, hasMouseFocus());
 
 		if (activeView == perspectiveView && cursor3D.isSelected()) {
 			int dw = mouse.getFrameDW();
@@ -3434,6 +3503,9 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 		if (dummyDraw)
 			return;
 
+		if (remote != null)
+			remote.beginFrame();
+
 		RenderState.setTime(time);
 		Renderer.updateColors(time);
 		RenderingOptions opts = gatherRenderingOptions();
@@ -3490,6 +3562,9 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 
 			LineRenderQueue.render(true);
 		}
+
+		if (remote != null)
+			remote.endFrame();
 	}
 
 	private void prepareVertexBuffers(RenderingOptions opts)

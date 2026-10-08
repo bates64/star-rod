@@ -37,6 +37,7 @@ import javax.swing.SwingWorker;
 import javax.swing.WindowConstants;
 
 import common.BaseEditor;
+import common.remote.RemoteSession;
 
 import app.input.InvalidInputException;
 import assets.AssetHandle;
@@ -70,6 +71,11 @@ public class StarRodMain extends StarRodFrame
 			return;
 		}
 
+		if (args.length > 0 && args[0].equalsIgnoreCase("-RemoteEditor")) {
+			runRemoteEditor(args);
+			return;
+		}
+
 		boolean isCommandLine = args.length > 0 || GraphicsEnvironment.isHeadless();
 
 		if (isCommandLine) {
@@ -100,6 +106,35 @@ public class StarRodMain extends StarRodFrame
 	private boolean taskRunning = false;
 
 	private List<JButton> buttons = new ArrayList<>();
+
+	/**
+	 * Opens a file in an editor, with another program showing its views and sending it input, such as Diorama64, which
+	 * listens on the port. The project is the current directory. The editor is `map` for a map.xml or
+	 * stage.xml.
+	 *
+	 * Usage: -RemoteEditor &lt;editor&gt; &lt;port&gt; &lt;file&gt;
+	 */
+	private static void runRemoteEditor(String[] args)
+	{
+		if (args.length != 4 || !args[1].equals("map")) {
+			System.err.println("Usage: -RemoteEditor map <port> <file>");
+			System.exit(1);
+		}
+		LoadingBar.disable();
+		Environment.initialize(false);
+		try {
+			RemoteSession session = new RemoteSession("127.0.0.1", Integer.parseInt(args[2]));
+			Map map = Map.loadMap(new File(args[3]));
+			if (map == null)
+				throw new IOException("Couldn't load " + args[3]);
+			new MapEditor(false).launchRemote(map, session);
+		}
+		catch (Throwable t) {
+			Logger.printStackTrace(t);
+			Environment.exit(1);
+		}
+		Environment.exit();
+	}
 
 	private StarRodMain()
 	{

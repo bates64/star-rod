@@ -16,6 +16,15 @@ import util.Priority;
 
 public class LoadingBar
 {
+	private static boolean disabled = false;
+
+	/** Stops showing loading bars, such as while another program shows Star Rod and that it's loading. */
+	public static void disable()
+	{
+		disabled = true;
+		dismiss();
+	}
+
 	public static void show(String title)
 	{
 		show(title, Priority.STANDARD, false);
@@ -33,7 +42,7 @@ public class LoadingBar
 
 	public static void show(String title, Priority priority, boolean fullSize)
 	{
-		if (Environment.isCommandLine())
+		if (Environment.isCommandLine() || disabled)
 			return;
 		if (!SwingUtilities.isEventDispatchThread()) {
 			onEventThread(() -> show(title, priority, fullSize));

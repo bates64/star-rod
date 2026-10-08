@@ -14,6 +14,7 @@ import java.awt.event.MouseWheelListener;
 import java.awt.image.BufferedImage;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.function.Consumer;
 
 import javax.swing.SwingUtilities;
 
@@ -43,6 +44,42 @@ public class MouseInput implements MouseListener, MouseWheelListener
 
 	private Robot robot;
 	private boolean grabbed;
+
+	/**
+	 * Set when another program shows the view and sends the pointer, as RemotePointer, rather than this program's
+	 * window having it. It's told when the pointer is grabbed, so it can lock its own.
+	 */
+	private RemotePointer remote = null;
+
+	/** A pointer in another program's view of the canvas, which that program updates. */
+	public static final class RemotePointer
+	{
+		private final Consumer<Boolean> onGrabChanged;
+		private boolean inside = false;
+		private int posX = 0;
+		private int posY = 0;
+		private int movedX = 0;
+		private int movedY = 0;
+
+		/** `onGrabChanged` is told when the pointer is grabbed or let go. */
+		public RemotePointer(Consumer<Boolean> onGrabChanged)
+		{
+			this.onGrabChanged = onGrabChanged;
+		}
+
+		/**
+		 * Records where the pointer is, from the top left of the canvas, and how far it moved since the last update,
+		 * which a grabbed pointer does without its position changing.
+		 */
+		public synchronized void update(boolean inside, int posX, int posY, int movedX, int movedY)
+		{
+			this.inside = inside;
+			this.posX = posX;
+			this.posY = posY;
+			this.movedX += movedX;
+			this.movedY += movedY;
+		}
+	}
 
 	private boolean[] holding = new boolean[4];
 	private boolean[] isButtonDown = new boolean[4]; // click or hold
@@ -215,8 +252,15 @@ public class MouseInput implements MouseListener, MouseWheelListener
 
 	public void setGrabbed(boolean value)
 	{
+		if (remote != null && grabbed != value)
+			remote.onGrabChanged.accept(value);
 		grabbed = value;
 		comp.setCursor(grabbed ? hiddenCursor : Cursor.getDefaultCursor());
+	}
+
+	public void setRemote(RemotePointer remote)
+	{
+		this.remote = remote;
 	}
 
 	public boolean isGrabbed()
@@ -228,9 +272,44 @@ public class MouseInput implements MouseListener, MouseWheelListener
 	{
 		height = comp.getHeight();
 
+		if (remote != null)
+			updateRemotePosition();
+		else if (!updatePosition())
+			return;
+
+		if (grabbed) {
+			// consume all events while grabbed
+			wheelEvents.clear();
+			mouseEvents.clear();
+			return;
+		}
+
+		listener.moveMouse(frameDX, frameDY);
+
+		updateButtons(listener, hasFocus);
+	}
+
+	private void updateRemotePosition()
+	{
+		synchronized (remote) {
+			hasLocation = remote.inside;
+			frameDX = remote.movedX;
+			frameDY = -remote.movedY; // sense is reversed
+			remote.movedX = 0;
+			remote.movedY = 0;
+			lastPosX = remote.posX;
+			lastPosY = remote.posY;
+		}
+		if (!hasLocation)
+			setGrabbed(false);
+	}
+
+	/** Reads the pointer from this program's window. Returns false if there's no pointer. */
+	private boolean updatePosition()
+	{
 		PointerInfo pointerInfo = MouseInfo.getPointerInfo();
 		if (pointerInfo == null)
-			return;
+			return false;
 
 		Point curPos = MouseInfo.getPointerInfo().getLocation();
 		SwingUtilities.convertPointFromScreen(curPos, comp);
@@ -266,16 +345,11 @@ public class MouseInput implements MouseListener, MouseWheelListener
 
 			grabbed = false;
 		}
+		return true;
+	}
 
-		if (grabbed) {
-			// consume all events while grabbed
-			wheelEvents.clear();
-			mouseEvents.clear();
-			return;
-		}
-
-		listener.moveMouse(frameDX, frameDY);
-
+	private void updateButtons(MouseManagerListener listener, boolean hasFocus)
+	{
 		frameDW = 0;
 		while (!wheelEvents.isEmpty()) {
 			MouseWheelEvent evt = wheelEvents.poll();
