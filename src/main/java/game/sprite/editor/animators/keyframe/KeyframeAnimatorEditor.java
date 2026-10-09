@@ -231,12 +231,36 @@ public class KeyframeAnimatorEditor extends ComponentAnimationEditor
 			return;
 
 		switch (kind) {
-			case "keyframe" -> create(new Keyframe(animator));
+			case "keyframe" -> create(newKeyframe(animator));
 			case "loop" -> create(new LoopKey(animator, (Keyframe) null, 3));
 			case "goto" -> create(new GotoKey(animator, (Keyframe) null));
 			case "parent" -> create(new ParentKey(animator, (SpriteComponent) null));
 			case "notify" -> create(new NotifyKey(animator, 1));
 		}
+	}
+
+	/**
+	 * A keyframe like the one selected, or else the last, which it's added after: its duration and raster, or else 8
+	 * frames, so it lasts, rather than running along with the next.
+	 */
+	private static Keyframe newKeyframe(KeyframeAnimator animator)
+	{
+		Keyframe kf = new Keyframe(animator);
+		kf.duration = 8;
+
+		Keyframe like = null;
+		DefaultListModel<AnimKeyframe> model = instance().commandList.getDefaultModel();
+		int from = instance().commandList.isSelectionEmpty() ? model.getSize() - 1 : instance().commandList.getSelectedIndex();
+		for (int i = from; i >= 0 && like == null; i--) {
+			if (model.get(i) instanceof Keyframe other && other.duration > 0)
+				like = other;
+		}
+		if (like != null) {
+			kf.duration = like.duration;
+			kf.setImage = like.setImage;
+			kf.img = like.img;
+		}
+		return kf;
 	}
 
 	/**

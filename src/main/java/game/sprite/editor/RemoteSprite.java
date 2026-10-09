@@ -552,13 +552,16 @@ class RemoteSprite
 		else if (elem instanceof LoopKey loop) {
 			fields.add(field("keyframe", "heading", "Repeat"));
 			fields.add(choice("loop.target", "From", "None", keyframesOnly(), loop.target));
-			JsonObject count = field("loop.count", "number", "Repeats");
+			// how many times it plays the keyframes, as the timeline counts them, which is once more than it repeats
+			JsonObject count = field("loop.count", "number", "Plays");
 			count.addProperty("integer", true);
-			count.addProperty("value", loop.count);
+			count.addProperty("value", loop.count + 1);
 			fields.add(count);
 		}
 		else if (elem instanceof GotoKey go) {
-			fields.add(field("keyframe", "heading", "Go to"));
+			// as the timeline's menu names one that goes back
+			boolean back = go.target != null && keyframes().indexOf(go.target) <= keyframes().indexOf(go);
+			fields.add(field("keyframe", "heading", back ? "Loop" : "Go to"));
 			fields.add(choice("goto.target", "Keyframe", "None", keyframesOnly(), go.target));
 		}
 		else if (elem instanceof ParentKey parent) {
@@ -751,7 +754,9 @@ class RemoteSprite
 			if (key.equals("loop.target"))
 				command = setValue("Set Repeat Target", loop, loop.target, chosen(keyframesOnly(), value), v -> loop.target = v);
 			else if (key.equals("loop.count"))
-				command = setValue("Set Repeat Count", loop, loop.count, value.getAsInt(), v -> loop.count = v);
+				// at least twice, as a repeat of none would go back forever, as the game runs it
+				command = setValue("Set Repeat Count", loop, loop.count, Math.max(value.getAsInt() - 1, 1),
+					v -> loop.count = v);
 		}
 		else if (elem instanceof GotoKey go) {
 			if (key.equals("goto.target"))
@@ -868,8 +873,13 @@ class RemoteSprite
 				AnimElementsList<AnimKeyframe> list = KeyframeAnimatorEditor.list();
 				switch (action) {
 					case "add" -> {
-						if (index >= -1 && index < list.getDefaultModel().size())
-							list.setSelectedIndex(index);
+						// after the others is before a goto at the end, which would otherwise never reach it
+						int size = list.getDefaultModel().size();
+						int after = (index == -1 && size >= 2 && list.getDefaultModel().get(size - 1) instanceof GotoKey)
+							? size - 2
+							: index;
+						if (after >= -1 && after < size)
+							list.setSelectedIndex(after);
 						KeyframeAnimatorEditor.create(message.get("kind").getAsString());
 					}
 					case "rename" -> {
