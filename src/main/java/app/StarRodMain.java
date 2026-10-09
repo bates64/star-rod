@@ -110,17 +110,19 @@ public class StarRodMain extends StarRodFrame
 
 	/**
 	 * Opens an editor, with another program showing its views and sending it input, such as Diorama64, which listens
-	 * on the port. The project is the current directory. The editor is `map`, for a map.xml or stage.xml, or `message`,
-	 * which previews the messages the other program sends it, and has no file.
+	 * on the port. The project is the current directory. The editor is `map`, for a map.xml or stage.xml, `sprite`, for
+	 * an NPC sprite's SpriteSheet.xml, or `message`, which previews the messages the other program sends it, and has no
+	 * file.
 	 *
-	 * Usage: -RemoteEditor map &lt;port&gt; &lt;file&gt; | -RemoteEditor message &lt;port&gt;
+	 * Usage: -RemoteEditor map|sprite &lt;port&gt; &lt;file&gt; | -RemoteEditor message &lt;port&gt;
 	 */
 	private static void runRemoteEditor(String[] args)
 	{
 		boolean map = args.length == 4 && args[1].equals("map");
+		boolean sprite = args.length == 4 && args[1].equals("sprite");
 		boolean message = args.length == 3 && args[1].equals("message");
-		if (!map && !message) {
-			System.err.println("Usage: -RemoteEditor map <port> <file> | -RemoteEditor message <port>");
+		if (!map && !sprite && !message) {
+			System.err.println("Usage: -RemoteEditor map|sprite <port> <file> | -RemoteEditor message <port>");
 			System.exit(1);
 		}
 		LoadingBar.disable();
@@ -130,6 +132,10 @@ public class StarRodMain extends StarRodFrame
 			RemoteDialogs.start(session);
 			if (message) {
 				new MessageEditor().launchRemote(session);
+			}
+			else if (sprite) {
+				// an NPC sprite is named for its directory
+				new SpriteEditor(new File(args[3]).getAbsoluteFile().getParentFile().getName()).launchRemote(session);
 			}
 			else {
 				Map loaded = Map.loadMap(new File(args[3]));

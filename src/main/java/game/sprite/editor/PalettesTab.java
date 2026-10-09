@@ -180,30 +180,7 @@ public class PalettesTab extends JPanel
 
 		JButton btnAddPalette = new JButton(ThemedIcon.ADD_16);
 		btnAddPalette.setToolTipText("Add new palette");
-		btnAddPalette.addActionListener((e) -> {
-			if (sprite == null) {
-				return;
-			}
-
-			SpritePalette pal = new SpritePalette(sprite);
-			String newName = pal.createUniqueName(String.format("Pal_%X", sprite.palettes.size()));
-
-			if (newName == null) {
-				Logger.logError("Could not generate valid name for new palette!");
-				Toolkit.getDefaultToolkit().beep();
-				return;
-			}
-
-			PalAsset asset = palAssetList.getSelectedValue();
-			if (asset != null)
-				pal.assignAsset(asset);
-
-			pal.name = newName;
-			CommandBatch batch = new CommandBatch("Add Palette");
-			batch.addCommand(new CreatePalette("Add Palette", sprite, pal));
-			batch.addCommand(new SelectPalette(paletteList, sprite, pal, this::setPalette));
-			SpriteEditor.execute(batch);
-		});
+		btnAddPalette.addActionListener((e) -> addPalette());
 
 		JButton btnSave = new JButton("Save Changes");
 		btnSave.addActionListener((e) -> {
@@ -441,6 +418,44 @@ public class PalettesTab extends JPanel
 		paletteInfoPanel = new JPanel(new MigLayout("ins 0, fill, wrap"));
 		paletteInfoPanel.add(swatchesPanel, "split 3, gapleft 16, gapbottom push");
 		paletteInfoPanel.add(rightPanel, "gapleft 24, gaptop 8");
+	}
+
+	/** Adds a palette after the others, of the selected palette image, if one is, and selects it. */
+	void addPalette()
+	{
+		if (sprite == null) {
+			return;
+		}
+
+		SpritePalette pal = new SpritePalette(sprite);
+		String newName = pal.createUniqueName(String.format("Pal_%X", sprite.palettes.size()));
+
+		if (newName == null) {
+			Logger.logError("Could not generate valid name for new palette!");
+			Toolkit.getDefaultToolkit().beep();
+			return;
+		}
+
+		PalAsset asset = palAssetList.getSelectedValue();
+		if (asset != null)
+			pal.assignAsset(asset);
+
+		pal.name = newName;
+		CommandBatch batch = new CommandBatch("Add Palette");
+		batch.addCommand(new CreatePalette("Add Palette", sprite, pal));
+		batch.addCommand(new SelectPalette(paletteList, sprite, pal, this::setPalette));
+		SpriteEditor.execute(batch);
+	}
+
+	PalettesList paletteList()
+	{
+		return paletteList;
+	}
+
+	/** Reloads the palette images in the sprite's palettes directory. */
+	void reloadPalettes()
+	{
+		refreshPalAssets();
 	}
 
 	public void setSprite(Sprite sprite)

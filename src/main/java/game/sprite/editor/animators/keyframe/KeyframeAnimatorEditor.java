@@ -77,6 +77,12 @@ public class KeyframeAnimatorEditor extends ComponentAnimationEditor
 		return instance;
 	}
 
+	/** The list of the keyframes of the component being edited. */
+	public static AnimElementsList<AnimKeyframe> list()
+	{
+		return instance().commandList;
+	}
+
 	protected static void repaintCommandList()
 	{
 		instance().commandList.repaint();
@@ -212,6 +218,25 @@ public class KeyframeAnimatorEditor extends ComponentAnimationEditor
 	public int getSelection()
 	{
 		return commandList.getSelectedIndex();
+	}
+
+	/**
+	 * Adds a keyframe of a kind, "keyframe", "loop", "goto", "parent", or "notify", after the one selected, or after
+	 * the others if none is, as the buttons do.
+	 */
+	public static void create(String kind)
+	{
+		KeyframeAnimator animator = instance().animator;
+		if (animator == null)
+			return;
+
+		switch (kind) {
+			case "keyframe" -> create(new Keyframe(animator));
+			case "loop" -> create(new LoopKey(animator, (Keyframe) null, 3));
+			case "goto" -> create(new GotoKey(animator, (Keyframe) null));
+			case "parent" -> create(new ParentKey(animator, (SpriteComponent) null));
+			case "notify" -> create(new NotifyKey(animator, 1));
+		}
 	}
 
 	private static void create(AnimKeyframe cmd)

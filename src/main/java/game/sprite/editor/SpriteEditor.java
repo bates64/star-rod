@@ -45,6 +45,8 @@ import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.ToolTipManager;
 
+import com.google.gson.JsonObject;
+
 import common.BaseEditor;
 import common.BaseEditorSettings;
 import common.KeyboardInput.KeyInputEvent;
@@ -136,18 +138,18 @@ public class SpriteEditor extends BaseEditor
 
 	private CommandComboBox<SpritePalette> paletteBox;
 
-	private AnimationsList animList;
-	private ComponentsList compList;
+	AnimationsList animList;
+	ComponentsList compList;
 
 	private JPanel componentPanel;
 	private JPanel relativePosPanel;
 
 	private JCheckBox cbOverridePalette;
-	private JCheckBox cbShowOnlySelectedComponent;
+	JCheckBox cbShowOnlySelectedComponent;
 
 	private JSpinner compxSpinner, compySpinner, compzSpinner;
 
-	private JTabbedPane editorModeTabs;
+	JTabbedPane editorModeTabs;
 	private Container commandListPanel;
 	private Container commandEditPanel;
 	private FadingLabel errorLabel;
@@ -158,14 +160,14 @@ public class SpriteEditor extends BaseEditor
 	// gui is initialized before instance variable initialization!
 	// since the gui is created in the superclass constructor,
 	// setting values here will desync them from the checkboxes!
-	private boolean showGuide;
-	private boolean showAxes;
-	private boolean showBackground;
-	private boolean flipHorizontal;
-	private boolean useBackFacing;
-	private boolean useFiltering;
+	boolean showGuide;
+	boolean showAxes;
+	boolean showBackground;
+	boolean flipHorizontal;
+	boolean useBackFacing;
+	boolean useFiltering;
 	public boolean highlightCommand;
-	private boolean highlightComponent;
+	boolean highlightComponent;
 	private boolean optWarnIrreversible;
 	public boolean optStrictErrorChecking;
 	public boolean optForceKeyframes; // unused
@@ -179,7 +181,7 @@ public class SpriteEditor extends BaseEditor
 	}
 
 	private volatile Queue<PlayerEvent> playerEventQueue = new LinkedList<>();
-	private volatile boolean paused = false;
+	volatile boolean paused = false;
 	private IntTextField playbackTime;
 	private JButton resetButton;
 	private JButton endButton;
@@ -199,8 +201,8 @@ public class SpriteEditor extends BaseEditor
 
 	// sprite sheet tab
 
-	private RastersTab rastersTab;
-	private PalettesTab palettesTab;
+	RastersTab rastersTab;
+	PalettesTab palettesTab;
 
 	private static enum EditorMode
 	{
@@ -243,6 +245,10 @@ public class SpriteEditor extends BaseEditor
 
 	private SpriteMetadata curMetadata = null;
 
+	/** The NPC sprite another program edits, which it edits as keyframes, or null if no other program does. */
+	private String remoteSpriteName;
+	private RemoteSprite remoteSprite;
+
 	public volatile boolean suppressCommands = false;
 
 	// handles comnmand execution and undo/redo
@@ -266,7 +272,18 @@ public class SpriteEditor extends BaseEditor
 
 	public SpriteEditor()
 	{
+		this(null);
+	}
+
+	/**
+	 * Opens the editor on the NPC sprite named `remoteSpriteName`, for another program to edit as keyframes, which
+	 * {@link #launchRemote} starts it doing. If it's null, the editor opens on the sprite last edited.
+	 */
+	public SpriteEditor(String remoteSpriteName)
+	{
 		super(EDITOR_SETTINGS);
+
+		this.remoteSpriteName = remoteSpriteName;
 
 		if (instance != null)
 			throw new IllegalStateException("Only one SpriteEditor open at a time please!");
@@ -406,11 +423,13 @@ public class SpriteEditor extends BaseEditor
 			referencePal.glDelete();
 		}
 
-		if (npcSpriteList.getSelected() != null)
-			getConfig().setString(Options.SprLastNpcSprite, npcSpriteList.getSelected().name);
+		// another program that shows the editor keeps its settings, without a config
+		Config cfg = getConfig();
+		if (cfg != null && npcSpriteList.getSelected() != null)
+			cfg.setString(Options.SprLastNpcSprite, npcSpriteList.getSelected().name);
 
-		if (playerSpriteList.getSelected() != null)
-			getConfig().setString(Options.SprLastPlayerSprite, playerSpriteList.getSelected().name);
+		if (cfg != null && playerSpriteList.getSelected() != null)
+			cfg.setString(Options.SprLastPlayerSprite, playerSpriteList.getSelected().name);
 
 		instance = null;
 	}
@@ -461,6 +480,16 @@ public class SpriteEditor extends BaseEditor
 		}
 
 		errorLabel.update(deltaTime);
+
+		// failing to show the editor's state mustn't stop it, and lose its changes
+		if (remote() != null) {
+			try {
+				remoteSprite().send();
+			}
+			catch (RuntimeException e) {
+				Logger.printStackTrace(e);
+			}
+		}
 
 		// process the editor UI updates in the EDT, locking out commands while we do so
 		if (!editableChangedSet.isEmpty()) {
@@ -656,7 +685,7 @@ public class SpriteEditor extends BaseEditor
 
 		npcSpriteList.setSprites(spriteMetas);
 
-		String lastName = getConfig().getString(Options.SprLastNpcSprite);
+		String lastName = (remoteSpriteName != null) ? remoteSpriteName : getConfig().getString(Options.SprLastNpcSprite);
 		SpriteMetadata meta = npcSpriteList.getInitialSelection(lastName);
 		if (meta == null)
 			npcSpriteList.setSelectedIndex(0);
@@ -684,7 +713,7 @@ public class SpriteEditor extends BaseEditor
 
 		playerSpriteList.setSprites(spriteMetas);
 
-		String lastName = getConfig().getString(Options.SprLastPlayerSprite);
+		String lastName = (getConfig() == null) ? null : getConfig().getString(Options.SprLastPlayerSprite);
 		SpriteMetadata meta = playerSpriteList.getInitialSelection(lastName);
 		if (meta == null)
 			playerSpriteList.setSelectedIndex(0);
@@ -773,6 +802,12 @@ public class SpriteEditor extends BaseEditor
 
 			sprite.prepareForEditor();
 			sprite.enableStencilBuffer = true;
+
+			// another program edits animations as keyframes alone
+			if (remoteSpriteName != null && !sprite.usesKeyframes) {
+				sprite.convertToKeyframes();
+				sprite.usesKeyframes = true;
+			}
 
 			// update combo box models to match new list models
 			imgBoxRegistry.updateModels(false);
@@ -1797,6 +1832,64 @@ public class SpriteEditor extends BaseEditor
 		return componentPanel;
 	}
 
+	/** Adds an animation after the others, and selects it. */
+	void addAnimation()
+	{
+		if (sprite == null) {
+			return;
+		}
+
+		if (sprite.animations.size() >= Sprite.MAX_ANIMATIONS) {
+			Logger.logError("Cannot have more than " + Sprite.MAX_ANIMATIONS + " animations!");
+			Toolkit.getDefaultToolkit().beep();
+			return;
+		}
+
+		SpriteAnimation anim = new SpriteAnimation(sprite);
+		String newName = anim.createUniqueName(String.format("Anim_%X", sprite.animations.size()));
+
+		if (newName == null) {
+			Logger.logError("Could not generate valid name for new animation!");
+			Toolkit.getDefaultToolkit().beep();
+			return;
+		}
+
+		anim.name = newName;
+		CommandBatch batch = new CommandBatch("Add Animation");
+		batch.addCommand(new CreateAnimation("Add Animation", sprite, anim));
+		batch.addCommand(new SelectAnimation(animList, anim));
+		execute(batch);
+	}
+
+	/** Adds a component after the others of the animation, and selects it. */
+	void addComponent()
+	{
+		if (sprite == null || currentAnim == null) {
+			return;
+		}
+
+		if (currentAnim.components.size() >= Sprite.MAX_COMPONENTS) {
+			Logger.logError("Cannot have more than " + Sprite.MAX_COMPONENTS + " components!");
+			Toolkit.getDefaultToolkit().beep();
+			return;
+		}
+
+		SpriteComponent comp = new SpriteComponent(currentAnim);
+		String newName = comp.createUniqueName(String.format("Comp_%X", currentAnim.components.size()));
+
+		if (newName == null) {
+			Logger.logError("Could not generate valid name for new component!");
+			Toolkit.getDefaultToolkit().beep();
+			return;
+		}
+
+		comp.name = newName;
+		CommandBatch batch = new CommandBatch("Add Component");
+		batch.addCommand(new CreateComponent("Add Component", currentAnim, comp));
+		batch.addCommand(new SelectComponent(compList, comp));
+		execute(batch);
+	}
+
 	private JPanel getAnimationsTab()
 	{
 		animList = new AnimationsList(this);
@@ -1834,61 +1927,11 @@ public class SpriteEditor extends BaseEditor
 
 		JButton btnAddAnim = new JButton(ThemedIcon.ADD_16);
 		btnAddAnim.setToolTipText("Add new animation");
-		btnAddAnim.addActionListener((e) -> {
-			if (sprite == null) {
-				return;
-			}
-
-			if (sprite.animations.size() >= Sprite.MAX_ANIMATIONS) {
-				Logger.logError("Cannot have more than " + Sprite.MAX_ANIMATIONS + " animations!");
-				Toolkit.getDefaultToolkit().beep();
-				return;
-			}
-
-			SpriteAnimation anim = new SpriteAnimation(sprite);
-			String newName = anim.createUniqueName(String.format("Anim_%X", sprite.animations.size()));
-
-			if (newName == null) {
-				Logger.logError("Could not generate valid name for new animation!");
-				Toolkit.getDefaultToolkit().beep();
-				return;
-			}
-
-			anim.name = newName;
-			CommandBatch batch = new CommandBatch("Add Animation");
-			batch.addCommand(new CreateAnimation("Add Animation", sprite, anim));
-			batch.addCommand(new SelectAnimation(animList, anim));
-			execute(batch);
-		});
+		btnAddAnim.addActionListener((e) -> addAnimation());
 
 		JButton btnAddComp = new JButton(ThemedIcon.ADD_16);
 		btnAddComp.setToolTipText("Add new component");
-		btnAddComp.addActionListener((e) -> {
-			if (sprite == null) {
-				return;
-			}
-
-			if (currentAnim.components.size() >= Sprite.MAX_COMPONENTS) {
-				Logger.logError("Cannot have more than " + Sprite.MAX_COMPONENTS + " components!");
-				Toolkit.getDefaultToolkit().beep();
-				return;
-			}
-
-			SpriteComponent comp = new SpriteComponent(currentAnim);
-			String newName = comp.createUniqueName(String.format("Comp_%X", currentAnim.components.size()));
-
-			if (newName == null) {
-				Logger.logError("Could not generate valid name for new component!");
-				Toolkit.getDefaultToolkit().beep();
-				return;
-			}
-
-			comp.name = newName;
-			CommandBatch batch = new CommandBatch("Add Component");
-			batch.addCommand(new CreateComponent("Add Component", currentAnim, comp));
-			batch.addCommand(new SelectComponent(compList, comp));
-			execute(batch);
-		});
+		btnAddComp.addActionListener((e) -> addComponent());
 
 		JScrollPane animScrollPane = new JScrollPane(animList);
 		animScrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
@@ -1942,7 +1985,7 @@ public class SpriteEditor extends BaseEditor
 		decrementDialogsOpen();
 	}
 
-	private boolean saveCurrent()
+	boolean saveCurrent()
 	{
 		return callThreadsafe(this::saveCurrentLocked);
 	}
@@ -2162,6 +2205,37 @@ public class SpriteEditor extends BaseEditor
 				compxSpinner.setValue(currentComp.posx + currentComp.dragX);
 				compySpinner.setValue(currentComp.posy + currentComp.dragY);
 				suppressCommands = false;
+			});
+		}
+	}
+
+	/** The state another program shows, which is made for the first message or frame, whichever is first. */
+	private RemoteSprite remoteSprite()
+	{
+		if (remoteSprite == null)
+			remoteSprite = new RemoteSprite(this);
+		return remoteSprite;
+	}
+
+	@Override
+	protected void receiveRemoteMessage(JsonObject message)
+	{
+		remoteSprite().receive(message);
+	}
+
+	/** Plays, pauses, or steps through the animation, as the "play", "pause", "stop", "prev", "next", "end", and "goto" buttons do. */
+	void remotePlayback(String action, int time)
+	{
+		switch (action) {
+			case "play" -> playerEventQueue.add(PlayerEvent.Play);
+			case "pause" -> playerEventQueue.add(PlayerEvent.Pause);
+			case "stop" -> playerEventQueue.add(PlayerEvent.Stop);
+			case "prev" -> playerEventQueue.add(PlayerEvent.PrevFrame);
+			case "next" -> playerEventQueue.add(PlayerEvent.NextFrame);
+			case "end" -> playerEventQueue.add(PlayerEvent.End);
+			case "goto" -> SwingUtilities.invokeLater(() -> {
+				playbackTime.setValue(time);
+				playerEventQueue.add(PlayerEvent.Goto);
 			});
 		}
 	}

@@ -117,38 +117,7 @@ public class RastersTab extends JPanel
 
 		JButton btnAddRaster = new JButton(ThemedIcon.ADD_16);
 		btnAddRaster.setToolTipText("Add new raster");
-		btnAddRaster.addActionListener((e) -> {
-			if (sprite == null) {
-				return;
-			}
-
-			SpriteRaster img = new SpriteRaster(sprite);
-			String newName = img.createUniqueName(String.format("Img_%X", sprite.palettes.size()));
-
-			if (newName == null) {
-				Logger.logError("Could not generate valid name for new raster!");
-				Toolkit.getDefaultToolkit().beep();
-				return;
-			}
-
-			ImgAsset asset = imgAssetList.getSelectedValue();
-			if (asset != null) {
-				img.front.assignAsset(asset);
-				// assign a palette for the new raster
-				if (sprite.selectedPalette != null)
-					img.front.assignPal(sprite.selectedPalette);
-				else if (sprite.palettes.size() > 0)
-					img.front.assignPal(sprite.palettes.get(0));
-			}
-
-			img.loadEditorImages();
-
-			img.name = newName;
-			CommandBatch batch = new CommandBatch("Add Raster");
-			batch.addCommand(new CreateRaster("Add Raster", sprite, img));
-			batch.addCommand(new SelectRaster(rasterList, sprite, img, this::setRaster));
-			SpriteEditor.execute(batch);
-		});
+		btnAddRaster.addActionListener((e) -> addRaster());
 
 		frontImgPanel = new RasterFacePanel(this, false);
 		backImgPanel = new RasterFacePanel(this, true);
@@ -175,6 +144,52 @@ public class RastersTab extends JPanel
 
 		setLayout(new MigLayout("fill, ins 16 16 32 16, wrap, hidemode 0"));
 		add(listsPanel, "grow, push");
+	}
+
+	/** Adds a raster after the others, of the selected image, if one is, and selects it. */
+	void addRaster()
+	{
+		if (sprite == null) {
+			return;
+		}
+
+		SpriteRaster img = new SpriteRaster(sprite);
+		String newName = img.createUniqueName(String.format("Img_%X", sprite.palettes.size()));
+
+		if (newName == null) {
+			Logger.logError("Could not generate valid name for new raster!");
+			Toolkit.getDefaultToolkit().beep();
+			return;
+		}
+
+		ImgAsset asset = imgAssetList.getSelectedValue();
+		if (asset != null) {
+			img.front.assignAsset(asset);
+			// assign a palette for the new raster
+			if (sprite.selectedPalette != null)
+				img.front.assignPal(sprite.selectedPalette);
+			else if (sprite.palettes.size() > 0)
+				img.front.assignPal(sprite.palettes.get(0));
+		}
+
+		img.loadEditorImages();
+
+		img.name = newName;
+		CommandBatch batch = new CommandBatch("Add Raster");
+		batch.addCommand(new CreateRaster("Add Raster", sprite, img));
+		batch.addCommand(new SelectRaster(rasterList, sprite, img, this::setRaster));
+		SpriteEditor.execute(batch);
+	}
+
+	RastersList rasterList()
+	{
+		return rasterList;
+	}
+
+	/** Reloads the images in the sprite's rasters directory. */
+	void reloadImages()
+	{
+		refreshImgAssets();
 	}
 
 	public void tryBindAsset(SpriteRasterFace face, Consumer<SpriteRasterFace> callback)
