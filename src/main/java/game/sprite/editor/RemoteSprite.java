@@ -73,9 +73,9 @@ import game.sprite.editor.commands.keyframe.SetKeyframeScale;
  * <li>"state": the editor's mode, and the indices of the animation, component, keyframe, raster, and palette
  * selected, or -1;</li>
  * <li>"keyframes": a track of keyframes for each component of the selected animation, each keyframe with its kind,
- * label, duration, and when it starts;</li>
- * <li>"playback": whether the animation is playing, its time, and for each track, the index of the keyframe it's on
- * and how many frames of it are left;</li>
+ * label, duration, and when it starts, and for a goto or a repeat, the index of the keyframe it goes to, and a
+ * repeat's count;</li>
+ * <li>"playback": whether the animation is playing, and its time;</li>
  * <li>"properties": the fields of the selected component and keyframe, raster, or palette, as the mode shows, in the
  * map editor's form;</li>
  * <li>"open": a file to open, which a field's button asks for.</li>
@@ -350,6 +350,12 @@ class RemoteSprite
 				key.addProperty("time", elem.animTime);
 				if (elem instanceof Keyframe kf && kf.setImage && kf.img != null)
 					key.addProperty("raster", kf.img.getIndex());
+				if (elem instanceof GotoKey go2)
+					key.addProperty("target", comp.getKeyframeAnimator().keyframes.indexOf(go2.target));
+				if (elem instanceof LoopKey loop) {
+					key.addProperty("target", comp.getKeyframeAnimator().keyframes.indexOf(loop.target));
+					key.addProperty("count", loop.count);
+				}
 				if (elem.hasError())
 					key.addProperty("error", elem.getErrorMsg());
 				list.add(key);
@@ -371,21 +377,6 @@ class RemoteSprite
 		SpriteAnimation anim = editor.getAnimation();
 		message.addProperty("playing", !editor.paused);
 		message.addProperty("time", anim == null ? 0 : Math.max(anim.animTime - 2, 0));
-		JsonArray tracks = new JsonArray();
-		for (SpriteComponent comp : components()) {
-			int current = -1;
-			int i = 0;
-			for (AnimKeyframe elem : comp.getKeyframeAnimator().keyframes) {
-				if (elem.highlighted)
-					current = i;
-				i++;
-			}
-			JsonObject track = new JsonObject();
-			track.addProperty("current", current);
-			track.addProperty("remaining", Math.max(comp.delayCount, 0));
-			tracks.add(track);
-		}
-		message.add("tracks", tracks);
 		return message;
 	}
 
@@ -561,7 +552,7 @@ class RemoteSprite
 		else if (elem instanceof LoopKey loop) {
 			fields.add(field("keyframe", "heading", "Repeat"));
 			fields.add(choice("loop.target", "From", "None", keyframesOnly(), loop.target));
-			JsonObject count = field("loop.count", "number", "Times");
+			JsonObject count = field("loop.count", "number", "Repeats");
 			count.addProperty("integer", true);
 			count.addProperty("value", loop.count);
 			fields.add(count);
@@ -798,8 +789,9 @@ class RemoteSprite
 
 	/**
 	 * Acts on an animation, component, keyframe, raster, or palette, as `target` says, at `index`: "add",
-	 * "duplicate", "copy", "paste", "delete", "rename" to `name`, "move" to `to`, "toggleHidden" for a component, or
-	 * "reload" the images of rasters or palettes.
+	 * "duplicate", "copy", "paste", "delete", "rename" to `name`, "move" to `to`, "toggleHidden" for a component,
+	 * "reload" the images of rasters or palettes, or for a keyframe, "retarget" a goto or repeat to the keyframe at
+	 * `to`, or "addLoop" of `kind` "goto" or "loop", `count` times, after it, back to the keyframe at `from`.
 	 */
 	private void act(String action, String target, int index, JsonObject message)
 	{
@@ -886,6 +878,24 @@ class RemoteSprite
 					}
 					case "move" -> SpriteEditor.execute(
 						new ReorderCommand(list, list.getDefaultModel().get(index), message.get("to").getAsInt()));
+					case "retarget" -> {
+						// a goto or a repeat goes to another keyframe
+						AnimKeyframe elem = list.getDefaultModel().get(index);
+						if (!(list.getDefaultModel().get(message.get("to").getAsInt()) instanceof Keyframe to))
+							return;
+						if (elem instanceof GotoKey go2)
+							SpriteEditor.execute(setValue("Set Goto Target", go2, go2.target, to, v -> go2.target = v));
+						else if (elem instanceof LoopKey loop)
+							SpriteEditor.execute(setValue("Set Repeat Target", loop, loop.target, to, v -> loop.target = v));
+					}
+					case "addLoop" -> {
+						// after the keyframe at `index`, going back to the one at `from`
+						if (!(list.getDefaultModel().get(message.get("from").getAsInt()) instanceof Keyframe to))
+							return;
+						list.setSelectedIndex(index);
+						KeyframeAnimatorEditor.createLoop(message.get("kind").getAsString(), to,
+							message.has("count") ? message.get("count").getAsInt() : 1);
+					}
 					default -> listAction(list, index, action);
 				}
 			}

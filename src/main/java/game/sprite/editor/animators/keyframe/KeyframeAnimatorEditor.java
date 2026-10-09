@@ -239,6 +239,19 @@ public class KeyframeAnimatorEditor extends ComponentAnimationEditor
 		}
 	}
 
+	/**
+	 * Adds a goto, "goto", or a repeat of `count` times, "loop", to `target`, after the keyframe selected, or after
+	 * the others if none is.
+	 */
+	public static void createLoop(String kind, Keyframe target, int count)
+	{
+		KeyframeAnimator animator = instance().animator;
+		if (animator == null)
+			return;
+
+		create(kind.equals("goto") ? new GotoKey(animator, target) : new LoopKey(animator, target, count));
+	}
+
 	private static void create(AnimKeyframe cmd)
 	{
 		AnimElementsList<AnimKeyframe> list = instance().commandList;
