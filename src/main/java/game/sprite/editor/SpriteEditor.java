@@ -448,6 +448,7 @@ public class SpriteEditor extends BaseEditor
 				break;
 
 			case Palettes:
+				trace = paletteCamera.getTraceRay(mouse.getPosX(), mouse.getPosY());
 				handleInput(deltaTime);
 				break;
 
@@ -2135,6 +2136,10 @@ public class SpriteEditor extends BaseEditor
 				});
 				break;
 			case Palettes:
+				// the palette of the raster clicked, which the atlas shows in the selected one
+				SpriteRaster raster = sprite.tryRasterAtlasPick(trace);
+				if (raster != null && raster.front.pal != null)
+					SwingUtilities.invokeLater(() -> palettesTab.paletteList().setSelectedValue(raster.front.pal, true));
 				break;
 			case Animation:
 				if (sprite == null || currentAnim == null)

@@ -958,6 +958,32 @@ public class Sprite implements XmlSerializable, Editable
 		return null;
 	}
 
+	/** The raster of the raster atlas that `trace` hits, if it hits one. */
+	public SpriteRaster tryRasterAtlasPick(BasicTraceRay trace)
+	{
+		for (SpriteRaster sr : rasters) {
+			if (sr.front.asset == null)
+				continue;
+
+			int width = sr.front.asset.img.width;
+			int height = sr.front.asset.img.height;
+			Vector3f min = new Vector3f(
+				sr.atlasX - ATLAS_SELECT_PADDING,
+				sr.atlasY - height - ATLAS_SELECT_PADDING,
+				0);
+
+			Vector3f max = new Vector3f(
+				sr.atlasX + width + ATLAS_SELECT_PADDING,
+				sr.atlasY + ATLAS_SELECT_PADDING,
+				0);
+
+			if (!BasicTraceRay.getIntersection(trace, min, max).missed())
+				return sr;
+		}
+
+		return null;
+	}
+
 	public void renderImgAtlas(ImgAsset selected, ImgAsset highlighted, boolean useFiltering)
 	{
 		for (ImgAsset ia : imgAssets) {
