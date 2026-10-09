@@ -15,6 +15,15 @@ public abstract class AnimKeyframe extends AnimElement
 		this.animator = animator;
 	}
 
+	@Override
+	public AnimKeyframe copy()
+	{
+		return copy(animator);
+	}
+
+	/** A copy of this, for another component's animator, `into`. */
+	public abstract AnimKeyframe copy(KeyframeAnimator into);
+
 	protected abstract int length();
 
 	protected abstract void addTo(List<Short> seq);

@@ -31,6 +31,12 @@ public class LoopKey extends AnimKeyframe
 
 	public Keyframe target;
 
+	/**
+	 * The position in the component's commands it goes to, if it has no target, as some of the game's animations go
+	 * into the middle of a keyframe, or of a command. -1 if it has none.
+	 */
+	public int fixedPos = -1;
+
 	// used during deserialization
 	public transient String targetName;
 
@@ -66,6 +72,8 @@ public class LoopKey extends AnimKeyframe
 		XmlTag tag = xmw.createTag(TAG_CMD_LOOP, true);
 		if (target != null)
 			xmw.addAttribute(tag, ATTR_DEST, target.name);
+		else if (fixedPos >= 0)
+			xmw.addInt(tag, ATTR_POS, fixedPos);
 		xmw.addInt(tag, ATTR_COUNT, count);
 		xmw.printTag(tag);
 	}
@@ -75,15 +83,19 @@ public class LoopKey extends AnimKeyframe
 	{
 		if (xmr.hasAttribute(elem, ATTR_DEST))
 			targetName = xmr.getAttribute(elem, ATTR_DEST);
+		else if (xmr.hasAttribute(elem, ATTR_POS))
+			fixedPos = xmr.readInt(elem, ATTR_POS);
 
 		if (xmr.hasAttribute(elem, ATTR_COUNT))
 			count = xmr.readInt(elem, ATTR_COUNT);
 	}
 
 	@Override
-	public LoopKey copy()
+	public LoopKey copy(KeyframeAnimator into)
 	{
-		return new LoopKey(animator, target, count);
+		LoopKey clone = new LoopKey(into, target, count);
+		clone.fixedPos = fixedPos;
+		return clone;
 	}
 
 	@Override
@@ -133,7 +145,9 @@ public class LoopKey extends AnimKeyframe
 	@Override
 	public String toString()
 	{
-		if (target == null)
+		if (target == null && fixedPos >= 0)
+			return "Repeat: position " + fixedPos + " (x" + count + ")";
+		else if (target == null)
 			return "Repeat: (missing) (x" + count + ")";
 		else if (!animator.keyframes.contains(target))
 			return "Repeat: " + target.name + " (missing) (x" + count + ")";
@@ -150,7 +164,7 @@ public class LoopKey extends AnimKeyframe
 	@Override
 	public void addTo(List<Short> seq)
 	{
-		int pos = animator.getKeyframeOffset(target);
+		int pos = (target == null && fixedPos >= 0) ? fixedPos : animator.getKeyframeOffset(target);
 		if (pos < 0)
 			throw new RuntimeException("Repeat is missing target: " + target.name);
 
@@ -179,6 +193,9 @@ public class LoopKey extends AnimKeyframe
 	@Override
 	public String checkErrorMsg()
 	{
+		if (target == null && fixedPos >= 0)
+			return null;
+
 		if (target == null || !animator.keyframes.contains(target))
 			return "Goto Keyframe: missing label";
 

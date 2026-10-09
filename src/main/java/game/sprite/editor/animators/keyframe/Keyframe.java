@@ -68,6 +68,12 @@ public class Keyframe extends AnimKeyframe
 	public int rx = 0, ry = 0, rz = 0;
 	public int sx = 100, sy = 100, sz = 100;
 
+	/**
+	 * Whether it sets its position, rotation, or scale even where they're the defaults, as the commands of some of the
+	 * game's animations do, which an animation that goes to a position in its commands relies on.
+	 */
+	public boolean explicitPos, explicitRot, explicitScale;
+
 	// used during deserialization
 	public transient String imgName = null;
 	public transient String palName = null;
@@ -98,13 +104,13 @@ public class Keyframe extends AnimKeyframe
 		if (setPalette)
 			xmw.addAttribute(tag, ATTR_KF_PAL, pal == null ? "" : pal.name);
 
-		if (dx != 0 || dy != 0 || dz != 0)
+		if (setsPosition())
 			xmw.addIntArray(tag, ATTR_KF_POS, dx, dy, dz);
 
-		if (rx != 0 || ry != 0 || rz != 0)
+		if (setsRotation())
 			xmw.addIntArray(tag, ATTR_KF_ROT, rx, ry, rz);
 
-		if (sx != 100 || sy != 100 || sz != 100)
+		if (setsScale())
 			xmw.addIntArray(tag, ATTR_KF_SCALE, sx, sy, sz);
 
 		xmw.printTag(tag);
@@ -119,13 +125,18 @@ public class Keyframe extends AnimKeyframe
 		if (xmr.hasAttribute(elem, ATTR_DURATION))
 			duration = xmr.readInt(elem, ATTR_DURATION);
 
-		setImage = xmr.hasAttribute(elem, ATTR_KF_IMG);
+		// an empty image or palette is one set to none, which the reader's hasAttribute counts as missing
+		setImage = elem.hasAttribute(ATTR_KF_IMG.toString());
 		if (setImage)
-			imgName = xmr.getAttribute(elem, ATTR_KF_IMG);
+			imgName = elem.getAttribute(ATTR_KF_IMG.toString());
 
-		setPalette = xmr.hasAttribute(elem, ATTR_KF_PAL);
+		setPalette = elem.hasAttribute(ATTR_KF_PAL.toString());
 		if (setPalette)
-			palName = xmr.getAttribute(elem, ATTR_KF_PAL);
+			palName = elem.getAttribute(ATTR_KF_PAL.toString());
+
+		explicitPos = xmr.hasAttribute(elem, ATTR_KF_POS);
+		explicitRot = xmr.hasAttribute(elem, ATTR_KF_ROT);
+		explicitScale = xmr.hasAttribute(elem, ATTR_KF_SCALE);
 
 		if (xmr.hasAttribute(elem, ATTR_KF_POS)) {
 			int[] pos = xmr.readIntArray(elem, ATTR_KF_POS, 3);
@@ -149,10 +160,25 @@ public class Keyframe extends AnimKeyframe
 		}
 	}
 
-	@Override
-	public Keyframe copy()
+	public boolean setsPosition()
 	{
-		Keyframe clone = new Keyframe(animator);
+		return explicitPos || dx != 0 || dy != 0 || dz != 0;
+	}
+
+	public boolean setsRotation()
+	{
+		return explicitRot || rx != 0 || ry != 0 || rz != 0;
+	}
+
+	public boolean setsScale()
+	{
+		return explicitScale || sx != 100 || sy != 100 || sz != 100;
+	}
+
+	@Override
+	public Keyframe copy(KeyframeAnimator into)
+	{
+		Keyframe clone = new Keyframe(into);
 		clone.name = name;
 		clone.duration = duration;
 		clone.setImage = setImage;
@@ -169,6 +195,9 @@ public class Keyframe extends AnimKeyframe
 		clone.sx = sx;
 		clone.sy = sy;
 		clone.sz = sz;
+		clone.explicitPos = explicitPos;
+		clone.explicitRot = explicitRot;
+		clone.explicitScale = explicitScale;
 		return clone;
 	}
 
@@ -184,19 +213,34 @@ public class Keyframe extends AnimKeyframe
 			owner.sp = pal;
 		}
 
-		// these all use default values if not set by the keyframe
-		if (duration > 0) {
+		// as the game sets them, from the commands addTo makes, which leave out defaults: a keyframe of no
+		// duration sets them for the next, since they're reset at the start of each that has one
+		if (setsPosition()) {
 			owner.dx = dx;
 			owner.dy = dy;
 			owner.dz = dz;
+		}
 
+		if (setsRotation()) {
 			owner.rx = rx;
 			owner.ry = ry;
 			owner.rz = rz;
+		}
 
-			owner.scaleX = sx;
-			owner.scaleY = sy;
-			owner.scaleZ = sz;
+		if (sx == sy && sy == sz) {
+			if (setsScale()) {
+				owner.scaleX = sx;
+				owner.scaleY = sy;
+				owner.scaleZ = sz;
+			}
+		}
+		else {
+			if (sx != 100)
+				owner.scaleX = sx;
+			if (sy != 100)
+				owner.scaleY = sy;
+			if (sz != 100)
+				owner.scaleZ = sz;
 		}
 
 		owner.delayCount = duration;
@@ -219,20 +263,20 @@ public class Keyframe extends AnimKeyframe
 	@Override
 	protected void addTo(List<Short> seq)
 	{
-		if (duration > 0 && dx != 0 || dy != 0 || dz != 0) {
+		if (setsPosition()) {
 			seq.add(unknown ? (short) 0x3001 : (short) 0x3000);
 			seq.add((short) dx);
 			seq.add((short) dy);
 			seq.add((short) dz);
 		}
 
-		if (duration > 0 && rx != 0 || ry != 0 || rz != 0) {
+		if (setsRotation()) {
 			seq.add((short) (0x4000 | (rx & 0xFFF)));
 			seq.add((short) ry);
 			seq.add((short) rz);
 		}
 
-		if (duration > 0 && sx != 100 || sy != 100 || sz != 100) {
+		if (setsScale()) {
 			if (sx == sy && sy == sz) {
 				seq.add((short) 0x5000);
 				seq.add((short) sx);
@@ -291,6 +335,7 @@ public class Keyframe extends AnimKeyframe
 	// 3VVV XXXX YYYY ZZZZ
 	public int setPosition(Queue<Short> cmdQueue)
 	{
+		explicitPos = true;
 		//NOTE: this flag does nothing
 		unknown = (cmdQueue.poll() & 0xFFF) == 1;
 		dx = cmdQueue.poll();
@@ -303,6 +348,7 @@ public class Keyframe extends AnimKeyframe
 	// set rotation (euler angles)
 	public int setRotation(Queue<Short> cmdQueue)
 	{
+		explicitRot = true;
 		// ensure FFF -> FFFF with sign extension
 		rx = ((cmdQueue.poll() << 20) >> 20);
 		ry = cmdQueue.poll();
@@ -313,6 +359,7 @@ public class Keyframe extends AnimKeyframe
 	// 5VVV UUUU : scale (%)
 	public int setScale(Queue<Short> cmdQueue)
 	{
+		explicitScale = true;
 		ScaleMode type = ScaleMode.get(cmdQueue.poll() & 0xFFF);
 		int scale = cmdQueue.poll();
 		switch (type) {
@@ -391,9 +438,7 @@ public class Keyframe extends AnimKeyframe
 	@Override
 	public String checkErrorMsg()
 	{
-		if (duration == 0)
-			return "Keyframe: invalid duration";
-
+		// a keyframe of no duration has no wait, and runs along with the next
 		if (duration % 2 == 1 && SpriteEditor.instance().optStrictErrorChecking)
 			return "Keyframe duration should be even";
 

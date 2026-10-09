@@ -3,6 +3,7 @@ package game.sprite.editor.animators.keyframe;
 import java.awt.Container;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
@@ -47,19 +48,28 @@ public class KeyframeAnimator implements ComponentAnimator
 	}
 
 	/**
-	 * Creates a copy of another KeyframeAnimator, along with all commands
-	 * Updates references within commands to point to corresponding (copied) commands/components
+	 * Creates a copy of another KeyframeAnimator, along with all of its keyframes, whose gotos and repeats go to the
+	 * copies of the keyframes they went to
 	 * @param comp SpriteComponent which this new animator belongs to
-	 * @param other KeyframeAnimator to copy commands from
+	 * @param other KeyframeAnimator to copy keyframes from
 	 */
 	public KeyframeAnimator(SpriteComponent comp, KeyframeAnimator other)
 	{
 		this(comp);
 
-		// easier to compile to bytes and reconstruct a copy than to deal with the web of
-		// object references that would need to be properly updated in the new list
-		RawAnimation raw = other.toRawAnimation();
-		generateFrom(raw);
+		IdentityHashMap<AnimKeyframe, AnimKeyframe> copies = new IdentityHashMap<>();
+		for (AnimKeyframe elem : other.keyframes) {
+			AnimKeyframe copy = elem.copy(this);
+			copies.put(elem, copy);
+			keyframes.addElement(copy);
+		}
+
+		for (AnimKeyframe elem : keyframes) {
+			if (elem instanceof GotoKey go2)
+				go2.target = (Keyframe) copies.get(go2.target);
+			else if (elem instanceof LoopKey loop)
+				loop.target = (Keyframe) copies.get(loop.target);
+		}
 	}
 
 	public List<Keyframe> getKeyframesList()

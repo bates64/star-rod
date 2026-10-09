@@ -15,7 +15,7 @@ public abstract class AnimCommand extends AnimElement
 		this.animator = animator;
 	}
 
-	protected abstract int length();
+	public abstract int length();
 
 	protected abstract void addTo(List<Short> seq);
 }

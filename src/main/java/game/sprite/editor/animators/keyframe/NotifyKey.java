@@ -54,9 +54,9 @@ public class NotifyKey extends AnimKeyframe
 	}
 
 	@Override
-	public NotifyKey copy()
+	public NotifyKey copy(KeyframeAnimator into)
 	{
-		NotifyKey clone = new NotifyKey(animator);
+		NotifyKey clone = new NotifyKey(into);
 		clone.value = value;
 		return clone;
 	}

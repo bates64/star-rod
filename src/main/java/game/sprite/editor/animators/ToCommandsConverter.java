@@ -53,28 +53,27 @@ public class ToCommandsConverter
 				labelMap.put(cur, lbl);
 				commands.add(lbl);
 
-				// command state is reset after every Wait, so any non-default values must generate new commands
-				if (cur.duration > 0) {
-					if (cur.dx != 0 || cur.dy != 0 || cur.dz != 0) {
-						commands.add(new SetPosition(cmdAnim, (short) 0, (short) cur.dx, (short) cur.dy, (short) cur.dz));
+				// command state is reset after every Wait, so any non-default values must generate new commands,
+				// which a keyframe of no duration sets for the next
+				if (cur.setsPosition()) {
+					commands.add(new SetPosition(cmdAnim, (short) 0, (short) cur.dx, (short) cur.dy, (short) cur.dz));
+				}
+				if (cur.setsRotation()) {
+					commands.add(new SetRotation(cmdAnim, (short) cur.rx, (short) cur.ry, (short) cur.rz));
+				}
+				if (cur.setsScale()) {
+					if (cur.sx == cur.sy && cur.sx == cur.sz) {
+						commands.add(new SetScale(cmdAnim, (short) 0, (short) cur.sx));
 					}
-					if (cur.rx != 0 || cur.ry != 0 || cur.rz != 0) {
-						commands.add(new SetRotation(cmdAnim, (short) cur.rx, (short) cur.ry, (short) cur.rz));
-					}
-					if (cur.sx != 100 || cur.sy != 100 || cur.sz != 100) {
-						if (cur.sx == cur.sy && cur.sx == cur.sz) {
-							commands.add(new SetScale(cmdAnim, (short) 0, (short) cur.sx));
+					else {
+						if (cur.sx != 100) {
+							commands.add(new SetScale(cmdAnim, (short) 1, (short) cur.sx));
 						}
-						else {
-							if (cur.sx != 100) {
-								commands.add(new SetScale(cmdAnim, (short) 1, (short) cur.sx));
-							}
-							if (cur.sy != 100) {
-								commands.add(new SetScale(cmdAnim, (short) 2, (short) cur.sy));
-							}
-							if (cur.sz != 100) {
-								commands.add(new SetScale(cmdAnim, (short) 1, (short) cur.sz));
-							}
+						if (cur.sy != 100) {
+							commands.add(new SetScale(cmdAnim, (short) 2, (short) cur.sy));
+						}
+						if (cur.sz != 100) {
+							commands.add(new SetScale(cmdAnim, (short) 3, (short) cur.sz));
 						}
 					}
 				}
@@ -99,11 +98,13 @@ public class ToCommandsConverter
 			}
 			else if (elem instanceof GotoKey g2k) {
 				Goto go2 = new Goto(cmdAnim, g2k.target);
+				go2.fixedPos = g2k.fixedPos;
 				commands.add(go2);
 				gotos.add(go2);
 			}
 			else if (elem instanceof LoopKey lk) {
 				Loop loop = new Loop(cmdAnim, lk.target, lk.count);
+				loop.fixedPos = lk.fixedPos;
 				commands.add(loop);
 				loops.add(loop);
 			}

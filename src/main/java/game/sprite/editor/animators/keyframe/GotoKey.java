@@ -1,6 +1,7 @@
 package game.sprite.editor.animators.keyframe;
 
 import static game.sprite.SpriteKey.ATTR_DEST;
+import static game.sprite.SpriteKey.ATTR_POS;
 import static game.sprite.SpriteKey.TAG_CMD_GOTO;
 
 import java.awt.Color;
@@ -27,6 +28,12 @@ import util.xml.XmlWrapper.XmlWriter;
 public class GotoKey extends AnimKeyframe
 {
 	public Keyframe target;
+
+	/**
+	 * The position in the component's commands it goes to, if it has no target, as some of the game's animations go
+	 * into the middle of a keyframe, or of a command. -1 if it has none.
+	 */
+	public int fixedPos = -1;
 
 	// used during deserialization
 	public transient String targetName;
@@ -61,6 +68,8 @@ public class GotoKey extends AnimKeyframe
 		XmlTag tag = xmw.createTag(TAG_CMD_GOTO, true);
 		if (target != null)
 			xmw.addAttribute(tag, ATTR_DEST, target.name);
+		else if (fixedPos >= 0)
+			xmw.addInt(tag, ATTR_POS, fixedPos);
 		xmw.printTag(tag);
 	}
 
@@ -69,12 +78,16 @@ public class GotoKey extends AnimKeyframe
 	{
 		if (xmr.hasAttribute(elem, ATTR_DEST))
 			targetName = xmr.getAttribute(elem, ATTR_DEST);
+		else if (xmr.hasAttribute(elem, ATTR_POS))
+			fixedPos = xmr.readInt(elem, ATTR_POS);
 	}
 
 	@Override
-	public GotoKey copy()
+	public GotoKey copy(KeyframeAnimator into)
 	{
-		return new GotoKey(animator, target);
+		GotoKey clone = new GotoKey(into, target);
+		clone.fixedPos = fixedPos;
+		return clone;
 	}
 
 	@Override
@@ -100,8 +113,11 @@ public class GotoKey extends AnimKeyframe
 	@Override
 	public void addTo(List<Short> seq)
 	{
-		if (target == null)
+		if (target == null) {
+			if (fixedPos >= 0)
+				seq.add((short) (0x2000 | (fixedPos & 0xFFF)));
 			return;
+		}
 
 		int pos = animator.getKeyframeOffset(target);
 		if (pos < 0)
@@ -139,7 +155,9 @@ public class GotoKey extends AnimKeyframe
 	@Override
 	public String toString()
 	{
-		if (target == null)
+		if (target == null && fixedPos >= 0)
+			return "Goto: position " + fixedPos;
+		else if (target == null)
 			return "Goto: (missing)";
 		else if (!animator.keyframes.contains(target))
 			return "Goto: " + target.name + " (missing)";
@@ -168,6 +186,9 @@ public class GotoKey extends AnimKeyframe
 	@Override
 	public String checkErrorMsg()
 	{
+		if (target == null && fixedPos >= 0)
+			return null;
+
 		if (target == null || !animator.keyframes.contains(target))
 			return "Goto Keyframe: missing label";
 

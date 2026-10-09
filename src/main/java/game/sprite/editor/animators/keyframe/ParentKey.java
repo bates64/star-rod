@@ -84,10 +84,11 @@ public class ParentKey extends AnimKeyframe
 	}
 
 	@Override
-	public ParentKey copy()
+	public ParentKey copy(KeyframeAnimator into)
 	{
-		ParentKey clone = new ParentKey(animator);
-		clone.parent = parent;
+		ParentKey clone = new ParentKey(into, parent);
+		// which popParents finds it by, in a copied animation
+		clone.parIndex = (parent == null) ? parIndex : parent.getIndex();
 		return clone;
 	}
 
