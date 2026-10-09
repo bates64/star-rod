@@ -72,8 +72,10 @@ import game.sprite.editor.commands.keyframe.SetKeyframeScale;
  * palette, and of each image palettes can take colors from, a second or so after they change;</li>
  * <li>"state": the editor's mode, and the indices of the animation, component, keyframe, raster, and palette
  * selected, or -1;</li>
- * <li>"keyframes": the keyframes of the selected component, each with its kind, label, duration, and when it starts;</li>
- * <li>"playback": whether the animation is playing, its time, and the index of the keyframe it's on;</li>
+ * <li>"keyframes": a track of keyframes for each component of the selected animation, each keyframe with its kind,
+ * label, duration, and when it starts;</li>
+ * <li>"playback": whether the animation is playing, its time, and for each track, the index of the keyframe it's on
+ * and how many frames of it are left;</li>
  * <li>"properties": the fields of the selected component and keyframe, raster, or palette, as the mode shows, in the
  * map editor's form;</li>
  * <li>"open": a file to open, which a field's button asks for.</li>
@@ -328,23 +330,38 @@ class RemoteSprite
 		return "notify";
 	}
 
+	/** The components of the selected animation, which are none if none is selected. */
+	private List<SpriteComponent> components()
+	{
+		SpriteAnimation anim = editor.getAnimation();
+		return (anim == null) ? List.of() : elements(anim.components);
+	}
+
 	private JsonObject describeKeyframes()
 	{
-		JsonArray list = new JsonArray();
-		for (AnimKeyframe elem : keyframes()) {
-			JsonObject key = new JsonObject();
-			key.addProperty("kind", kindOf(elem));
-			key.addProperty("label", elem.toString());
-			key.addProperty("duration", (elem instanceof Keyframe kf) ? kf.duration : 0);
-			key.addProperty("time", elem.animTime);
-			if (elem instanceof Keyframe kf && kf.setImage && kf.img != null)
-				key.addProperty("raster", kf.img.getIndex());
-			if (elem.hasError())
-				key.addProperty("error", elem.getErrorMsg());
-			list.add(key);
+		JsonArray tracks = new JsonArray();
+		for (SpriteComponent comp : components()) {
+			JsonArray list = new JsonArray();
+			for (AnimKeyframe elem : comp.getKeyframeAnimator().keyframes) {
+				JsonObject key = new JsonObject();
+				key.addProperty("kind", kindOf(elem));
+				key.addProperty("label", elem.toString());
+				key.addProperty("duration", (elem instanceof Keyframe kf) ? kf.duration : 0);
+				key.addProperty("time", elem.animTime);
+				if (elem instanceof Keyframe kf && kf.setImage && kf.img != null)
+					key.addProperty("raster", kf.img.getIndex());
+				if (elem.hasError())
+					key.addProperty("error", elem.getErrorMsg());
+				list.add(key);
+			}
+			JsonObject track = new JsonObject();
+			track.addProperty("name", comp.name);
+			track.addProperty("hidden", comp.hidden);
+			track.add("keyframes", list);
+			tracks.add(track);
 		}
 		JsonObject message = new JsonObject();
-		message.add("keyframes", list);
+		message.add("tracks", tracks);
 		return message;
 	}
 
@@ -354,13 +371,21 @@ class RemoteSprite
 		SpriteAnimation anim = editor.getAnimation();
 		message.addProperty("playing", !editor.paused);
 		message.addProperty("time", anim == null ? 0 : Math.max(anim.animTime - 2, 0));
-		List<AnimKeyframe> keyframes = keyframes();
-		int current = -1;
-		for (int i = 0; i < keyframes.size(); i++) {
-			if (keyframes.get(i).highlighted)
-				current = i;
+		JsonArray tracks = new JsonArray();
+		for (SpriteComponent comp : components()) {
+			int current = -1;
+			int i = 0;
+			for (AnimKeyframe elem : comp.getKeyframeAnimator().keyframes) {
+				if (elem.highlighted)
+					current = i;
+				i++;
+			}
+			JsonObject track = new JsonObject();
+			track.addProperty("current", current);
+			track.addProperty("remaining", Math.max(comp.delayCount, 0));
+			tracks.add(track);
 		}
-		message.addProperty("current", current);
+		message.add("tracks", tracks);
 		return message;
 	}
 

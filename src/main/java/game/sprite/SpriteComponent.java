@@ -155,6 +155,11 @@ public class SpriteComponent implements XmlSerializable, Indexable<SpriteCompone
 	 * from a RawAnimation. This must be called for each component after copying an animation,
 	 * as the SpriteComponent references would refer to the old SpriteAnimation.
 	 */
+	public KeyframeAnimator getKeyframeAnimator()
+	{
+		return keyframeAnimator;
+	}
+
 	public void popParents()
 	{
 		SpriteAnimation anim = parentAnimation;
