@@ -454,9 +454,6 @@ class RemoteSprite
 		message.addProperty("title", raster.name);
 		message.addProperty("subtitle", "Raster");
 		JsonArray fields = new JsonArray();
-		JsonObject name = field("r.name", "text", "Name");
-		name.addProperty("value", raster.name);
-		fields.add(name);
 		fields.add(withIcons(choice("r.image", "Image", "None", sprite.imgAssets, raster.front.asset), "images"));
 		fields.add(withIcons(choice("r.palette", "Palette", "None", sprite.palettes, raster.front.pal), "palettes"));
 		if (sprite.hasBack) {
@@ -484,9 +481,6 @@ class RemoteSprite
 		message.addProperty("title", palette.name);
 		message.addProperty("subtitle", "Palette");
 		JsonArray fields = new JsonArray();
-		JsonObject name = field("p.name", "text", "Name");
-		name.addProperty("value", palette.name);
-		fields.add(name);
 		fields.add(withIcons(choice("p.image", "Image", "None", palette.parentSprite.palAssets, palette.asset),
 			"paletteImages"));
 		JsonObject frontOnly = field("p.frontOnly", "checkbox", "Front only");
@@ -515,17 +509,12 @@ class RemoteSprite
 		message.addProperty("title", comp.name);
 		message.addProperty("subtitle", comp.parentAnimation.name);
 		JsonArray fields = new JsonArray();
-		JsonObject name = field("comp.name", "text", "Name");
-		name.addProperty("value", comp.name);
-		fields.add(name);
 		fields.add(vector("comp.offset", "Offset", comp.posx, comp.posy, comp.posz));
 
 		AnimElement elem = KeyframeAnimatorEditor.list().getSelectedValue();
 		if (elem instanceof Keyframe kf) {
-			fields.add(field("keyframe", "heading", "Keyframe"));
-			JsonObject kfName = field("kf.name", "text", "Name");
-			kfName.addProperty("value", kf.name);
-			fields.add(kfName);
+			// named here, as its name is renamed from the timeline
+			fields.add(field("keyframe", "heading", kf.name.isEmpty() ? "Keyframe" : kf.name));
 			JsonObject duration = field("kf.duration", "number", "Duration");
 			duration.addProperty("integer", true);
 			duration.addProperty("value", kf.duration);
@@ -724,20 +713,11 @@ class RemoteSprite
 		int number = (value != null && value.isJsonArray()) ? value.getAsJsonArray().get(1).getAsInt() : 0;
 
 		AbstractCommand command = null;
-		if (key.equals("comp.name")) {
-			String name = value.getAsString().trim();
-			if (!name.isBlank() && !name.equals(comp.name)) {
-				String unique = comp.createUniqueName(name);
-				if (unique != null)
-					command = new RenameComponent(editor.compList, comp, unique);
-			}
-		}
-		else if (key.equals("comp.offset")) {
+		if (key.equals("comp.offset")) {
 			command = editor.new SetComponentPosCommand(comp, axis, number);
 		}
 		else if (elem instanceof Keyframe kf) {
 			command = switch (key) {
-				case "kf.name" -> new SetKeyframeName(kf, value.getAsString(), none);
 				case "kf.duration" -> new SetKeyframeDuration(kf, value.getAsInt(), none);
 				case "kf.raster" -> (enabled != null)
 					? new SetKeyframeEnableRaster(kf, enabled, none)
