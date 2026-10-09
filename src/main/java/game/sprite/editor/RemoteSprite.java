@@ -68,7 +68,8 @@ import game.sprite.editor.commands.keyframe.SetKeyframeScale;
  * <ul>
  * <li>"sprite": the names of the sprite's animations, each with its components, of its rasters and palettes, and of
  * the images in its rasters and palettes directories, which they show;</li>
- * <li>"previews": an image of each raster, as a data URL, a second or so after it changes;</li>
+ * <li>"previews": an image of each raster, and of each image the rasters can show, as data URLs, and the colors of each
+ * palette, and of each image palettes can take colors from, a second or so after they change;</li>
  * <li>"state": the editor's mode, and the indices of the animation, component, keyframe, raster, and palette
  * selected, or -1;</li>
  * <li>"keyframes": the keyframes of the selected component, each with its kind, label, duration, and when it starts;</li>
@@ -227,9 +228,33 @@ class RemoteSprite
 		JsonArray rasters = new JsonArray();
 		for (SpriteRaster raster : sprite.rasters)
 			rasters.add(raster.front.asset == null ? "" : dataUrl(raster.front.preview.getImage()));
+		JsonObject images = new JsonObject();
+		for (ImgAsset image : sprite.imgAssets)
+			images.addProperty(image.toString(), dataUrl(image.preview.getImage()));
+		JsonObject palettes = new JsonObject();
+		for (SpritePalette palette : sprite.palettes) {
+			if (palette.asset != null)
+				palettes.add(palette.toString(), colors(palette.asset));
+		}
+		JsonObject paletteImages = new JsonObject();
+		for (PalAsset asset : sprite.palAssets)
+			paletteImages.add(asset.toString(), colors(asset));
+
 		JsonObject message = new JsonObject();
 		message.add("rasters", rasters);
+		message.add("images", images);
+		message.add("palettes", palettes);
+		message.add("paletteImages", paletteImages);
 		return message;
+	}
+
+	/** A palette's colors, as RGB numbers. */
+	private static JsonArray colors(PalAsset asset)
+	{
+		JsonArray colors = new JsonArray();
+		for (int i = 0; i < asset.savedColors.length; i++)
+			colors.add(asset.pal.getColor(i).getRGB() & 0xFFFFFF);
+		return colors;
 	}
 
 	/**
@@ -399,6 +424,16 @@ class RemoteSprite
 		return field;
 	}
 
+	/**
+	 * Has a choice show images beside its options, from the set `icons` names: "rasters", "images", "palettes", or
+	 * "paletteImages", as "previews" sends them.
+	 */
+	private static JsonObject withIcons(JsonObject choice, String icons)
+	{
+		choice.addProperty("icons", icons);
+		return choice;
+	}
+
 	private JsonObject describeProperties()
 	{
 		return switch (editor.getModesTab()) {
@@ -422,16 +457,16 @@ class RemoteSprite
 		JsonObject name = field("r.name", "text", "Name");
 		name.addProperty("value", raster.name);
 		fields.add(name);
-		fields.add(choice("r.image", "Image", "None", sprite.imgAssets, raster.front.asset));
-		fields.add(choice("r.palette", "Palette", "None", sprite.palettes, raster.front.pal));
+		fields.add(withIcons(choice("r.image", "Image", "None", sprite.imgAssets, raster.front.asset), "images"));
+		fields.add(withIcons(choice("r.palette", "Palette", "None", sprite.palettes, raster.front.pal), "palettes"));
 		if (sprite.hasBack) {
 			fields.add(field("back", "heading", "Back"));
 			JsonObject separate = field("r.separateBack", "checkbox", "Own image");
 			separate.addProperty("value", raster.hasIndependentBack);
 			fields.add(separate);
 			if (raster.hasIndependentBack)
-				fields.add(choice("r.backImage", "Image", "None", sprite.imgAssets, raster.back.asset));
-			fields.add(choice("r.backPalette", "Palette", "None", sprite.palettes, raster.back.pal));
+				fields.add(withIcons(choice("r.backImage", "Image", "None", sprite.imgAssets, raster.back.asset), "images"));
+			fields.add(withIcons(choice("r.backPalette", "Palette", "None", sprite.palettes, raster.back.pal), "palettes"));
 		}
 		if (raster.front.asset != null)
 			fields.add(field("r.open", "button", "Open Image"));
@@ -452,7 +487,8 @@ class RemoteSprite
 		JsonObject name = field("p.name", "text", "Name");
 		name.addProperty("value", palette.name);
 		fields.add(name);
-		fields.add(choice("p.image", "Image", "None", palette.parentSprite.palAssets, palette.asset));
+		fields.add(withIcons(choice("p.image", "Image", "None", palette.parentSprite.palAssets, palette.asset),
+			"paletteImages"));
 		JsonObject frontOnly = field("p.frontOnly", "checkbox", "Front only");
 		frontOnly.addProperty("value", palette.frontOnly);
 		fields.add(frontOnly);
@@ -495,11 +531,12 @@ class RemoteSprite
 			duration.addProperty("value", kf.duration);
 			fields.add(duration);
 			Sprite sprite = comp.sprite;
-			JsonObject raster = choice("kf.raster", "Raster", "None", sprite.rasters, kf.img);
+			JsonObject raster = withIcons(choice("kf.raster", "Raster", "None", sprite.rasters, kf.img), "rasters");
 			raster.addProperty("optional", true);
 			raster.addProperty("enabled", kf.setImage);
 			fields.add(raster);
-			JsonObject palette = choice("kf.palette", "Palette", "Raster's palette", sprite.palettes, kf.pal);
+			JsonObject palette = withIcons(choice("kf.palette", "Palette", "Raster's palette", sprite.palettes, kf.pal),
+				"palettes");
 			palette.addProperty("optional", true);
 			palette.addProperty("enabled", kf.setPalette);
 			fields.add(palette);
