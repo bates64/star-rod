@@ -4,7 +4,7 @@ rec {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
     gradle-dot-nix.url = "github:CrazyChaoz/gradle-dot-nix";
   };
-  outputs = { nixpkgs, gradle-dot-nix, ... }:
+  outputs = { self, nixpkgs, gradle-dot-nix, ... }:
     let
       javaVersion = 17;
       supportedSystems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
@@ -57,24 +57,27 @@ rec {
             terminal = false;
             startupWMClass = "app-StarRodMain";
           };
-        in {
-          default = pkgs.stdenv.mkDerivation rec {
-            inherit pname;
-            version = builtins.elemAt (builtins.match "^.*version=([[:digit:].]+).*$" (builtins.readFile ./app.properties)) 0;
+          version = builtins.elemAt (builtins.match "^.*version=([[:digit:].]+).*$" (builtins.readFile ./app.properties)) 0;
+        in rec {
+          # The jar and its licenses without a JRE, for bundling Star Rod with a JRE of your own.
+          jar = pkgs.stdenv.mkDerivation {
+            pname = "${pname}-jar";
+            inherit version;
             src = ./.;
             nativeBuildInputs = let
               jdk = pkgs."jdk${toString javaVersion}";
               gradle = pkgs.gradle.override { java = jdk; };
             in [
-              pkgs.makeWrapper
               pkgs.unzip
 
               gradle
               jdk
             ];
+            # The build sandbox sets no locale, so javac would otherwise read the UTF-8 sources as US-ASCII.
+            LANG = "C.UTF-8";
             buildPhase = ''
-              export GRADLE_USER_HOME="/tmp" # https://github.com/NixOS/nixpkgs/issues/34707
-              gradle createReleaseZip --info -I ${gradle-init-script} --offline --full-stacktrace
+              export GRADLE_USER_HOME="$TMPDIR/gradle-home"
+              gradle createReleaseZip --info -I ${gradle-init-script} -PbuildCommit=${self.rev or self.dirtyRev or "unknown"} --offline --full-stacktrace
             '';
             installPhase = ''
               unzip -d $out build/release/StarRod-*.zip
@@ -83,10 +86,16 @@ rec {
 
               mkdir -p $out/share/java
               mv $out/StarRod.jar $out/share/java
+            '';
+          };
 
-              mkdir -p $out/bin
+          default = pkgs.symlinkJoin {
+            name = "${pname}-${version}";
+            paths = [ jar ];
+            nativeBuildInputs = [ pkgs.makeWrapper ];
+            postBuild = ''
               makeWrapper ${pkgs.jre}/bin/java $out/bin/${pname} \
-                --add-flags "-cp $out/share/java/StarRod.jar -mx2G -Djava.library.path=${makeLibPath pkgs} app.StarRodMain"
+                --add-flags "-cp ${jar}/share/java/StarRod.jar -mx2G -Djava.library.path=${makeLibPath pkgs} app.StarRodMain"
 
               # TODO: icon
               #install -Dm444 logo_512.png $out/share/icons/hicolor/512x512/apps/${pname}.png
