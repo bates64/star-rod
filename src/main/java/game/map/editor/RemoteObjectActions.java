@@ -185,8 +185,11 @@ public class RemoteObjectActions
 				SwingUtilities.invokeLater(() -> editor.gui.prompt_GenerateUV());
 				break;
 			case "moveSelectedHere":
-				if (node != null)
-					editor.runEditorAction(() -> moveSelectedTo(node));
+				// to an index among the group's children, as they are before the move, or else after them
+				if (node != null) {
+					int index = message.has("index") ? message.get("index").getAsInt() : -1;
+					editor.runEditorAction(() -> moveSelectedTo(node, index));
+				}
 				break;
 			case "selectChildren":
 				if (node != null)
@@ -245,13 +248,13 @@ public class RemoteObjectActions
 	}
 
 	@SuppressWarnings("unchecked")
-	private void moveSelectedTo(MapObjectNode<?> node)
+	private void moveSelectedTo(MapObjectNode<?> node, int index)
 	{
 		switch (node.getUserObject().getObjectType()) {
-			case MODEL -> editor.action_MoveSelectedModels((MapObjectNode<Model>) node, -1);
-			case COLLIDER -> editor.action_MoveSelectedColliders((MapObjectNode<Collider>) node, -1);
-			case ZONE -> editor.action_MoveSelectedZones((MapObjectNode<Zone>) node, -1);
-			case MARKER -> editor.action_MoveSelectedMarkers((MapObjectNode<Marker>) node, -1);
+			case MODEL -> editor.action_MoveSelectedModels((MapObjectNode<Model>) node, index);
+			case COLLIDER -> editor.action_MoveSelectedColliders((MapObjectNode<Collider>) node, index);
+			case ZONE -> editor.action_MoveSelectedZones((MapObjectNode<Zone>) node, index);
+			case MARKER -> editor.action_MoveSelectedMarkers((MapObjectNode<Marker>) node, index);
 			default -> {}
 		}
 	}
