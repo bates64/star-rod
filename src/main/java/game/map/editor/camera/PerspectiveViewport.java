@@ -175,7 +175,8 @@ public class PerspectiveViewport extends MapEditViewport
 		else
 			opts.modelSurfaceMode = wireframeMode ? SurfaceMode.WIREFRAME : SurfaceMode.TEXTURED;
 
-		boolean onlyDrawModels = (opts.editorMode != EditorMode.Modify && opts.editorMode != EditorMode.Options);
+		boolean onlyDrawModels = (opts.editorMode != EditorMode.Modify && opts.editorMode != EditorMode.Options
+			&& opts.editorMode != EditorMode.Path);
 
 		if (opts.screenFade >= 1.0f) {
 			glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -236,6 +237,7 @@ public class PerspectiveViewport extends MapEditViewport
 		if (!onlyDrawModels) {
 			renderer.drawColliders(opts, hitMap.colliderTree);
 			renderer.drawZones(opts, hitMap.zoneTree);
+			renderer.drawPathPoints(opts, editor.map.markerTree, this);
 		}
 
 		if (doPerspProfiling)
@@ -272,6 +274,9 @@ public class PerspectiveViewport extends MapEditViewport
 				break;
 			case VertexPaint:
 				renderer.drawPaintSphere(editor.paintPickHit);
+				break;
+			case Path:
+				editor.pathTool.render();
 				break;
 			default:
 		}

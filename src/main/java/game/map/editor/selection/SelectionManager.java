@@ -6,6 +6,7 @@ import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.function.Predicate;
 
 import javax.swing.SwingUtilities;
 
@@ -28,6 +29,9 @@ import game.map.editor.selection.PickRay.PickHit;
 import game.map.hit.Collider;
 import game.map.hit.Zone;
 import game.map.marker.Marker;
+import game.map.marker.Marker.MarkerType;
+import game.map.marker.PathData.DeletePathPoint;
+import game.map.marker.PathPoint;
 import game.map.mesh.AbstractMesh;
 import game.map.mesh.Triangle;
 import game.map.mesh.Vertex;
@@ -223,6 +227,12 @@ public class SelectionManager
 
 			for (AbstractCommand cmd : additionalCommand)
 				cmd.silence();
+		}
+
+		@Override
+		public boolean modifiesData()
+		{
+			return false;
 		}
 
 		@Override
@@ -917,6 +927,13 @@ public class SelectionManager
 			case VERTEX:
 				break;
 			case POINT:
+				CommandBatch batch = new CommandBatch("Delete Path Points");
+				for (SelectablePoint point : pointSelection.selectableList) {
+					if (point instanceof PathPoint pathPoint)
+						batch.addCommand(new DeletePathPoint(pathPoint));
+				}
+				if (batch.shouldExec())
+					MapEditor.execute(batch);
 				break;
 		}
 
@@ -968,9 +985,21 @@ public class SelectionManager
 		if (!hitHandle.missed())
 			return hitHandle;
 
+		boolean clickingPaths = modifySelection && !modelsOnly && !editor.keyboard.isCtrlDown();
+
+		// a click that misses the points of the selected paths goes back to selecting objects
+		if (clickingPaths && selectionMode == SelectionMode.POINT && selectingPaths()
+			&& pickPoint(pickRay, pickViewport, false).missed())
+			setSelectionMode(SelectionMode.OBJECT);
+
 		PickHit hit = null;
 		switch (selectionMode) {
 			case OBJECT:
+				if (clickingPaths) {
+					hit = selectPathPoint(map, pickRay);
+					if (!hit.missed())
+						break;
+				}
 				hit = pickObject(map, pickRay, pickViewport, modifySelection, modelsOnly);
 				break;
 
@@ -987,6 +1016,54 @@ public class SelectionManager
 				break;
 		}
 		return hit;
+	}
+
+	/**
+	 * The point closest along the ray of the paths of Path markers that aren't hidden and pass `filter`, as the hit's obj,
+	 * within `reach` times the distance a click picks a point from.
+	 */
+	public PickHit pickPathPoint(Map map, PickRay pickRay, Predicate<Marker> filter, float reach)
+	{
+		PickHit closest = new PickHit(pickRay);
+		for (Marker marker : map.markerTree) {
+			if (marker.getType() != MarkerType.Path || marker.hidden || !filter.test(marker))
+				continue;
+			for (PathPoint point : marker.pathComponent.path.points) {
+				PickHit hit = PickRay.getPointIntersection(pickRay, point.getX(), point.getY(), point.getZ(), point.sizeScale * reach);
+				if (hit.dist < closest.dist) {
+					closest = hit;
+					closest.obj = point;
+				}
+			}
+		}
+		return closest;
+	}
+
+	/** Picks a point of a selected path, and selects it and its marker in point selection mode. */
+	private PickHit selectPathPoint(Map map, PickRay pickRay)
+	{
+		PickHit hit = pickPathPoint(map, pickRay, marker -> marker.selected, 1.0f);
+		if (hit.missed())
+			return hit;
+
+		PathPoint point = (PathPoint) hit.obj;
+		CommandBatch batch = new CommandBatch("Select Path Point");
+		batch.setModifiesData(false);
+		batch.addCommand(new SetSelectionMode(SelectionMode.POINT));
+		batch.addCommand(getSetObjects(List.of(point.path.getMarker())));
+		batch.addCommand(getModifyPoints(List.<SelectablePoint> of(point), null));
+		MapEditor.execute(batch);
+		return hit;
+	}
+
+	/** Whether the selected objects, if there are any, are all Path markers. */
+	private boolean selectingPaths()
+	{
+		for (MapObject obj : getSelectedObjects()) {
+			if (!(obj instanceof Marker marker) || marker.getType() != MarkerType.Path)
+				return false;
+		}
+		return true;
 	}
 
 	private PickHit pickObject(Map map, PickRay pickRay, MapEditViewport pickViewport, boolean modifySelection, boolean modelsOnly)

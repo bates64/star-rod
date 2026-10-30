@@ -387,6 +387,7 @@ public final class SwingGUI extends StarRodFrame implements ActionListener, Logg
 			int index = 0;
 			switch (editor.getEditorMode()) {
 				case Modify:
+				case Path:
 					index = TAB_IDX_MODIFY;
 					break;
 				case Texture:

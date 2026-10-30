@@ -143,6 +143,8 @@ import game.map.hit.ControlType;
 import game.map.hit.Zone;
 import game.map.marker.Marker;
 import game.map.marker.Marker.MarkerType;
+import game.map.marker.PathPoint;
+import game.map.marker.PathData;
 import game.map.mesh.Triangle;
 import game.map.mesh.Vertex;
 import game.map.shading.RenderShadingProfile;
@@ -224,6 +226,7 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 		Texture ("Apply Textures"),
 		EditUVs ("Edit UVs"),
 		VertexPaint ("Paint Vertices"),
+		Path ("Edit Paths"),
 		Panners ("Edit Panners"),
 		Options ("Edit Scripts");
 
@@ -432,6 +435,7 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 	private int commandDepth;
 	private int guiUpdateDepth;
 	private DrawTrianglesManager drawTriManager;
+	public final PathTool pathTool = new PathTool(this);
 	public SwingGUI gui;
 
 	public boolean showLightingPanel;
@@ -1387,6 +1391,9 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 			paintPickHit = selectionManager.pickWorld(map, currentRay, activeView, true);
 		}
 
+		if (editorMode == EditorMode.Path)
+			pathTool.update(currentRay, activeView);
+
 		if (editorMode == EditorMode.EditUVs && !selectionManager.uvSelection.transforming())
 			updateUVViewport();
 
@@ -1544,6 +1551,7 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 			case VertexPaint:
 			case Texture:
 			case Options:
+			case Path:
 				selection = selectionManager.currentSelection;
 		}
 		return selection;
@@ -1937,6 +1945,7 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 			switch (editorMode) {
 				case Modify:
 				case Options:
+				case Path:
 					vec = activeView.camera.getTranslationVector(dx, dy);
 					updateCurrentDrag(selectionManager.currentSelection, vec, dx, dy);
 					break;
@@ -2072,6 +2081,11 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 				}
 				break;
 
+			case Path:
+				if (!selectionManager.currentSelection.transforming())
+					clickHitLMB = pathTool.press(clickRayLMB, activeView);
+				break;
+
 			case EditUVs:
 				if (activeView == uvEditView) {
 					if (!selectionManager.uvSelection.transforming()) {
@@ -2123,6 +2137,9 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 			case VertexPaint:
 				finishPainting();
 				break;
+			case Path:
+				pathTool.release();
+				break;
 		}
 	}
 
@@ -2131,6 +2148,12 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 	{
 		if (resizingViews || drawTriManager.isActive())
 			return;
+
+		// a drag in Path mode that doesn't move points connects them
+		if (editorMode == EditorMode.Path && clickHitLMB == null) {
+			pathTool.startDrag();
+			return;
+		}
 
 		if (clickHitLMB == null)
 			return;
@@ -2150,6 +2173,7 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 			case Panners:
 				break;
 			case Options:
+			case Path:
 				startTranslateScale(selectionManager.currentSelection, clickHitLMB);
 				break;
 			case VertexPaint:
@@ -2217,6 +2241,12 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 				draggingBox = false;
 				break;
 
+			case Path:
+				selectionManager.currentSelection.endTransform();
+				rescaling = false;
+				pathTool.release();
+				break;
+
 			case Texture:
 			case Panners:
 				break;
@@ -2262,6 +2292,10 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 	@Override
 	public void releaseRMB()
 	{
+		// a right click, not a hold, so holding it to slow the camera doesn't delete anything
+		if (editorMode == EditorMode.Path && clickRayRMB != null)
+			pathTool.rightClick(clickRayRMB);
+
 		clickRayRMB = null;
 		clickHitRMB = null;
 	}
@@ -4048,7 +4082,7 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 
 	private void deleteSelection()
 	{
-		if (editorMode == EditorMode.Modify || editorMode == EditorMode.EditUVs)
+		if (editorMode == EditorMode.Modify || editorMode == EditorMode.EditUVs || editorMode == EditorMode.Path)
 			selectionManager.deleteSelection();
 
 		if (editorMode == EditorMode.EditUVs)
@@ -4195,6 +4229,10 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 
 	private void changeSelectionMode(SelectionMode mode)
 	{
+		// Path mode selects points
+		if (editorMode == EditorMode.Path)
+			return;
+
 		// leaving mode
 		switch (selectionManager.getSelectionMode()) {
 			default:
@@ -4274,6 +4312,11 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 		Vector3f pos = cursor3D.getPosition();
 
 		Marker m = new Marker(name, type, pos.x, pos.y, pos.z, 0);
+		// a path starts with a point, which Path mode drags the others out of
+		if (type == MarkerType.Path) {
+			PathData path = m.pathComponent.path;
+			path.points.addElement(new PathPoint(path, Math.round(pos.x), Math.round(pos.y), Math.round(pos.z)));
+		}
 		m.getNode().parentNode = parent;
 		m.getNode().childIndex = parent.getChildCount();
 		createObject(m);
@@ -4504,6 +4547,14 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 			switch (mode) {
 				case Options:
 					additionalCommands.addCommand(selectionManager.new SetSelectionMode(SelectionMode.OBJECT));
+					break;
+				case Path:
+					additionalCommands.addCommand(selectionManager.new SetSelectionMode(SelectionMode.POINT));
+					break;
+				case Modify:
+					// Path mode selects points, which are kept selected if there are any
+					if (editorMode == EditorMode.Path && selectionManager.pointSelection.isEmpty())
+						additionalCommands.addCommand(selectionManager.new SetSelectionMode(SelectionMode.OBJECT));
 					break;
 				case EditUVs:
 					additionalCommands.addCommand(selectionManager.getClearUVs());

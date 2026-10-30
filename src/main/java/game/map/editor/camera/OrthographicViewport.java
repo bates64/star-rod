@@ -101,7 +101,8 @@ public class OrthographicViewport extends MapEditViewport
 		DeferredLineRenderer.reset();
 		opts.modelSurfaceMode = wireframeMode ? SurfaceMode.WIREFRAME : SurfaceMode.TEXTURED;
 
-		boolean onlyDrawModels = (opts.editorMode != EditorMode.Modify && opts.editorMode != EditorMode.Options);
+		boolean onlyDrawModels = (opts.editorMode != EditorMode.Modify && opts.editorMode != EditorMode.Options
+			&& opts.editorMode != EditorMode.Path);
 
 		setViewport();
 		Renderer.setFogEnabled(editor.map.features, false);
@@ -128,6 +129,7 @@ public class OrthographicViewport extends MapEditViewport
 			renderer.drawZones(opts, hitMap.zoneTree);
 			// markers drawn last in ortho views so they render in front of translucent faces
 			renderer.drawMarkers(opts, editor.map.markerTree, this);
+			renderer.drawPathPoints(opts, editor.map.markerTree, this);
 		}
 
 		// done drawing map objects, time to draw helpers and UI elements
@@ -160,6 +162,9 @@ public class OrthographicViewport extends MapEditViewport
 
 			case VertexPaint:
 				renderer.drawPaintSphere(editor.paintPickHit);
+				break;
+			case Path:
+				editor.pathTool.render();
 				break;
 			default:
 		}
