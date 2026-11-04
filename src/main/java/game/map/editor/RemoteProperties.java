@@ -621,9 +621,30 @@ public class RemoteProperties
 			.get(obj -> new JsonPrimitive(obj.lightComponent.falloffType.ordinal()))
 			.set((obj, value) -> new SetFalloffType(obj.lightComponent, falloffs[value.getAsInt()])));
 		list.add(checkbox("lightEnabled", "Initially on", (Marker obj) -> obj.lightComponent.enabled).shown(light));
+		list.addAll(spriteShadingProperties(light));
 
 		list.addAll(cameraTargetProperties());
 		return list;
+	}
+
+	/**
+	 * The map's sprite shading, which its lights need in order to show. It belongs to the map rather than a light, so
+	 * it's only shown while one light is selected, which sets it once.
+	 */
+	private List<RemoteField<Marker>> spriteShadingProperties(Predicate<Marker> light)
+	{
+		Predicate<Marker> shaded = obj -> editor.map.features.hasSpriteShading.get();
+		return List.of(
+			RemoteProperties.<Marker> heading("shadingHeading", "Sprite shading").single().shown(light),
+			checkbox("hasShading", "Enable", (Marker obj) -> editor.map.features.hasSpriteShading)
+				.single().shown(light),
+			new RemoteField<Marker>("shadingColor", "color", "Base color")
+				.single().shown(light).shown(shaded)
+				.get(obj -> new JsonPrimitive(editor.map.features.shadingBaseColor.get() & 0xFFFFFF))
+				.set((obj, value) -> editor.map.features.shadingBaseColor.mutator(value.getAsInt() & 0xFFFFFF)),
+			integer("shadingOffset", "Edge offset", (Marker obj) -> editor.map.features.shadingOffset)
+				.single().shown(light).shown(shaded)
+				.set((obj, value) -> editor.map.features.shadingOffset.mutator(value.getAsInt() & 0xFF)));
 	}
 
 	private List<RemoteField<Marker>> npcProperties()
