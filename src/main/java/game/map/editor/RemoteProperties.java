@@ -33,6 +33,7 @@ import game.map.MapObject.MapObjectType;
 import game.map.MapObject.ShapeType;
 import game.map.MutablePoint.SetPosition;
 import game.map.editor.render.RenderMode;
+import game.map.editor.selection.SelectablePoint;
 import game.map.editor.selection.SelectablePoint.SetPointPosition;
 import game.map.editor.selection.SelectionManager.SelectionMode;
 import game.map.editor.ui.SwingGUI;
@@ -60,6 +61,7 @@ import game.map.marker.NpcComponent.SetWanderPos;
 import game.map.marker.PathData;
 import game.map.marker.PathData.AddPathPoint;
 import game.map.marker.PathData.DeletePathPoint;
+import game.map.marker.PathData.SetPathPointName;
 import game.map.marker.PathPoint;
 import game.map.shading.FalloffType;
 import game.map.shape.LightSet;
@@ -99,6 +101,7 @@ public class RemoteProperties
 {
 	private final MapEditor editor;
 	private final HashMap<MapObjectType, List<? extends RemoteField<?>>> properties = new HashMap<>();
+	private final List<RemoteField<PathPoint>> pathPointProperties = pathPointProperties();
 	private final List<SpriteMetadata> sprites;
 	private String sent = null;
 	private String listsSent = null;
@@ -175,7 +178,7 @@ public class RemoteProperties
 	}
 
 	/** A vector of numbers, labelled by `components`. */
-	private static <T extends MapObject> RemoteField<T> vector(String key, String label, String[] components,
+	private static <T> RemoteField<T> vector(String key, String label, String[] components,
 		Function<T, double[]> get, BiFunction<T, double[], AbstractCommand> set)
 	{
 		JsonArray labels = names(Arrays.asList(components));
@@ -197,12 +200,12 @@ public class RemoteProperties
 			});
 	}
 
-	private static <T extends MapObject> RemoteField<T> button(String key, String label, Function<T, AbstractCommand> run)
+	private static <T> RemoteField<T> button(String key, String label, Function<T, AbstractCommand> run)
 	{
 		return new RemoteField<T>(key, "button", label).single().set((obj, value) -> run.apply(obj));
 	}
 
-	private static <T extends MapObject> RemoteField<T> info(String key, Function<T, String> text)
+	private static <T> RemoteField<T> info(String key, Function<T, String> text)
 	{
 		return new RemoteField<T>(key, "info", "").get(obj -> new JsonPrimitive(text.apply(obj)));
 	}
@@ -298,6 +301,9 @@ public class RemoteProperties
 	}
 
 	private static final String[] XYZ = { "X", "Y", "Z" };
+
+	/** How many points a Path marker lists before it leaves them to be selected in the view instead. */
+	private static final int MAX_LISTED_POINTS = 20;
 
 	/** The settings of a camera, which are shown where `shown` holds. */
 	private static <T extends MapObject> List<RemoteField<T>> cameraProperties(String key,
@@ -563,9 +569,17 @@ public class RemoteProperties
 			.shown(isType(MarkerType.Cylinder)));
 
 		// paths
+		Predicate<Marker> isPath = isType(MarkerType.Path);
 		list.add(checkbox("showInterp", "Show spline interpolation", (Marker obj) -> obj.pathComponent.showInterp)
-			.shown(isType(MarkerType.Path)));
-		list.addAll(path("path", "Points", obj -> obj.pathComponent.path, isType(MarkerType.Path)));
+			.shown(isPath)
+			.shown(obj -> obj.pathComponent.path.isLinear()));
+		list.add(RemoteProperties.<Marker> info("unnamedPoints",
+			obj -> "Name every point, so code can tell which points each one leads to.")
+			.shown(isPath)
+			.shown(obj -> !obj.pathComponent.path.isLinear() && !obj.pathComponent.path.isNamed()));
+		// Path mode adds points, so only the list of them, not its add button
+		RemoteField<Marker> points = path("path", "Points", obj -> obj.pathComponent.path, isPath).get(0);
+		list.add(points.shown(obj -> obj.pathComponent.path.points.size() <= MAX_LISTED_POINTS));
 
 		// push block grids
 		Predicate<Marker> grid = isType(MarkerType.BlockGrid);
@@ -841,29 +855,70 @@ public class RemoteProperties
 		return list;
 	}
 
-	// ---- sending and setting
+	// ---- path points
 
-	/** The selected objects, if they're selected as objects, rather than their triangles, vertices, or points. */
-	private List<MapObject> selection()
+	private List<RemoteField<PathPoint>> pathPointProperties()
 	{
-		if (editor.selectionManager.getSelectionMode() != SelectionMode.OBJECT)
-			return List.of();
-		return editor.selectionManager.getSelectedObjects();
+		Predicate<PathPoint> connectable = point -> point.path.isConnectable();
+
+		List<RemoteField<PathPoint>> list = new ArrayList<>();
+		list.add(new RemoteField<PathPoint>("name", "text", "Name")
+			.single()
+			.shown(connectable)
+			.get(point -> new JsonPrimitive(point.getName() == null ? "" : point.getName()))
+			.set((point, value) -> new SetPathPointName(point, value.getAsString().trim())));
+		list.add(RemoteProperties.<PathPoint> vector("position", "Position", XYZ,
+			point -> new double[] { point.getX(), point.getY(), point.getZ() },
+			(point, values) -> new SetPointPosition("Set Path Point Position", point,
+				(int) Math.round(values[0]), (int) Math.round(values[1]), (int) Math.round(values[2])))
+			.extra("integer", new JsonPrimitive(true)));
+		return list;
 	}
 
-	/** The properties every one of the selected objects shows. */
-	private List<RemoteField<?>> properties(List<MapObject> objs)
+	/** The selected points, if they're all points of paths, or else none. */
+	private List<PathPoint> selectedPathPoints()
+	{
+		List<PathPoint> points = new ArrayList<>();
+		for (SelectablePoint point : editor.selectionManager.pointSelection.selectableList) {
+			if (!(point instanceof PathPoint pathPoint))
+				return List.of();
+			points.add(pathPoint);
+		}
+		return points;
+	}
+
+	private static String pointLabel(PathPoint point)
+	{
+		return (point.getName() != null) ? point.getName() : "point " + (point.getListIndex() + 1);
+	}
+
+	// ---- sending and setting
+
+	/** What's selected: the selected objects, or in point selection mode, the selected points of paths. */
+	private List<?> selection()
+	{
+		return switch (editor.selectionManager.getSelectionMode()) {
+			case OBJECT -> editor.selectionManager.getSelectedObjects();
+			case POINT -> selectedPathPoints();
+			default -> List.of();
+		};
+	}
+
+	/** The properties every one of the selected objects or points shows. */
+	private List<RemoteField<?>> properties(List<?> objs)
 	{
 		List<RemoteField<?>> shown = new ArrayList<>();
 		if (objs.isEmpty())
 			return shown;
-		List<? extends RemoteField<?>> all = properties.getOrDefault(objs.get(0).getObjectType(), List.of());
+		List<? extends RemoteField<?>> all = (objs.get(0) instanceof MapObject first)
+			? properties.getOrDefault(first.getObjectType(), List.of())
+			: pathPointProperties;
 		for (RemoteField<?> property : all) {
 			if (property.single && objs.size() > 1)
 				continue;
 			boolean everyObject = true;
-			for (MapObject obj : objs) {
-				if (obj.getObjectType() != objs.get(0).getObjectType() || !property.isShown(obj)) {
+			for (Object obj : objs) {
+				if (!sameKind(obj, objs.get(0)) || !property.isShown(obj)) {
 					everyObject = false;
 					break;
 				}
@@ -880,20 +935,31 @@ public class RemoteProperties
 		if (frame++ % 30 == 0)
 			sendLists();
 
-		List<MapObject> objs = selection();
+		List<?> objs = selection();
 		List<RemoteField<?>> shown = properties(objs);
 
 		JsonObject message = new JsonObject();
 		message.addProperty("type", "properties");
 		if (!shown.isEmpty()) {
-			MapObject first = objs.get(0);
-			String typeName = first.getObjectType().toString();
-			if (objs.size() == 1) {
-				message.addProperty("title", first.getName());
-				message.addProperty("subtitle", typeName);
+			if (objs.get(0) instanceof PathPoint point) {
+				if (objs.size() == 1) {
+					message.addProperty("title", pointLabel(point));
+					message.addProperty("subtitle", "Path point");
+				}
+				else {
+					message.addProperty("title", objs.size() + " path points");
+				}
 			}
 			else {
-				message.addProperty("title", objs.size() + " " + typeName.toLowerCase() + "s");
+				MapObject first = (MapObject) objs.get(0);
+				String typeName = first.getObjectType().toString();
+				if (objs.size() == 1) {
+					message.addProperty("title", first.getName());
+					message.addProperty("subtitle", typeName);
+				}
+				else {
+					message.addProperty("title", objs.size() + " " + typeName.toLowerCase() + "s");
+				}
 			}
 
 			JsonArray fields = RemoteField.describe(shown, objs);
@@ -905,6 +971,14 @@ public class RemoteProperties
 			sent = text;
 			editor.remote().getSession().send(message);
 		}
+	}
+
+	/** Whether two selected things are edited with the same properties: objects of one type, or points. */
+	private static boolean sameKind(Object a, Object b)
+	{
+		if (a instanceof MapObject objA && b instanceof MapObject objB)
+			return objA.getObjectType() == objB.getObjectType();
+		return a.getClass() == b.getClass();
 	}
 
 	/** The names of objects of a type, as entities name them. */
@@ -954,7 +1028,7 @@ public class RemoteProperties
 	public void set(String key, JsonElement value, Boolean enabled)
 	{
 		sent = null;
-		List<MapObject> objs = selection();
+		List<?> objs = selection();
 		RemoteField<?> property = properties(objs).stream()
 			.filter(p -> p.key.equals(key))
 			.findFirst().orElse(null);
@@ -962,7 +1036,7 @@ public class RemoteProperties
 			return;
 
 		List<AbstractCommand> commands = new ArrayList<>();
-		for (MapObject obj : objs) {
+		for (Object obj : objs) {
 			AbstractCommand command = (enabled != null)
 				? property.enabler(obj, enabled)
 				: property.setter(obj, value);

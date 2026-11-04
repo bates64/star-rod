@@ -107,8 +107,9 @@ public class RemoteModes
 			JsonObject json = new JsonObject();
 			json.addProperty("name", texture.getName());
 			json.addProperty("models", counts.getOrDefault(texture, 0));
+			json.addProperty("archive", texture.archiveName);
 			json.addProperty("file", AssetManager.get(AssetSubdir.MAP_TEX,
-				editor.map.texName + "/" + texture.getName() + ".png").getAbsolutePath());
+				texture.archiveName + "/" + texture.getName() + ".png").getAbsolutePath());
 			textures.add(json);
 		}
 

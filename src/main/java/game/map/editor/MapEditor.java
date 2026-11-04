@@ -913,6 +913,7 @@ public class MapEditor extends GLEditor implements MouseManagerListener, Keyboar
 				switch (EditorMode.valueOf(message.get("mode").getAsString())) {
 					case Texture -> remoteModes.setMode(EditorMode.Texture);
 					case VertexPaint -> remoteModes.setMode(EditorMode.VertexPaint);
+					case Path -> remoteModes.setMode(EditorMode.Path);
 					default -> remoteModes.setMode(EditorMode.Modify);
 				}
 				break;
