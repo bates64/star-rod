@@ -427,8 +427,27 @@ public class PalettesTab extends JPanel
 			return;
 		}
 
+		addPalette(palAssetList.getSelectedValue(), String.format("Pal_%X", sprite.palettes.size()));
+	}
+
+	/**
+	 * Adds a palette after the others, named for `image`, which it takes its colors from, and selects it. The image is
+	 * the name of a file in the sprite's palettes directory, such as one just written there.
+	 */
+	void addPalette(String image)
+	{
+		if (sprite == null) {
+			return;
+		}
+
+		refreshPalAssets();
+		addPalette(sprite.palAssets.get(image), FilenameUtils.getBaseName(image));
+	}
+
+	private void addPalette(PalAsset asset, String name)
+	{
 		SpritePalette pal = new SpritePalette(sprite);
-		String newName = pal.createUniqueName(String.format("Pal_%X", sprite.palettes.size()));
+		String newName = pal.createUniqueName(name);
 
 		if (newName == null) {
 			Logger.logError("Could not generate valid name for new palette!");
@@ -436,7 +455,6 @@ public class PalettesTab extends JPanel
 			return;
 		}
 
-		PalAsset asset = palAssetList.getSelectedValue();
 		if (asset != null)
 			pal.assignAsset(asset);
 

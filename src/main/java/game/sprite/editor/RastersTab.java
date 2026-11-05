@@ -153,8 +153,27 @@ public class RastersTab extends JPanel
 			return;
 		}
 
+		addRaster(imgAssetList.getSelectedValue(), String.format("Img_%X", sprite.palettes.size()));
+	}
+
+	/**
+	 * Adds a raster after the others, named for `image`, which it shows, and selects it. The image is the name of a file
+	 * in the sprite's rasters directory, such as one just written there.
+	 */
+	void addRaster(String image)
+	{
+		if (sprite == null) {
+			return;
+		}
+
+		refreshImgAssets();
+		addRaster(sprite.imgAssets.get(image), FilenameUtils.getBaseName(image));
+	}
+
+	private void addRaster(ImgAsset asset, String name)
+	{
 		SpriteRaster img = new SpriteRaster(sprite);
-		String newName = img.createUniqueName(String.format("Img_%X", sprite.palettes.size()));
+		String newName = img.createUniqueName(name);
 
 		if (newName == null) {
 			Logger.logError("Could not generate valid name for new raster!");
@@ -162,7 +181,6 @@ public class RastersTab extends JPanel
 			return;
 		}
 
-		ImgAsset asset = imgAssetList.getSelectedValue();
 		if (asset != null) {
 			img.front.assignAsset(asset);
 			// assign a palette for the new raster

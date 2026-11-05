@@ -793,8 +793,8 @@ class RemoteSprite
 	}
 
 	/**
-	 * Acts on an animation, component, keyframe, raster, or palette, as `target` says, at `index`: "add",
-	 * "duplicate", "copy", "paste", "delete", "rename" to `name`, "move" to `to`, "toggleHidden" for a component,
+	 * Acts on an animation, component, keyframe, raster, or palette, as `target` says, at `index`: "add", a raster or
+	 * palette of the file `image` in its directory if it's given, "duplicate", "copy", "paste", "delete", "rename" to `name`, "move" to `to`, "toggleHidden" for a component,
 	 * "reload" the images of rasters or palettes, or for a keyframe, "retarget" a goto or repeat to the keyframe at
 	 * `to`, or "addLoop" of `kind` "goto" or "loop", `count` times, after it, back to the keyframe at `from`.
 	 */
@@ -848,7 +848,12 @@ class RemoteSprite
 			case "raster" -> {
 				RastersList list = editor.rastersTab.rasterList();
 				switch (action) {
-					case "add" -> editor.rastersTab.addRaster();
+					case "add" -> {
+						if (message.has("image"))
+							editor.rastersTab.addRaster(message.get("image").getAsString());
+						else
+							editor.rastersTab.addRaster();
+					}
 					case "reload" -> editor.rastersTab.reloadImages();
 					case "rename" -> setPropertyOf(list, index, "r.name", message.get("name"));
 					case "move" -> SpriteEditor.execute(
@@ -859,7 +864,12 @@ class RemoteSprite
 			case "palette" -> {
 				PalettesList list = editor.palettesTab.paletteList();
 				switch (action) {
-					case "add" -> editor.palettesTab.addPalette();
+					case "add" -> {
+						if (message.has("image"))
+							editor.palettesTab.addPalette(message.get("image").getAsString());
+						else
+							editor.palettesTab.addPalette();
+					}
 					case "reload" -> editor.palettesTab.reloadPalettes();
 					case "rename" -> setPropertyOf(list, index, "p.name", message.get("name"));
 					case "move" -> SpriteEditor.execute(
