@@ -2,6 +2,7 @@ package game.map.scripts;
 
 import static game.map.MapKey.*;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
@@ -21,6 +22,8 @@ import game.map.editor.MapEditor;
 import game.map.editor.UpdateProvider;
 import game.map.shading.EditableShadingData.EditableShadingProfile;
 import game.map.shape.TexturePanner;
+import game.message.Message;
+import game.message.editor.MessageLibrary;
 import util.ColorUtils;
 import util.IterableListModel;
 import util.Logger;
@@ -56,10 +59,101 @@ public class Features extends UpdateProvider implements XmlSerializable
 
 	public EditableField<String> locationName;
 
-	// kept for papermario-dx, which reads them from features.json, though the editor has no controls for them
-	public String tattle;
-	public int songVariation;
-	public int sfxReverb;
+	/** Each reverb, as the audio engine sets it up: three short reflections, or one echo with a delay. */
+	public static final String[] REVERB_NAMES = {
+			"Small room", "Echo, 58 ms", "Echo, 69 ms", "Echo, 75 ms" };
+
+	/** The location option that keeps the location of the map the player came from. */
+	public static final String NO_LOCATION = "Keep the previous location";
+
+	private static List<String> tattleNames = null;
+
+	public static final String MESSAGE_PREFIX = "MSG_";
+	public static final String LOCATION_PREFIX = "LOCATION_";
+
+	/** The locations to choose from: the project's, and `current` if it isn't one of them, so it can still be shown. */
+	private static List<String> locationNames(String current)
+	{
+		List<String> names = ProjectDatabase.ELocations.getValueList();
+		if (!current.isBlank() && !names.contains(current))
+			names.add(current);
+		return names;
+	}
+
+	/** The labels of the locations to choose from, starting with keeping the previous location. */
+	public static List<String> locationOptions(String current)
+	{
+		List<String> options = new ArrayList<>();
+		options.add(NO_LOCATION);
+		for (String name : locationNames(current))
+			options.add(locationLabel(name));
+		return options;
+	}
+
+	/** Where `current` is in its locationOptions. */
+	public static int locationIndex(String current)
+	{
+		return current.isBlank() ? 0 : locationNames(current).indexOf(current) + 1;
+	}
+
+	/** The location at `index` in the locationOptions of `current`, or empty to keep the previous location. */
+	public static String locationAt(String current, int index)
+	{
+		return index <= 0 ? "" : locationNames(current).get(index - 1);
+	}
+
+	/** A location as the editor shows it, such as Toad Town for LOCATION_TOAD_TOWN. */
+	public static String locationLabel(String name)
+	{
+		StringBuilder label = new StringBuilder();
+		for (String word : withoutPrefix(name, LOCATION_PREFIX).toLowerCase().split("_")) {
+			if (word.isEmpty())
+				continue;
+			if (!label.isEmpty())
+				label.append(' ');
+			label.append(Character.toUpperCase(word.charAt(0))).append(word.substring(1));
+		}
+		return label.toString();
+	}
+
+	public static String withoutPrefix(String name, String prefix)
+	{
+		return name.startsWith(prefix) ? name.substring(prefix.length()) : name;
+	}
+
+	public static final String NO_TATTLE = "None";
+
+	/**
+	 * The tattles to choose from without MSG_: none, then the map tattles, and `current` if it's another message, so
+	 * it can still be shown.
+	 */
+	public static List<String> tattleOptions(String current)
+	{
+		List<String> options = new ArrayList<>();
+		options.add(NO_TATTLE);
+		options.addAll(getTattleNames());
+		String name = withoutPrefix(current, MESSAGE_PREFIX);
+		if (!name.isBlank() && !options.contains(name))
+			options.add(name);
+		return options;
+	}
+
+	/** Where `current` is in its tattleOptions. */
+	public static int tattleIndex(String current)
+	{
+		return current.isBlank() ? 0 : tattleOptions(current).indexOf(withoutPrefix(current, MESSAGE_PREFIX));
+	}
+
+	/** The tattle at `index` in the tattleOptions of `current`, with MSG_, or empty for none. */
+	public static String tattleAt(String current, int index)
+	{
+		return index <= 0 ? "" : MESSAGE_PREFIX + tattleOptions(current).get(index);
+	}
+
+	// papermario-dx reads these from features.json
+	public EditableField<String> tattle;
+	public EditableField<Boolean> songVariation;
+	public EditableField<Integer> sfxReverb;
 
 	public EditableField<Boolean> hasSpriteShading;
 	public EditableField<String> shadingProfileName;
@@ -80,6 +174,24 @@ public class Features extends UpdateProvider implements XmlSerializable
 	public final Consumer<Object> notifyShading = (o) -> {
 		notifyListeners(OptionsPanel.TAG_SHADING);
 	};
+
+	/** The names of the map tattles without MSG_, such as MapTattle_kmr_02, read once from the project's messages. */
+	public static List<String> getTattleNames()
+	{
+		if (tattleNames == null) {
+			tattleNames = new ArrayList<>();
+			try {
+				for (Message message : MessageLibrary.load().getMessages()) {
+					if (message.name != null && message.name.startsWith("MapTattle"))
+						tattleNames.add(message.name);
+				}
+			}
+			catch (IOException e) {
+				Logger.logError("Couldn't read the map tattles: " + e.getMessage());
+			}
+		}
+		return tattleNames;
+	}
 
 	public Features(Map map)
 	{
@@ -151,6 +263,15 @@ public class Features extends UpdateProvider implements XmlSerializable
 		locationName = EditableFieldFactory.create("LOCATION_TOAD_TOWN")
 			.setCallback(notifyGeneral).setName("Set Location").build();
 
+		tattle = EditableFieldFactory.create("")
+			.setCallback(notifyGeneral).setName("Set Tattle").build();
+
+		songVariation = EditableFieldFactory.create(false)
+			.setCallback(notifyGeneral).setName(new StandardBoolName("Song Variation")).build();
+
+		sfxReverb = EditableFieldFactory.create(0)
+			.setCallback(notifyGeneral).setName("Set Reverb").build();
+
 		hasSpriteShading = EditableFieldFactory.create(false)
 			.setCallback((o) -> {
 				if (!MapEditor.exists() || MapEditor.instance().isLoading())
@@ -189,9 +310,9 @@ public class Features extends UpdateProvider implements XmlSerializable
 		out.fogEntity = entityFog.pack();
 
 		out.locationName = locationName.get();
-		out.tattle = (tattle == null || tattle.isBlank()) ? null : tattle;
-		out.songVariation = (songVariation == 0) ? null : songVariation;
-		out.sfxReverb = (sfxReverb == 0) ? null : sfxReverb;
+		out.tattle = tattle.get().isBlank() ? null : tattle.get();
+		out.songVariation = songVariation.get() ? 1 : null;
+		out.sfxReverb = (sfxReverb.get() == 0) ? null : sfxReverb.get();
 
 		out.hasSpriteShading = hasSpriteShading.get();
 
@@ -241,9 +362,9 @@ public class Features extends UpdateProvider implements XmlSerializable
 			entityFog.load(in.fogEntity);
 
 		locationName.set(in.locationName != null ? in.locationName : "");
-		tattle = in.tattle;
-		songVariation = (in.songVariation != null) ? in.songVariation : 0;
-		sfxReverb = (in.sfxReverb != null) ? in.sfxReverb : 0;
+		tattle.set(in.tattle != null ? in.tattle : "");
+		songVariation.set(in.songVariation != null && in.songVariation != 0);
+		sfxReverb.set(in.sfxReverb != null ? in.sfxReverb : 0);
 
 		hasSpriteShading.set(in.hasSpriteShading);
 

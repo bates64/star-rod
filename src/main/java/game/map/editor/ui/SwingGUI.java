@@ -11,7 +11,6 @@ import java.awt.datatransfer.StringSelection;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.WindowEvent;
-import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -23,7 +22,6 @@ import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 
-import javax.imageio.ImageIO;
 import javax.swing.AbstractButton;
 import javax.swing.ButtonGroup;
 import javax.swing.DefaultComboBoxModel;
@@ -66,13 +64,11 @@ import app.SwingUtils.OpenDialogCounter;
 import app.ThemesEditor;
 import assets.AssetHandle;
 import assets.AssetManager;
-import assets.ui.SelectBackgroundDialog;
 import assets.ui.SelectMapDialog;
 import assets.ui.SelectTexDialog;
 import game.ProjectDatabase;
 import game.map.Map;
 import game.map.Map.SetBackground;
-import game.map.Map.ToggleBackground;
 import game.map.Map.ToggleStage;
 import game.map.MapObject;
 import game.map.MapObject.MapObjectType;
@@ -142,7 +138,6 @@ public final class SwingGUI extends StarRodFrame implements ActionListener, Logg
 
 	private HashMap<String, GuiCommand> commandMap;
 
-	public JCheckBoxMenuItem hasBackgroundCheckbox;
 
 	public JCheckBoxMenuItem isStageCheckbox;
 
@@ -389,7 +384,6 @@ public final class SwingGUI extends StarRodFrame implements ActionListener, Logg
 		pannersTab.setMap(m);
 		optionsTab.setMap(m);
 
-		hasBackgroundCheckbox.setSelected(m.hasBackground);
 		isStageCheckbox.setSelected(m.isStage);
 	}
 
@@ -720,13 +714,6 @@ public final class SwingGUI extends StarRodFrame implements ActionListener, Logg
 
 		menu.addSeparator();
 
-		hasBackgroundCheckbox = new JCheckBoxMenuItem("Has Background");
-		hasBackgroundCheckbox.setSelected(false);
-		hasBackgroundCheckbox.addActionListener((e) -> {
-			MapEditor.execute(() -> new ToggleBackground());
-		});
-		menu.add(hasBackgroundCheckbox);
-
 		isStageCheckbox = new JCheckBoxMenuItem("Is Battle Stage");
 		isStageCheckbox.setSelected(false);
 		isStageCheckbox.addActionListener((e) -> {
@@ -750,12 +737,6 @@ public final class SwingGUI extends StarRodFrame implements ActionListener, Logg
 			});
 			menu.add(item);
 		}
-
-		item = new JMenuItem("Change Background");
-		item.addActionListener((e) -> {
-			prompt_ChangeBackground();
-		});
-		menu.add(item);
 
 		// the side panel's tab of them, for another program, which doesn't show the side panel
 		if (RemoteDialogs.isActive()) {
@@ -1492,28 +1473,6 @@ public final class SwingGUI extends StarRodFrame implements ActionListener, Logg
 			editor.runEditorAction(() -> {
 				AbstractCommand cmd = new ChangeTextureArchive(texName);
 				MapEditor.execute(cmd);
-			});
-		}
-	}
-
-	private void prompt_ChangeBackground()
-	{
-		openDialogCount.increment();
-		File bgFile = RemoteDialogs.isActive()
-			? pickAsset("Change Background", AssetManager::getBackgrounds, editor.map.bgName)
-			: SelectBackgroundDialog.showPrompt(this, editor.map.bgName);
-		openDialogCount.decrement();
-
-		if (bgFile != null) {
-			editor.runEditorAction(() -> {
-				try {
-					String bgName = FilenameUtils.getBaseName(bgFile.getName());
-					BufferedImage bgImage = ImageIO.read(bgFile);
-					MapEditor.execute(() -> new SetBackground(bgName, bgImage));
-				}
-				catch (IOException e) {
-					MapEditor.instance().displayStackTrace(e, "Could not load background image!");
-				}
 			});
 		}
 	}

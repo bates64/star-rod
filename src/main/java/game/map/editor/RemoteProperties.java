@@ -20,6 +20,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 
 import common.Vector3f;
+import app.Environment;
 import common.commands.AbstractCommand;
 import common.commands.CommandBatch;
 import common.commands.EditableField;
@@ -28,6 +29,9 @@ import game.entity.EntityInfo.EntityParam;
 import game.entity.EntityInfo.EntityType;
 import game.entity.EntityMenuGroup;
 import game.map.MapKey;
+import game.map.Map;
+import game.map.Map.SetBackground;
+import game.map.Map.ToggleBackground;
 import game.map.MapObject;
 import game.map.MapObject.MapObjectType;
 import game.map.MapObject.ShapeType;
@@ -46,6 +50,8 @@ import game.map.hit.Collider;
 import game.map.hit.ControlType;
 import game.map.hit.Zone;
 import game.map.marker.CamTargetComponent;
+import game.map.scripts.Features;
+import game.map.scripts.FogSettings;
 import game.map.marker.LightComponent.SetFalloffType;
 import game.map.marker.LightComponent.SetLightFalloff;
 import game.map.marker.Marker;
@@ -102,6 +108,7 @@ public class RemoteProperties
 	private final MapEditor editor;
 	private final HashMap<MapObjectType, List<? extends RemoteField<?>>> properties = new HashMap<>();
 	private final List<RemoteField<PathPoint>> pathPointProperties = pathPointProperties();
+	private final List<RemoteField<Map>> mapProperties = mapProperties();
 	private final List<SpriteMetadata> sprites;
 	private String sent = null;
 	private String listsSent = null;
@@ -119,12 +126,12 @@ public class RemoteProperties
 
 	// ---- kinds of property, for the fields of objects
 
-	private static <T extends MapObject> RemoteField<T> heading(String key, String label)
+	private static <T> RemoteField<T> heading(String key, String label)
 	{
 		return new RemoteField<>(key, "heading", label);
 	}
 
-	private static <T extends MapObject> RemoteField<T> checkbox(String key, String label,
+	private static <T> RemoteField<T> checkbox(String key, String label,
 		Function<T, EditableField<Boolean>> field)
 	{
 		return new RemoteField<T>(key, "checkbox", label)
@@ -132,7 +139,7 @@ public class RemoteProperties
 			.set((obj, value) -> field.apply(obj).mutator(value.getAsBoolean()));
 	}
 
-	private static <T extends MapObject> RemoteField<T> text(String key, String label,
+	private static <T> RemoteField<T> text(String key, String label,
 		Function<T, EditableField<String>> field)
 	{
 		return new RemoteField<T>(key, "text", label)
@@ -140,7 +147,7 @@ public class RemoteProperties
 			.set((obj, value) -> field.apply(obj).mutator(value.getAsString()));
 	}
 
-	private static <T extends MapObject> RemoteField<T> number(String key, String label,
+	private static <T> RemoteField<T> number(String key, String label,
 		Function<T, EditableField<Float>> field)
 	{
 		return new RemoteField<T>(key, "number", label)
@@ -148,7 +155,7 @@ public class RemoteProperties
 			.set((obj, value) -> field.apply(obj).mutator(value.getAsFloat()));
 	}
 
-	private static <T extends MapObject> RemoteField<T> integer(String key, String label,
+	private static <T> RemoteField<T> integer(String key, String label,
 		Function<T, EditableField<Integer>> field)
 	{
 		return new RemoteField<T>(key, "number", label)
@@ -157,7 +164,7 @@ public class RemoteProperties
 			.set((obj, value) -> field.apply(obj).mutator(value.getAsInt()));
 	}
 
-	private static <T extends MapObject> RemoteField<T> hex(String key, String label, int digits,
+	private static <T> RemoteField<T> hex(String key, String label, int digits,
 		Function<T, EditableField<Integer>> field)
 	{
 		return new RemoteField<T>(key, "hex", label)
@@ -167,7 +174,7 @@ public class RemoteProperties
 	}
 
 	/** A choice of one of `values`, by their names. */
-	private static <T extends MapObject, E> RemoteField<T> choice(String key, String label, E[] values,
+	private static <T, E> RemoteField<T> choice(String key, String label, E[] values,
 		Function<T, EditableField<E>> field)
 	{
 		JsonArray options = names(Arrays.asList(values));
@@ -621,30 +628,9 @@ public class RemoteProperties
 			.get(obj -> new JsonPrimitive(obj.lightComponent.falloffType.ordinal()))
 			.set((obj, value) -> new SetFalloffType(obj.lightComponent, falloffs[value.getAsInt()])));
 		list.add(checkbox("lightEnabled", "Initially on", (Marker obj) -> obj.lightComponent.enabled).shown(light));
-		list.addAll(spriteShadingProperties(light));
 
 		list.addAll(cameraTargetProperties());
 		return list;
-	}
-
-	/**
-	 * The map's sprite shading, which its lights need in order to show. It belongs to the map rather than a light, so
-	 * it's only shown while one light is selected, which sets it once.
-	 */
-	private List<RemoteField<Marker>> spriteShadingProperties(Predicate<Marker> light)
-	{
-		Predicate<Marker> shaded = obj -> editor.map.features.hasSpriteShading.get();
-		return List.of(
-			RemoteProperties.<Marker> heading("shadingHeading", "Sprite shading").single().shown(light),
-			checkbox("hasShading", "Enable", (Marker obj) -> editor.map.features.hasSpriteShading)
-				.single().shown(light),
-			new RemoteField<Marker>("shadingColor", "color", "Base color")
-				.single().shown(light).shown(shaded)
-				.get(obj -> new JsonPrimitive(editor.map.features.shadingBaseColor.get() & 0xFFFFFF))
-				.set((obj, value) -> editor.map.features.shadingBaseColor.mutator(value.getAsInt() & 0xFFFFFF)),
-			integer("shadingOffset", "Edge offset", (Marker obj) -> editor.map.features.shadingOffset)
-				.single().shown(light).shown(shaded)
-				.set((obj, value) -> editor.map.features.shadingOffset.mutator(value.getAsInt() & 0xFF)));
 	}
 
 	private List<RemoteField<Marker>> npcProperties()
@@ -913,13 +899,158 @@ public class RemoteProperties
 		return (point.getName() != null) ? point.getName() : "point " + (point.getListIndex() + 1);
 	}
 
+	// ---- the map
+
+	/** The settings of the map itself, shown while nothing is selected. */
+	private static List<RemoteField<Map>> mapProperties()
+	{
+		List<RemoteField<Map>> list = new ArrayList<>();
+		Predicate<Map> world = map -> !Map.isStageName(map.getName());
+		list.add(new RemoteField<Map>("location", "choice", "Location")
+			.options(map -> names(Features.locationOptions(map.features.locationName.get())))
+			.get(map -> new JsonPrimitive(Features.locationIndex(map.features.locationName.get())))
+			.set((map, value) -> {
+				int index = value.getAsInt();
+				return map.features.locationName.mutator(Features.locationAt(map.features.locationName.get(), index));
+			}));
+		list.add(new RemoteField<Map>("tattle", "choice", "Tattle")
+			.options(map -> names(Features.tattleOptions(map.features.tattle.get())))
+			.get(map -> new JsonPrimitive(Features.tattleIndex(map.features.tattle.get())))
+			.set((map, value) -> map.features.tattle.mutator(
+				Features.tattleAt(map.features.tattle.get(), value.getAsInt()))));
+		list.add(new RemoteField<Map>("reverb", "choice", "Reverb")
+			.options(map -> names(Arrays.asList(Features.REVERB_NAMES)))
+			.get(map -> new JsonPrimitive(map.features.sfxReverb.get() & 3))
+			.set((map, value) -> map.features.sfxReverb.mutator(value.getAsInt())));
+		// only shown where the map already uses it, since a script can choose a song's variation instead
+		list.add(checkbox("songVariation", "Song variation", (Map map) -> map.features.songVariation)
+			.shown(map -> map.features.songVariation.get()));
+
+		list.add(heading("backgroundHeading", "Background"));
+		list.add(new RemoteField<Map>("hasBackground", "checkbox", "Use an image")
+			.get(map -> new JsonPrimitive(map.hasBackground))
+			.set((map, value) -> (value.getAsBoolean() != map.hasBackground) ? new ToggleBackground() : null));
+		list.add(new RemoteField<Map>("backgroundImage", "choice", "Image")
+			.shown(map -> map.hasBackground)
+			.options(map -> names(backgroundOptions(map)))
+			.get(map -> new JsonPrimitive(backgroundOptions(map).indexOf(map.bgName)))
+			.set((map, value) -> SetBackground.named(backgroundOptions(map).get(value.getAsInt()))));
+		// the image covers the color, so the color only matters without one
+		list.add(rgb("bgColor", "Color",
+			map -> List.of(map.features.bgColorR, map.features.bgColorG, map.features.bgColorB))
+			.shown(map -> !map.hasBackground));
+
+		list.add(heading("cameraHeading", "Camera"));
+		list.add(slider(integer("vfov", "Vertical FOV", (Map map) -> map.features.camVfov), 5, 120));
+		list.add(slider(range("clip", "Clip", new String[] { "Near", "Far" },
+			map -> map.features.camNearClip, map -> map.features.camFarClip), 1, 8192));
+		list.add(checkbox("leadPlayer", "Lead the player", (Map map) -> map.features.camLeadsPlayer));
+
+		list.addAll(fog("worldFog", "World fog", map -> map.features.worldFog));
+		list.addAll(fog("entityFog", "Entity fog", map -> map.features.entityFog));
+
+		for (RemoteField<Map> property : list)
+			property.shown(world);
+
+		Predicate<Map> shaded = map -> map.features.hasSpriteShading.get();
+		list.add(heading("lightingHeading", "Lighting"));
+		list.add(checkbox("spriteShading", "Sprite shading", (Map map) -> map.features.hasSpriteShading));
+		list.add(new RemoteField<Map>("shadingColor", "color", "Base color")
+			.shown(shaded)
+			.get(map -> new JsonPrimitive(map.features.shadingBaseColor.get() & 0xFFFFFF))
+			.set((map, value) -> map.features.shadingBaseColor.mutator(value.getAsInt() & 0xFFFFFF)));
+		list.add(slider(integer("shadingOffset", "Edge offset", (Map map) -> map.features.shadingOffset), 0, 255)
+			.shown(shaded)
+			.set((map, value) -> map.features.shadingOffset.mutator(value.getAsInt() & 0xFF)));
+		return list;
+	}
+
+	/** The project's backgrounds, and the map's if it isn't one of them, so it can still be shown. */
+	private static List<String> backgroundOptions(Map map)
+	{
+		List<String> names = new ArrayList<>(Map.getBackgroundNames());
+		if (map.bgName != null && !names.contains(map.bgName))
+			names.add(map.bgName);
+		return names;
+	}
+
+	/** A number that can also be dragged between `min` and `max`. */
+	private static <T> RemoteField<T> slider(RemoteField<T> number, int min, int max)
+	{
+		return number.extra("min", new JsonPrimitive(min)).extra("max", new JsonPrimitive(max));
+	}
+
+	private static List<RemoteField<Map>> fog(String key, String label, Function<Map, FogSettings> fog)
+	{
+		Predicate<Map> enabled = map -> fog.apply(map).enabled.get();
+		return List.of(
+			heading(key + "Heading", label),
+			checkbox(key + "Enabled", "Enable", (Map map) -> fog.apply(map).enabled),
+			rgb(key + "Color", "Color", map -> List.of(fog.apply(map).R, fog.apply(map).G, fog.apply(map).B))
+				.shown(enabled),
+			slider(range(key + "Distance", "Distance", new String[] { "Start", "End" },
+				map -> fog.apply(map).start, map -> fog.apply(map).end), 0, 1000).shown(enabled));
+	}
+
+	/**
+	 * Two numbers, the second of which can't be less than the first, so moving one past the other moves the other with
+	 * it, such as where fog starts and ends.
+	 */
+	private static RemoteField<Map> range(String key, String label, String[] components,
+		Function<Map, EditableField<Integer>> low, Function<Map, EditableField<Integer>> high)
+	{
+		return RemoteProperties.<Map> vector(key, label, components,
+			map -> new double[] { low.apply(map).get(), high.apply(map).get() },
+			(map, values) -> {
+				int lo = (int) Math.round(values[0]);
+				int hi = (int) Math.round(values[1]);
+				if (lo > hi) {
+					if (lo != low.apply(map).get())
+						hi = lo;
+					else
+						lo = hi;
+				}
+				CommandBatch batch = new CommandBatch("Set " + label);
+				batch.addCommand(low.apply(map).mutator(lo));
+				batch.addCommand(high.apply(map).mutator(hi));
+				return batch;
+			})
+			.extra("integer", new JsonPrimitive(true));
+	}
+
+	/** A color kept as a field for each of its red, green, and blue. */
+	private static RemoteField<Map> rgb(String key, String label, Function<Map, List<EditableField<Integer>>> channels)
+	{
+		return new RemoteField<Map>(key, "color", label)
+			.get(map -> {
+				List<EditableField<Integer>> c = channels.apply(map);
+				return new JsonPrimitive((c.get(0).get() << 16) | (c.get(1).get() << 8) | c.get(2).get());
+			})
+			.set((map, value) -> {
+				int color = value.getAsInt();
+				List<EditableField<Integer>> c = channels.apply(map);
+				CommandBatch batch = new CommandBatch("Set " + label);
+				batch.addCommand(c.get(0).mutator((color >> 16) & 0xFF));
+				batch.addCommand(c.get(1).mutator((color >> 8) & 0xFF));
+				batch.addCommand(c.get(2).mutator(color & 0xFF));
+				return batch;
+			});
+	}
+
 	// ---- sending and setting
 
-	/** What's selected: the selected objects, or in point selection mode, the selected points of paths. */
+	/**
+	 * What's selected: the selected objects, or in point selection mode, the selected points of paths. With no object
+	 * selected, it's a dx map or stage itself, whose settings the game reads from its features.json.
+	 */
 	private List<?> selection()
 	{
 		return switch (editor.selectionManager.getSelectionMode()) {
-			case OBJECT -> editor.selectionManager.getSelectedObjects();
+			case OBJECT -> {
+				List<?> objs = editor.selectionManager.getSelectedObjects();
+				boolean showMap = objs.isEmpty() && Environment.isDX();
+				yield showMap ? List.of(editor.map) : objs;
+			}
 			case POINT -> selectedPathPoints();
 			default -> List.of();
 		};
@@ -931,9 +1062,13 @@ public class RemoteProperties
 		List<RemoteField<?>> shown = new ArrayList<>();
 		if (objs.isEmpty())
 			return shown;
-		List<? extends RemoteField<?>> all = (objs.get(0) instanceof MapObject first)
-			? properties.getOrDefault(first.getObjectType(), List.of())
-			: pathPointProperties;
+		List<? extends RemoteField<?>> all;
+		if (objs.get(0) instanceof MapObject first)
+			all = properties.getOrDefault(first.getObjectType(), List.of());
+		else if (objs.get(0) instanceof Map)
+			all = mapProperties;
+		else
+			all = pathPointProperties;
 		for (RemoteField<?> property : all) {
 			if (property.single && objs.size() > 1)
 				continue;
@@ -962,7 +1097,11 @@ public class RemoteProperties
 		JsonObject message = new JsonObject();
 		message.addProperty("type", "properties");
 		if (!shown.isEmpty()) {
-			if (objs.get(0) instanceof PathPoint point) {
+			if (objs.get(0) instanceof Map map) {
+				message.addProperty("title", Map.getBaseName(map.getName()));
+				message.addProperty("subtitle", Map.isStageName(map.getName()) ? "Battle stage" : "Map");
+			}
+			else if (objs.get(0) instanceof PathPoint point) {
 				if (objs.size() == 1) {
 					message.addProperty("title", pointLabel(point));
 					message.addProperty("subtitle", "Path point");

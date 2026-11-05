@@ -284,9 +284,12 @@ public class AssetManager
 			assetMap.putIfAbsent(mapName, ah);
 	}
 
+	/** Every background image, leaving out the further palettes of one, such as sbk_bg.1.png for sbk_bg.png. */
 	public static Collection<AssetHandle> getBackgrounds() throws IOException
 	{
-		return getAssets(AssetSubdir.MAP_BG, EXT_PNG);
+		return getAssets(AssetSubdir.MAP_BG, EXT_PNG).stream()
+			.filter(asset -> !asset.getName().substring(0, asset.getName().length() - EXT_PNG.length()).contains("."))
+			.collect(Collectors.toList());
 	}
 
 	public static Collection<AssetHandle> getLegacyTextureArchives() throws IOException

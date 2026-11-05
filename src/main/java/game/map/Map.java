@@ -18,6 +18,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import javax.imageio.ImageIO;
+
 import org.apache.commons.io.FilenameUtils;
 import org.w3c.dom.Element;
 
@@ -28,6 +30,7 @@ import app.Directories;
 import app.Environment;
 import app.SwingUtils;
 import app.input.IOUtils;
+import assets.AssetHandle;
 import assets.AssetManager;
 import game.ProjectDatabase;
 import game.map.JsonFeatures.JsonMap;
@@ -1716,7 +1719,7 @@ public class Map implements XmlSerializable
 		{
 			super.exec();
 			m.hasBackground = !m.hasBackground;
-			MapEditor.instance().gui.hasBackgroundCheckbox.setSelected(m.hasBackground);
+			m.features.notifyGeneral.accept(null);
 		}
 
 		@Override
@@ -1724,12 +1727,45 @@ public class Map implements XmlSerializable
 		{
 			super.undo();
 			m.hasBackground = !m.hasBackground;
-			MapEditor.instance().gui.hasBackgroundCheckbox.setSelected(m.hasBackground);
+			m.features.notifyGeneral.accept(null);
 		}
+	}
+
+	private static List<String> backgroundNames = null;
+
+	/** The names of the project's background images, read once. */
+	public static List<String> getBackgroundNames()
+	{
+		if (backgroundNames == null) {
+			backgroundNames = new ArrayList<>();
+			try {
+				for (AssetHandle asset : AssetManager.getBackgrounds())
+					backgroundNames.add(FilenameUtils.getBaseName(asset.getName()));
+			}
+			catch (IOException e) {
+				Logger.logError("Couldn't list the backgrounds: " + e.getMessage());
+			}
+		}
+		return backgroundNames;
 	}
 
 	public static final class SetBackground extends AbstractCommand
 	{
+		/** Sets the background to the project's image with this name, or returns null if it can't be read. */
+		public static SetBackground named(String name)
+		{
+			try {
+				for (AssetHandle asset : AssetManager.getBackgrounds()) {
+					if (FilenameUtils.getBaseName(asset.getName()).equals(name))
+						return new SetBackground(name, ImageIO.read(asset));
+				}
+			}
+			catch (IOException e) {
+				Logger.logError("Couldn't read the background " + name + ": " + e.getMessage());
+			}
+			return null;
+		}
+
 		private final Map map;
 		private final String oldName;
 		private final String newName;
@@ -1762,6 +1798,7 @@ public class Map implements XmlSerializable
 			map.bgName = newName;
 			map.bgImage = newImage;
 			MapEditor.instance().needsBackgroundReload = true;
+			map.features.notifyGeneral.accept(null);
 		}
 
 		@Override
@@ -1771,6 +1808,7 @@ public class Map implements XmlSerializable
 			map.bgName = oldName;
 			map.bgImage = oldImage;
 			MapEditor.instance().needsBackgroundReload = true;
+			map.features.notifyGeneral.accept(null);
 		}
 	}
 
