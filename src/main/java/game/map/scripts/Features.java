@@ -56,6 +56,11 @@ public class Features extends UpdateProvider implements XmlSerializable
 
 	public EditableField<String> locationName;
 
+	// kept for papermario-dx, which reads them from features.json, though the editor has no controls for them
+	public String tattle;
+	public int songVariation;
+	public int sfxReverb;
+
 	public EditableField<Boolean> hasSpriteShading;
 	public EditableField<String> shadingProfileName;
 	public EditableField<Integer> shadingBaseColor;
@@ -184,6 +189,9 @@ public class Features extends UpdateProvider implements XmlSerializable
 		out.fogEntity = entityFog.pack();
 
 		out.locationName = locationName.get();
+		out.tattle = (tattle == null || tattle.isBlank()) ? null : tattle;
+		out.songVariation = (songVariation == 0) ? null : songVariation;
+		out.sfxReverb = (sfxReverb == 0) ? null : sfxReverb;
 
 		out.hasSpriteShading = hasSpriteShading.get();
 
@@ -233,6 +241,9 @@ public class Features extends UpdateProvider implements XmlSerializable
 			entityFog.load(in.fogEntity);
 
 		locationName.set(in.locationName != null ? in.locationName : "");
+		tattle = in.tattle;
+		songVariation = (in.songVariation != null) ? in.songVariation : 0;
+		sfxReverb = (in.sfxReverb != null) ? in.sfxReverb : 0;
 
 		hasSpriteShading.set(in.hasSpriteShading);
 

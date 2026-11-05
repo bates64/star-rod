@@ -142,9 +142,11 @@ public class Map implements XmlSerializable
 		else
 			texName = getExpectedTexFilename();
 
-		hasBackground = xmr.hasAttribute(mapElem, ATTR_MAP_BG);
-		if (hasBackground)
-			bgName = xmr.getAttribute(mapElem, ATTR_MAP_BG);
+		if (!(loadedJson && keepsBackgroundInFeatures())) {
+			hasBackground = xmr.hasAttribute(mapElem, ATTR_MAP_BG);
+			if (hasBackground)
+				bgName = xmr.getAttribute(mapElem, ATTR_MAP_BG);
+		}
 
 		lightSets = new IterableListModel<>();
 		Element lightsetList = xmr.getUniqueRequiredTag(mapElem, TAG_LIGHTSETS);
@@ -1828,6 +1830,12 @@ public class Map implements XmlSerializable
 		return false;
 	}
 
+	/** Whether the map keeps its background in its features.json, as a dx map does, rather than in its map.xml. */
+	private boolean keepsBackgroundInFeatures()
+	{
+		return Environment.isDX() && !isStageName(name);
+	}
+
 	private void tryLoadFeatures()
 	{
 		loadedJson = false;
@@ -1841,6 +1849,12 @@ public class Map implements XmlSerializable
 
 			features = new Features(this);
 			features.fromJson(in);
+
+			if (keepsBackgroundInFeatures()) {
+				hasBackground = in.background != null;
+				if (hasBackground)
+					bgName = in.background;
+			}
 
 			HashMap<Integer, Marker> idMap = new HashMap<>();
 
@@ -1886,6 +1900,8 @@ public class Map implements XmlSerializable
 
 		JsonMap out = new JsonMap();
 		features.toJson(out);
+		if (keepsBackgroundInFeatures() && hasBackground)
+			out.background = bgName;
 
 		List<JsonMarker> jsonMarkers = new ArrayList<>();
 		for (Marker m : markerTree.asBreadthFirst()) {

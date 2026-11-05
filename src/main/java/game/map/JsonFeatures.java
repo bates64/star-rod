@@ -55,6 +55,10 @@ public abstract class JsonFeatures
 		public String hitOverrideName;
 
 		public String locationName;
+		public String background;
+		public String tattle;
+		public Integer songVariation;
+		public Integer sfxReverb;
 		public Integer overrideEntryCount;
 
 		public int camVfov;
